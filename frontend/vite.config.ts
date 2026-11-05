@@ -6,6 +6,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [react(), tailwindcss()],
   build: { rollupOptions: { output: {
     manualChunks(id) {
+      if (id.includes('/node_modules/three/')) return 'three-vendor'
       if (id.includes('/node_modules/recharts/')) return 'charts'
       if (/\/node_modules\/(react|react-dom|scheduler)\//.test(id)) return 'react-runtime'
     },
