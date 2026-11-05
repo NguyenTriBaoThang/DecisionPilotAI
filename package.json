@@ -1,5 +1,8 @@
 {
-  "name":"decisionpilot-ai",
-  "private":true,
-  "scripts":{"dev":"sh scripts/dev.sh"}
+  "name": "decisionpilot-ai",
+  "private": true,
+  "scripts": {
+    "dev": "powershell -ExecutionPolicy Bypass -File scripts/dev.ps1",
+    "dev:sh": "sh scripts/dev.sh"
+  }
 }
