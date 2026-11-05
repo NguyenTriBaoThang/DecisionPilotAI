@@ -44,6 +44,7 @@ import {
 import { alertName } from './Dashboard'
 import { Button, Card, Chart, Empty, ErrorState, Heading, Loading, Pill, SectionTitle, Select, Source, Table } from './ui'
 import { Scenario3DLandscape } from './components/Scenario3DLandscape'
+export { ScenarioSimulator3D } from './features/scenario-simulator/components/ScenarioSimulator3D'
 
 const prompts = [
   'How is our business performing this month?',

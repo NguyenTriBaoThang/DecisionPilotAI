@@ -24,7 +24,8 @@ import {
 import { type Dataset, type Options, dateLabel, request } from './api'
 import { ErrorState, Loading } from './ui'
 import { Dashboard } from './Dashboard'
-import { Alerts, Ask, ForecastPage, Recommendations, Simulator, type ChatMessage } from './WorkspacePages'
+import { Alerts, Ask, ForecastPage, Recommendations, type ChatMessage } from './WorkspacePages'
+import { ScenarioSimulator3D } from './features/scenario-simulator/components/ScenarioSimulator3D'
 import { LandingPage } from './components/LandingPage'
 import { DataSourcesPage } from './components/DataSourcesPage'
 import { SettingsPage } from './components/SettingsPage'
@@ -225,7 +226,7 @@ function AppShell() {
               />
               <Route path="/anomalies" element={<Alerts dataset={ds.data} />} />
               <Route path="/forecast" element={<ForecastPage options={opts.data} />} />
-              <Route path="/scenarios" element={<Simulator options={opts.data} />} />
+              <Route path="/scenarios" element={<ScenarioSimulator3D options={opts.data} />} />
               <Route path="/recommendations" element={<Recommendations />} />
               <Route path="/data-sources" element={<DataSourcesPage dataset={ds.data} />} />
               <Route path="/settings" element={<SettingsPage dark={dark} setDark={setDark} />} />
