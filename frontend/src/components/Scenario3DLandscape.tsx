@@ -84,10 +84,10 @@ export function Scenario3DLandscape({
       const color = isRecommended
         ? 0x22c55e
         : isBaseline
-        ? 0x6366f1
-        : idx % 2 === 0
-        ? 0x8b5cf6
-        : 0x22d3ee
+          ? 0x6366f1
+          : idx % 2 === 0
+            ? 0x8b5cf6
+            : 0x22d3ee
 
       const mat = new THREE.MeshStandardMaterial({
         color,
@@ -188,11 +188,10 @@ export function Scenario3DLandscape({
                 setActiveIdx(idx)
                 onSelectVariant?.(String(variant.name))
               }}
-              className={`p-3 rounded-xl border text-left transition-all ${
-                activeIdx === idx
-                  ? 'border-indigo-400 bg-indigo-950/40 shadow-lg shadow-indigo-500/10'
-                  : 'border-slate-800 bg-slate-900/40 hover:border-slate-700'
-              }`}
+              className={`p-3 rounded-xl border text-left transition-all ${activeIdx === idx
+                ? 'border-indigo-400 bg-indigo-950/40 shadow-lg shadow-indigo-500/10'
+                : 'border-slate-800 bg-slate-900/40 hover:border-slate-700'
+                }`}
             >
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-200 truncate">{String(variant.name)}</span>
