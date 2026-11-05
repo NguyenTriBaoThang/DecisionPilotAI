@@ -1,0 +1,50 @@
+{
+  "price_replay": {
+    "baseline": {
+      "mae": 9.191536460064567,
+      "rmse": 11.512732096528872,
+      "wape": 0.20826744244859294,
+      "mape": 0.2407038101628676,
+      "bias": 0.23302180070308556,
+      "observations": 15
+    },
+    "scenario": {
+      "mae": 9.159508205744979,
+      "rmse": 11.393160262924994,
+      "wape": 0.20754172671627596,
+      "mape": 0.2404719228024705,
+      "bias": 0.21611639310064465,
+      "observations": 15
+    },
+    "target": "weekly observed P001 units",
+    "model": "lightgbm"
+  },
+  "marketing_replay": {
+    "baseline": {
+      "mae": 35640174.166666664,
+      "rmse": 55126995.16426187,
+      "wape": 0.2544298829340324,
+      "mape": 0.9850486104761965,
+      "bias": 19809174.166666668,
+      "observations": 15
+    },
+    "scenario": {
+      "mae": 46219011.482994705,
+      "rmse": 76538367.25321777,
+      "wape": 0.32995062330372665,
+      "mape": 1.3605675926687788,
+      "bias": 29839726.196410034,
+      "observations": 15
+    },
+    "target": "weekly Facebook Ads attributed revenue"
+  },
+  "inventory_replay": {
+    "target": "P003 closing stock depletion",
+    "weeks": 15,
+    "observed_depletion_weeks": 2,
+    "predicted_depletion_weeks": 2,
+    "matches": 15
+  },
+  "limitations": "Holdout seven-day conditional replay. Uses realized weekly prices, budgets and receipts as inputs. Interventions were not randomized. Inventory accuracy is uninformative when few weeks deplete.",
+  "dataset_id": "f32e87e3a5744333ff98d3bf"
+}

@@ -1,0 +1,78 @@
+{
+  "kind": "synthetic",
+  "title": "Synthetic retail & services demo",
+  "seed": 42,
+  "currency": "VND",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "injected_events": [
+    {
+      "metric": "revenue",
+      "start": "2026-07-22",
+      "end": "2026-07-27",
+      "rule": "Demand traffic \u00d7 0.75"
+    },
+    {
+      "metric": "revenue",
+      "start": "2026-09-03",
+      "end": "2026-09-30",
+      "rule": "Demand traffic \u00d7 0.59; HCMC SKU weights \u00d7 0.26; returning segment share 44% \u2192 20%"
+    },
+    {
+      "metric": "facebook_spend",
+      "start": "2026-09-03",
+      "end": "2026-09-30",
+      "rule": "Spend \u00d7 1.85"
+    },
+    {
+      "metric": "facebook_roas",
+      "start": "2026-09-03",
+      "end": "2026-09-30",
+      "rule": "Online Facebook attribution probability 25% \u2192 5.5%; spend \u00d7 1.85"
+    },
+    {
+      "metric": "facebook_conversion",
+      "start": "2026-09-03",
+      "end": "2026-09-30",
+      "rule": "Additional nonconverting leads and reduced attribution"
+    },
+    {
+      "metric": "stockout_event",
+      "start": "2026-07-12",
+      "end": "2026-08-18",
+      "rule": "Suspend FocusCam Pro replenishment for a historical supply interruption"
+    },
+    {
+      "metric": "stockout_risk",
+      "start": "2026-09-19",
+      "end": "2026-09-30",
+      "rule": "Suspend SmartDesk Mini replenishment"
+    },
+    {
+      "metric": "margin",
+      "start": "2026-09-27",
+      "end": "2026-09-30",
+      "rule": "Four promotional days with extra 10 percentage points of discounts"
+    }
+  ],
+  "status": "passed",
+  "counts": {
+    "calendar_events": 730,
+    "products": 50,
+    "customers": 10000,
+    "marketing_campaigns": 2920,
+    "sales_transactions": 50000,
+    "inventory_daily": 24820
+  },
+  "start": "2024-10-01",
+  "end": "2026-09-30",
+  "checks": [
+    "primary keys",
+    "foreign keys",
+    "calendar",
+    "sales formulas",
+    "inventory continuity",
+    "marketing attribution",
+    "customer reconciliation"
+  ],
+  "dataset_id": "f32e87e3a5744333ff98d3bf"
+}
