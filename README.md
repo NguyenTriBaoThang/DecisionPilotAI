@@ -1,7 +1,7 @@
 <div align="center">
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/NguyenTriBaoThang/DecisionPilotAI/main/frontend/public/favicon.svg" alt="DecisionPilot AI Logo" height="120" onerror="this.style.display='none'"/>
+  <img src="./assets/images/logo.png" alt="DecisionPilot AI Logo" height="200" />
 </p>
 
 <h1 align="center">DecisionPilot AI</h1>
@@ -59,6 +59,10 @@
   <img src="https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql" alt="PostgreSQL"/>
   <img src="https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite" alt="SQLite"/>
   <img src="https://img.shields.io/badge/Docker-Compose_v2-2496ED?logo=docker" alt="Docker"/>
+</p>
+
+<p align="center">
+  <img src="./assets/images/banner.png" alt="DecisionPilot AI Banner" width="100%" />
 </p>
 
 </div>
