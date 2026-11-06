@@ -274,12 +274,16 @@ function WorkspaceAccess() {
   return session.data ? <AppShell session={session.data} /> : null
 }
 
+const appBasename = typeof window !== 'undefined' && window.location.pathname.startsWith('/DecisionPilotAI')
+  ? '/DecisionPilotAI'
+  : undefined
+
 function Main() {
   return (
     <StrictMode>
       <QueryClientProvider client={client}>
         <PreferencesProvider>
-          <BrowserRouter><WorkspaceAccess /></BrowserRouter>
+          <BrowserRouter basename={appBasename}><WorkspaceAccess /></BrowserRouter>
         </PreferencesProvider>
       </QueryClientProvider>
     </StrictMode>

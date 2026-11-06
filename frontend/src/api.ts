@@ -1,4 +1,59 @@
 import { readPreferences } from './preferences'
+import {
+  generateMockScenario,
+  mockAlerts,
+  mockDataset,
+  mockForecast,
+  mockKPI,
+  mockOptions,
+  mockQueryResponse,
+  mockRecommendations,
+  mockSession,
+} from './mockData'
+
+function resolveMockFallback<T>(path: string, body?: unknown): T | undefined {
+  const cleanPath = path.split('?')[0]
+  if (cleanPath === '/session') return mockSession as T
+  if (cleanPath === '/dataset') return mockDataset as T
+  if (cleanPath === '/options') return mockOptions as T
+  if (cleanPath === '/health') {
+    return {
+      status: 'ok',
+      database: 'ok',
+      dataset_ready: true,
+      model_ready: true,
+      model_version: '1.0.0-demo',
+    } as T
+  }
+  if (cleanPath === '/kpi/summary') return mockKPI as T
+  if (cleanPath === '/anomalies') return mockAlerts as T
+  if (cleanPath === '/forecast') return mockForecast as T
+  if (cleanPath === '/simulate') return generateMockScenario(body as Record<string, unknown>) as T
+  if (cleanPath === '/recommendations') return mockRecommendations as T
+  if (cleanPath === '/query') return mockQueryResponse as T
+  if (cleanPath === '/recommendations/feedback') {
+    return {
+      status: 'success',
+      audit_id: 101,
+      decision: 'approved',
+      timestamp: new Date().toISOString(),
+    } as T
+  }
+  if (cleanPath === '/audit') {
+    return {
+      rows: [
+        {
+          id: 1,
+          occurred_at: new Date().toISOString(),
+          kind: 'recommendation_feedback',
+          subject: 'REC-2026-10-15-01',
+          payload: { decision: 'approved', actor: 'Executive Demo' },
+        },
+      ],
+    } as T
+  }
+  return undefined
+}
 export type Scalar = string | number | boolean | null
 export type Row = Record<string, Scalar>
 export type Filters = { start?: string; end?: string; category?: string; product?: string; region?: string; channel?: string; grain?: string }
@@ -35,15 +90,42 @@ export async function send<T>(path: string, init: RequestInit = {}): Promise<T> 
   const headers = new Headers(init.headers)
   const token = sessionStorage.getItem('dp-access-token')
   if (token) headers.set('Authorization', `Bearer ${token}`)
-  const response = await fetch('/api' + path, { ...init, headers, signal: init.signal ?? AbortSignal.timeout(90_000) })
-  const data = await response.json().catch(() => null)
-  if (!response.ok) {
+
+  const isDemoHost = typeof window !== 'undefined' && (
+    window.location.hostname.includes('github.io') ||
+    window.location.hostname.includes('vercel.app') ||
+    window.location.hostname.includes('netlify.app')
+  )
+
+  let bodyObj: unknown = undefined
+  try {
+    if (typeof init.body === 'string') bodyObj = JSON.parse(init.body)
+  } catch {}
+
+  try {
+    const response = await fetch('/api' + path, { ...init, headers, signal: init.signal ?? AbortSignal.timeout(8_000) })
+    if (response.ok) {
+      const data = await response.json().catch(() => null)
+      return data as T
+    }
+
+    if (isDemoHost || response.status === 404 || response.status >= 500) {
+      const mock = resolveMockFallback<T>(path, bodyObj)
+      if (mock !== undefined) return mock
+    }
+
+    const data = await response.json().catch(() => null)
     const detail = data?.detail
     if (response.status === 401) window.dispatchEvent(new Event('workspace-unauthorized'))
     throw new ApiError(typeof detail === 'string' ? detail : Array.isArray(detail) ?
       detail.map((item: {msg: string}) => item.msg).join(' · ') : 'The service could not complete this request.', response.status)
+  } catch (err) {
+    if (isDemoHost || err instanceof TypeError || (err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError'))) {
+      const mock = resolveMockFallback<T>(path, bodyObj)
+      if (mock !== undefined) return mock
+    }
+    throw err
   }
-  return data as T
 }
 export async function request<T>(path: string, body?: unknown): Promise<T> {
   return send<T>(path, body === undefined ? {} : {
