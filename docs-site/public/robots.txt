@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://nguyentribaothang.github.io/DecisionPilotAI/sitemap.xml
+
