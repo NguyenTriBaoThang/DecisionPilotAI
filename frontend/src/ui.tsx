@@ -4,6 +4,7 @@ import { Area, Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Too
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { compact, decimal, label, percent, shortDate, type Row } from './api'
+import { translate, usePreferences } from './preferences'
 
 export const cn = (...values: ClassValue[]) => twMerge(clsx(values))
 
@@ -50,6 +51,7 @@ export function Heading({
   subtitle: string
   aside?: ReactNode
 }) {
+  const { preferences } = usePreferences()
   return (
     <div className="page-heading flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2 border-b border-indigo-500/10">
       <div>
@@ -57,7 +59,7 @@ export function Heading({
           <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 shadow-sm shadow-cyan-400 animate-pulse" />
           <span>{eyebrow}</span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">{title}</h1>
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">{translate(title, preferences.language)}</h1>
         <p className="text-sm text-slate-400 mt-1 max-w-2xl">{subtitle}</p>
       </div>
       {aside && <div className="flex-shrink-0">{aside}</div>}
@@ -74,10 +76,11 @@ export function SectionTitle({
   detail?: string
   aside?: ReactNode
 }) {
+  const { preferences } = usePreferences()
   return (
     <div className="section-heading flex items-center justify-between gap-4 pb-3 mb-2 border-b border-indigo-500/10">
       <div>
-        <h2 className="text-base font-bold text-white tracking-tight">{title}</h2>
+        <h2 className="text-base font-bold text-white tracking-tight">{translate(title, preferences.language)}</h2>
         {detail && <p className="text-xs text-slate-400 mt-0.5">{detail}</p>}
       </div>
       {aside && <div className="flex-shrink-0">{aside}</div>}

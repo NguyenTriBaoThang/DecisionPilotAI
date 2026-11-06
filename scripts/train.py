@@ -13,7 +13,7 @@ from ai_service.forecasting import train_forecasts
 from backend.app.analytics import dataset_info
 from backend.app.db import ARTIFACTS, make_engine, read_connection
 
-VERSION = "dp-1.0"
+VERSION = "dp-1.1"
 
 
 def train(engine, out, build_features=True):

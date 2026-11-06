@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useState } from 'react'
+import { StrictMode, Suspense, lazy, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
@@ -21,12 +21,13 @@ import {
   Sun,
   X,
 } from 'lucide-react'
-import { type Dataset, type Options, dateLabel, request } from './api'
+import { type Dataset, type Options, type Session, ApiError, dateLabel, request } from './api'
+import { PreferencesProvider, translate, usePreferences } from './preferences'
 import { ErrorState, Loading } from './ui'
 import { Dashboard } from './Dashboard'
 import { Alerts, Ask, ForecastPage, Recommendations, type ChatMessage } from './WorkspacePages'
-import { ScenarioSimulator3D } from './features/scenario-simulator/components/ScenarioSimulator3D'
-import { LandingPage } from './components/LandingPage'
+const ScenarioSimulator3D = lazy(() => import('./features/scenario-simulator/components/ScenarioSimulator3D').then(module => ({ default: module.ScenarioSimulator3D })))
+const LandingPage = lazy(() => import('./components/LandingPage').then(module => ({ default: module.LandingPage })))
 import { DataSourcesPage } from './components/DataSourcesPage'
 import { SettingsPage } from './components/SettingsPage'
 import './styles.css'
@@ -46,7 +47,8 @@ const client = new QueryClient({
   defaultOptions: { queries: { staleTime: 60_000, retry: 1, refetchOnWindowFocus: false } },
 })
 
-function AppShell() {
+function AppShell({ session }: { session: Session }) {
+  const { preferences } = usePreferences()
   const [dark, setDark] = useState(() => localStorage.getItem('dp-theme') !== 'light')
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -76,7 +78,7 @@ function AppShell() {
   useEffect(() => setMessages([]), [ds.data?.dataset_id])
 
   if (pathname === '/landing') {
-    return <LandingPage />
+    return <Suspense fallback={<Loading />}><LandingPage /></Suspense>
   }
 
   const active = sections.find((s) => s.to === pathname)?.title
@@ -129,7 +131,7 @@ function AppShell() {
               }
             >
               <Icon size={17} />
-              <span>{title}</span>
+              <span>{translate(title, preferences.language)}</span>
             </NavLink>
           ))}
         </nav>
@@ -187,14 +189,14 @@ function AppShell() {
               DecisionPilot
             </Link>
             <span className="text-slate-600">/</span>
-            <strong className="text-white font-bold">{active || 'Workspace'}</strong>
+            <strong className="text-white font-bold">{translate(active || 'Workspace', preferences.language)}</strong>
           </div>
 
           <div className="top-actions flex items-center gap-3">
             {ds.data && (
               <span className="dataset-chip inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-950/40 px-3 py-1 text-xs font-semibold text-slate-200">
                 <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                <span>{ds.data.kind === 'synthetic' ? 'Synthetic Demo (50k Orders)' : 'Imported Data'}</span>
+                <span>{ds.data.kind === 'synthetic' ? 'Synthetic Demo' : 'Imported Data'}</span>
               </span>
             )}
             <button
@@ -217,8 +219,10 @@ function AppShell() {
             }}
           />
 
+          {!ds.isLoading && !ds.data && <Link to="/data-sources">Open Data Sources to import a dataset</Link>}
+          {pathname === '/data-sources' && !ds.data && !ds.isLoading && <DataSourcesPage session={session} />}
           {ds.data && opts.data && (
-            <Routes>
+            <Routes key={ds.data.dataset_id}>
               <Route path="/" element={<Dashboard dataset={ds.data} options={opts.data} />} />
               <Route
                 path="/ask"
@@ -226,10 +230,10 @@ function AppShell() {
               />
               <Route path="/anomalies" element={<Alerts dataset={ds.data} />} />
               <Route path="/forecast" element={<ForecastPage options={opts.data} />} />
-              <Route path="/scenarios" element={<ScenarioSimulator3D options={opts.data} />} />
+              <Route path="/scenarios" element={<Suspense fallback={<Loading />}><ScenarioSimulator3D options={opts.data} /></Suspense>} />
               <Route path="/recommendations" element={<Recommendations />} />
-              <Route path="/data-sources" element={<DataSourcesPage dataset={ds.data} />} />
-              <Route path="/settings" element={<SettingsPage dark={dark} setDark={setDark} />} />
+              <Route path="/data-sources" element={<DataSourcesPage dataset={ds.data} session={session} />} />
+              <Route path="/settings" element={<SettingsPage dark={dark} setDark={setDark} session={session} />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           )}
@@ -239,13 +243,44 @@ function AppShell() {
   )
 }
 
+function WorkspaceAccess() {
+  const [token, setToken] = useState('')
+  const [needsLogin, setNeedsLogin] = useState(false)
+  const session = useQuery({ queryKey: ['session'], queryFn: () => request<Session>('/session'), retry: false })
+  useEffect(() => {
+    const denied = () => setNeedsLogin(true)
+    window.addEventListener('workspace-unauthorized', denied)
+    return () => window.removeEventListener('workspace-unauthorized', denied)
+  }, [])
+  if (needsLogin || session.error instanceof ApiError && session.error.status === 401) {
+    return <main className="p-8 max-w-lg mx-auto space-y-4">
+      <h1>Workspace sign in</h1>
+      <p>Enter the access token issued by your workspace administrator.</p>
+      <form onSubmit={event => {
+        event.preventDefault()
+        sessionStorage.setItem('dp-access-token', token.trim())
+        client.clear()
+        setNeedsLogin(false)
+        setToken('')
+        void session.refetch()
+      }} className="space-y-4">
+        <label className="field"><span>Access token</span><input type="password" autoComplete="off" required value={token} onChange={e => setToken(e.target.value)} /></label>
+        <button type="submit" className="button primary">Sign in</button>
+      </form>
+    </main>
+  }
+  if (session.isLoading) return <Loading />
+  if (session.error) return <ErrorState error={session.error} retry={() => void session.refetch()} />
+  return session.data ? <AppShell session={session.data} /> : null
+}
+
 function Main() {
   return (
     <StrictMode>
       <QueryClientProvider client={client}>
-        <BrowserRouter>
-          <AppShell />
-        </BrowserRouter>
+        <PreferencesProvider>
+          <BrowserRouter><WorkspaceAccess /></BrowserRouter>
+        </PreferencesProvider>
       </QueryClientProvider>
     </StrictMode>
   )

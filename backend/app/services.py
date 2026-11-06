@@ -1,6 +1,7 @@
 """Application services for analytics, models and the decision workflow."""
 from datetime import date, timedelta
 from functools import lru_cache
+import json
 
 import joblib
 import sqlalchemy as sa
@@ -85,7 +86,43 @@ def forecast(conn, info, request):
                   recent_stockout_sku_days=stockouts,stockout_note=(
                       f"{stockouts} physical SKU-days ended with zero stock in the recent 30 days. Forecast is based on observed sales, which can understate unconstrained demand."
                       if stockouts else "Forecast uses observed sales. Unobserved lost demand is outside the target."))
+    report = result["metrics"]
+    warnings = []
+    if report["test_coverage"] < report.get("nominal_coverage", .90):
+        warnings.append("Observed holdout coverage is below the nominal interval target. Allow extra contingency when planning.")
+    if (report["test"][report["selected"]].get("wape") or 0) > .30:
+        warnings.append("Holdout WAPE exceeds 30%; this forecast needs additional review before operational use.")
+    if not report.get("calibration_independent", False):
+        warnings.append("Model selection and interval calibration share validation data in this artifact.")
+    warnings.append("Daily intervals do not establish a confidence interval for the forecast total.")
+    result["warnings"] = warnings
     return result
+
+
+def model_quality(info):
+    bundle = artifact(info)
+    report = bundle.get("report", {}) if bundle else {}
+    signals = []
+    for metric, methods in report.get("anomaly", {}).items():
+        score = methods.get("hybrid", methods.get("business_rule", {}))
+        labeled = score.get("tp", 0)+score.get("fn", 0) > 0
+        signals.append({"metric": metric, **score,
+                        "status": "unverified" if not labeled else "limited" if score.get("f1", 0)<.70 else "evaluated"})
+    replay = None
+    path = ARTIFACTS / "scenario_backtest.json"
+    if path.is_file():
+        try:
+            candidate = json.loads(path.read_text(encoding="utf-8"))
+            if candidate.get("dataset_id") == info["dataset_id"]:
+                replay = candidate
+        except (ValueError, OSError):
+            pass
+    return {"dataset_id": info["dataset_id"], "dataset_kind": info["kind"],
+            "model_version": bundle["version"] if bundle else None, "anomaly": signals,
+            "scenario_replay": replay,
+            "limitations": ["Synthetic evaluations do not establish accuracy on a real business.",
+                            "Anomaly scores describe historical tests, not probabilities that an individual alert is correct.",
+                            "Scenario effects are conditional assumptions; randomized trials are needed for causal claims."]}
 
 
 def alerts(conn, info, start=None, end=None):
@@ -112,7 +149,20 @@ def simulate(conn,info,request):
         f = forecast(conn,info,ForecastRequest(target="demand",product=request.parameters.product,horizon=request.horizon))
         values = (scenario.price_scenario(conn,info,request,f) if request.type == "price" else
                   scenario.inventory_scenario(conn,request,f))
-    return scenario.compare(request.type,request.objective,*values)
+    result = scenario.compare(request.type,request.objective,*values)
+    result["evidence"]["parameters"] = request.model_dump(mode="json")
+    if request.type != "marketing":
+        result["evidence"]["model_version"] = f["model_version"]
+        result["evidence"]["forecast_metrics"] = f["metrics"]
+        result["assumptions"].extend(f["warnings"])
+    result["assumptions"].append("Scenario estimates are conditional, not verified causal effects. Validate with a controlled trial before acting.")
+    if request.type == "marketing":
+        replay = model_quality(info)["scenario_replay"]
+        score = (replay or {}).get("marketing_replay", {})
+        baseline, simulated = score.get("baseline", {}).get("wape"), score.get("scenario", {}).get("wape")
+        if baseline is not None and simulated is not None and simulated > baseline:
+            result["assumptions"].append(f"Historical marketing replay underperformed its baseline (WAPE {simulated:.1%} versus {baseline:.1%}). Treat this as exploratory sensitivity analysis.")
+    return result
 
 
 def recommendations(conn,info):
@@ -160,4 +210,11 @@ def recommendations(conn,info):
                 risk="Changing price without testing can reduce margin.",uncertainty="Insufficient evidence for an incremental impact estimate.",
                 priority="high",score=65,evidence={"driver":driver,"revenue_delta":analysis["delta"],
                                                    "current":analysis["current"],"prior":analysis["prior"],"source":["sales_transactions","products"]}))
+    quality = {row["metric"]: row for row in model_quality(info)["anomaly"]}
+    for row in result:
+        metric = row["evidence"].get("alert", {}).get("metric")
+        measured = quality.get(metric)
+        if measured and measured["status"] != "evaluated":
+            row["assumptions"].append("The underlying alert has limited or unverified historical detection performance. Independently verify the source data before acting.")
+            row["uncertainty"] += " Underlying alert performance is limited or unverified."
     return sorted(result,key=lambda row:(-row["score"],row["id"]))

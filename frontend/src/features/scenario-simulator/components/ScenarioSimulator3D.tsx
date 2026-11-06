@@ -74,7 +74,6 @@ const tabConfigs: TabConfig[] = [
 ]
 
 export function ScenarioSimulator3D({ options }: { options: Options }) {
-  const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<SimulatorTab>('pricing')
   const [mode, setMode] = useState<InteractionMode>('focus')
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -85,28 +84,8 @@ export function ScenarioSimulator3D({ options }: { options: Options }) {
     queryFn: () => request<KPI>('/kpi/summary?grain=daily'),
   })
 
-  // 2. Fetch real active Recommendations
-  const recQuery = useQuery({
-    queryKey: ['simulator-recommendations'],
-    queryFn: () => request<{ rows: Recommendation[]; dataset_id: string }>('/recommendations'),
-  })
-
-  // 3. Real Scenario Simulation Mutation
   const simulateMutation = useMutation({
     mutationFn: (values: unknown) => request<Scenario>('/simulate', values),
-  })
-
-  // 4. Recommendation Decision Feedback Mutation
-  const feedbackMutation = useMutation({
-    mutationFn: ({ id, decision }: { id: string; decision: string }) =>
-      request('/recommendations/feedback', {
-        recommendation_id: id,
-        decision,
-        dataset_id: recQuery.data?.dataset_id,
-      }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['simulator-recommendations'] })
-    },
   })
 
   // Default initial simulation on mount
@@ -160,7 +139,7 @@ export function ScenarioSimulator3D({ options }: { options: Options }) {
       parameters: {
         product: params.product,
         discounts: params.discounts,
-        ...(params.elasticity ? { elasticity: params.elasticity } : {}),
+        ...(params.elasticity !== undefined ? { elasticity: params.elasticity } : {}),
       },
     })
   }
@@ -202,12 +181,11 @@ export function ScenarioSimulator3D({ options }: { options: Options }) {
         order_quantities: params.orderQuantities,
         incoming_stock: params.incomingStock,
         arrival_day: params.arrivalDay,
-        ...(params.safetyStock ? { safety_stock: params.safetyStock } : {}),
+        ...(params.safetyStock !== undefined ? { safety_stock: params.safetyStock } : {}),
       },
     })
   }
 
-  const activeRecommendation = recQuery.data?.rows?.[0] || null
 
   return (
     <div
@@ -369,7 +347,7 @@ export function ScenarioSimulator3D({ options }: { options: Options }) {
                 options={options}
                 onSimulatePrice={handleSimulatePrice}
                 isLoading={simulateMutation.isPending}
-                scenarioData={simulateMutation.data}
+                scenarioData={simulateMutation.data?.type === 'price' ? simulateMutation.data : undefined}
               />
             </HolographicPanel>
 
@@ -387,7 +365,7 @@ export function ScenarioSimulator3D({ options }: { options: Options }) {
                 options={options}
                 onSimulateMarketing={handleSimulateMarketing}
                 isLoading={simulateMutation.isPending}
-                scenarioData={simulateMutation.data}
+                scenarioData={simulateMutation.data?.type === 'marketing' ? simulateMutation.data : undefined}
               />
             </HolographicPanel>
 
@@ -405,7 +383,7 @@ export function ScenarioSimulator3D({ options }: { options: Options }) {
                 options={options}
                 onSimulateInventory={handleSimulateInventory}
                 isLoading={simulateMutation.isPending}
-                scenarioData={simulateMutation.data}
+                scenarioData={simulateMutation.data?.type === 'inventory' ? simulateMutation.data : undefined}
               />
             </HolographicPanel>
 
@@ -421,10 +399,8 @@ export function ScenarioSimulator3D({ options }: { options: Options }) {
             >
               <RecommendationsTab
                 scenarioData={simulateMutation.data}
-                activeRecommendation={activeRecommendation}
-                onAcceptDecision={(id) => feedbackMutation.mutate({ id, decision: 'accepted' })}
-                onRejectDecision={(id) => feedbackMutation.mutate({ id, decision: 'rejected' })}
-                isSubmittingFeedback={feedbackMutation.isPending}
+                key={simulateMutation.data?.simulation_id || 'empty'}
+                isSimulating={simulateMutation.isPending || simulateMutation.isError}
               />
             </HolographicPanel>
           </div>

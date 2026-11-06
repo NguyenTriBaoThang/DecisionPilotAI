@@ -23,7 +23,7 @@ jobs:
         with:
           node-version: 22
           cache: 'npm'
-          cache-dependency-path: 'frontend/package.json'
+          cache-dependency-path: 'frontend/package-lock.json'
 
       - name: Install dependencies
         working-directory: frontend
@@ -33,10 +33,41 @@ jobs:
         working-directory: frontend
         run: npm run build
 
+      - name: Frontend workflow regression tests
+        working-directory: frontend
+        run: npm test
+
+      - name: Audit frontend dependencies
+        working-directory: frontend
+        run: npm audit --audit-level=high
+
   backend-check:
-    name: Backend Tests & Database Migrations
+    name: Backend Tests (${{ matrix.database }})
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - database: sqlite
+            url: ''
+          - database: postgresql
+            url: postgresql+psycopg://decisionpilot:test-only@localhost:5432/decisionpilot
+    env:
+      DATABASE_URL: ${{ matrix.url }}
+      TEST_DATABASE_URL: ${{ matrix.url }}
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: decisionpilot
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: decisionpilot
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U decisionpilot -d decisionpilot"
+          --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -53,7 +84,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Alembic migrations against SQLite
+      - name: Run Alembic migrations
         run: python -m alembic upgrade head
 
       - name: Bootstrap synthetic demo dataset
@@ -64,6 +95,31 @@ jobs:
 
       - name: Validate data pipeline integrity
         run: python -m scripts.pipeline validate
+
+  browser-workflow:
+    name: Browser decision workflow
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: pip install -r requirements.txt
+      - run: npm ci
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npm run test:e2e
+        working-directory: frontend
+        env:
+          E2E_PYTHON: python
 
   docker-build-check:
     name: Docker Build Validation

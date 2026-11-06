@@ -1,18 +1,25 @@
 import { useState } from 'react'
 import { Check, Moon, Sliders, Sun, UserCheck } from 'lucide-react'
 import { Button, Card, Heading, Pill, SectionTitle } from '../ui'
+import { type Session } from '../api'
+import { usePreferences, translate, type Preferences } from '../preferences'
 
 interface SettingsPageProps {
   dark: boolean
   setDark: (val: boolean) => void
+  session: Session
 }
 
-export function SettingsPage({ dark, setDark }: SettingsPageProps) {
-  const [currencyFormat, setCurrencyFormat] = useState('vnd')
-  const [language, setLanguage] = useState('en')
+export function SettingsPage({ dark, setDark, session }: SettingsPageProps) {
+  const { preferences, save } = usePreferences()
+  const [currencyFormat, setCurrencyFormat] = useState<Preferences['currency']>(preferences.currency)
+  const [language, setLanguage] = useState<Preferences['language']>(preferences.language)
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   const handleSave = () => {
+    try { save({ currency: currencyFormat, language }); setSaveError('') }
+    catch { setSaveError('Preferences could not be saved. Check browser storage permissions.'); return }
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
@@ -82,15 +89,15 @@ export function SettingsPage({ dark, setDark }: SettingsPageProps) {
           <div className="space-y-4 pt-2">
             <label className="field">
               <span>Currency Display Mode</span>
-              <select value={currencyFormat} onChange={(e) => setCurrencyFormat(e.target.value)}>
+              <select value={currencyFormat} onChange={(e) => { setCurrencyFormat(e.target.value as Preferences['currency']); setSaved(false) }}>
                 <option value="vnd">Vietnamese Dong (₫ VND Integer)</option>
                 <option value="compact">Compact Formatted (₫2.4M / ₫1.8B)</option>
               </select>
             </label>
 
             <label className="field">
-              <span>Interface Language</span>
-              <select value={language} onChange={(e) => setLanguage(e.target.value)}>
+              <span>Language for navigation, page titles and number formatting</span>
+              <select value={language} onChange={(e) => { setLanguage(e.target.value as Preferences['language']); setSaved(false) }}>
                 <option value="en">English (Official Competition Language)</option>
                 <option value="vi">Tiếng Việt (Vietnamese SME Context)</option>
               </select>
@@ -112,11 +119,11 @@ export function SettingsPage({ dark, setDark }: SettingsPageProps) {
           <div className="space-y-3 pt-1 text-xs">
             <div className="flex justify-between py-2 border-b border-slate-800">
               <span className="text-slate-400">Active Profile:</span>
-              <span className="font-semibold text-white">Executive Administrator / Business Analyst</span>
+              <span className="font-semibold text-white">{session.actor} / {session.role}</span>
             </div>
             <div className="flex justify-between py-2 border-b border-slate-800">
               <span className="text-slate-400">Workspace Mode:</span>
-              <Pill tone="success">STANDALONE LOCAL WORKSPACE</Pill>
+              <Pill tone="success">{session.authentication === 'token' ? 'AUTHENTICATED WORKSPACE' : 'LOCAL DEMO · NO SIGN IN'}</Pill>
             </div>
             <div className="flex justify-between py-2">
               <span className="text-slate-400">Audit Trail Logging:</span>
@@ -145,16 +152,18 @@ export function SettingsPage({ dark, setDark }: SettingsPageProps) {
             </div>
             <div className="flex justify-between py-2">
               <span className="text-slate-400">Model Artifact Version:</span>
-              <span className="font-mono text-emerald-400 font-bold">dp-1.0</span>
+              <span className="text-slate-300">See active version in Data Sources</span>
             </div>
           </div>
         </Card>
       </div>
 
       <div className="flex justify-end pt-4">
+        {session.authentication === 'token' && <Button onClick={() => { sessionStorage.removeItem('dp-access-token'); window.location.reload() }}>Sign out</Button>}
+        {saveError && <p role="alert">{saveError}</p>}
         <Button className="primary flex items-center gap-2" onClick={handleSave}>
           {saved ? <Check size={16} /> : null}
-          <span>{saved ? 'Preferences Saved' : 'Save Preferences'}</span>
+          <span>{translate(saved ? 'Preferences Saved' : 'Save Preferences', preferences.language)}</span>
         </Button>
       </div>
     </>

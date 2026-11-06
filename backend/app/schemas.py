@@ -117,6 +117,12 @@ class Feedback(Strict):
     decision: Literal["accepted","rejected"]
 
 
+class ScenarioFeedback(Strict):
+    simulation_id: Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
+    dataset_id: Annotated[str, Field(pattern=r"^[a-f0-9]{24}$")]
+    decision: Literal["accepted", "rejected"]
+
+
 class QueryResponse(BaseModel):
     answer: str
     intent: Intent

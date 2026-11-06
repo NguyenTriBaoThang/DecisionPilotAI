@@ -26,7 +26,7 @@ def metrics(actual, predicted):
                 bias=float(error.mean()), observations=int(error.size))
 
 
-def predict(model, scale, history, start, steps):
+def predict(model, scale, history, start, steps, holidays=None):
     if history.shape[1] < LOOKBACK:
         raise ValueError("At least 28 observed days are required.")
     window = np.asarray(history[:, -LOOKBACK:], dtype=float)
@@ -34,14 +34,15 @@ def predict(model, scale, history, start, steps):
     for lead in range(steps):
         predictions["seasonal_naive"].append(history[:, -7+lead%7])
         predictions["moving_average"].append(history[:, -14:].mean(axis=1))
-        x = lag_features(window, start+timedelta(days=lead), scale)
+        day = start+timedelta(days=lead)
+        x = lag_features(window, day, scale, (holidays or {}).get(day))
         point = np.maximum(0, model.booster_.predict(x, num_threads=1)*scale)
         predictions["lightgbm"].append(point)
         window = np.column_stack((window[:,1:],point))
     return {name: np.asarray(rows).T for name,rows in predictions.items()}
 
 
-def evaluate_origins(matrix, dates, model, scale, start, stop, horizon):
+def evaluate_origins(matrix, dates, model, scale, start, stop, horizon, holidays=None):
     stride = 7 if horizon == 7 else 14
     origins = list(range(start,stop-horizon+1,stride))
     if origins and origins[-1] != stop-horizon:
@@ -49,7 +50,7 @@ def evaluate_origins(matrix, dates, model, scale, start, stop, horizon):
     if not origins:
         raise ValueError("Validation and test must each include at least 30 days. Use at least 201 historical days.")
     ys = np.stack([matrix[:,o:o+horizon] for o in origins],axis=1)
-    predicted = [predict(model,scale,matrix[:,:o],dates[o],horizon) for o in origins]
+    predicted = [predict(model,scale,matrix[:,:o],dates[o],horizon,holidays) for o in origins]
     return ys, {name: np.stack([p[name] for p in predicted], axis=1) for name in MODELS}, origins
 
 
@@ -74,14 +75,18 @@ def train_forecasts(dates, labels, matrices, holidays):
                          key=lambda entry: -entry[1])[:6]
         series = {}
         for horizon in HORIZONS:
-            val_y,val_p,_ = evaluate_origins(matrix,dates,model,scale,train_end,validation_end,horizon)
-            test_y,test_p,origins = evaluate_origins(matrix,dates,model,scale,validation_end,len(dates),horizon)
+            independent = validation_end-train_end >= 2*horizon
+            selection_end = (train_end+validation_end)//2 if independent else validation_end
+            val_y,val_p,_ = evaluate_origins(matrix,dates,model,scale,train_end,selection_end,horizon,holidays)
+            cal_y,cal_p,cal_origins = evaluate_origins(matrix,dates,model,scale,
+                selection_end if independent else train_end,validation_end,horizon,holidays)
+            test_y,test_p,origins = evaluate_origins(matrix,dates,model,scale,validation_end,len(dates),horizon,holidays)
             for j,label in enumerate(labels):
                 v = {name:metrics(val_y[j],data[j]) for name,data in val_p.items()}
                 t = {name:metrics(test_y[j],data[j]) for name,data in test_p.items()}
                 baseline = min(MODELS[:2],key=lambda name:v[name]["mae"])
                 chosen = "lightgbm" if v["lightgbm"]["mae"] < .98*v[baseline]["mae"] else baseline
-                residuals = np.abs(val_y[j]-val_p[chosen][j])
+                residuals = np.abs(cal_y[j]-cal_p[chosen][j])
                 radii = [(7,calibrate(residuals[:,:7]))]
                 if horizon == 30:
                     radii.append((30,calibrate(residuals[:,7:])))
@@ -89,7 +94,10 @@ def train_forecasts(dates, labels, matrices, holidays):
                 coverage = float((np.abs(test_y[j]-test_p[chosen][j]) <= width).mean())
                 report = dict(target=target,scope=label,horizon=horizon,selected=chosen,validation=v,test=t,
                               nominal_coverage=NOMINAL, test_coverage=coverage, validation_residual_count=int(residuals.size),
-                              test_origins=len(origins))
+                              test_origins=len(origins), calibration_independent=independent,
+                              calibration_origins=len(cal_origins),
+                              selection_range=[str(dates[train_end]),str(dates[selection_end-1])],
+                              calibration_range=[str(dates[selection_end if independent else train_end]),str(dates[validation_end-1])])
                 series[(label,horizon)] = {"selected":chosen,"radii":radii,"report":report}
                 evaluation.append(report)
                 if horizon == 30 and label in {"all","sku:P001"}:

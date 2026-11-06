@@ -214,7 +214,7 @@ class SnapshotConflict(ValueError):
     pass
 
 
-def load_snapshot(engine, data, manifest, *, expected_id=None):
+def load_snapshot(engine, data, manifest, *, expected_id=None, actor="local-pipeline"):
     info = snapshot_metadata(data, manifest)
     with engine.begin() as conn:
         if conn.dialect.name == "postgresql":
@@ -237,7 +237,7 @@ def load_snapshot(engine, data, manifest, *, expected_id=None):
         conn.execute(datasets.delete())
         conn.execute(datasets.insert().values(id=1, payload=info))
         conn.execute(audit.insert().values(kind="dataset_loaded", subject=info["dataset_id"],
-                                           payload={k: info[k] for k in ("kind","counts","start","end")}))
+                                           payload={**{k: info[k] for k in ("kind","counts","start","end")}, "actor": actor}))
     return info
 
 

@@ -102,7 +102,15 @@ audit = sa.Table(
     C("occurred_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
     label("kind"), C("subject", sa.String(100), nullable=False), C("payload", sa.JSON, nullable=False),
 )
+sa.Index("ix_audit_kind_subject_id", audit.c.kind, audit.c.subject, audit.c.id)
 DATA_TABLES = (calendar, products, customers, marketing, sales, inventory)
+
+simulations = sa.Table(
+    "simulation_runs", metadata, C("id", sa.String(64), primary_key=True),
+    C("dataset_id", sa.String(24), nullable=False, index=True),
+    C("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    C("payload", sa.JSON, nullable=False),
+)
 
 
 def make_engine(url=None):

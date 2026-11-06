@@ -163,6 +163,8 @@ def write_summary(out, report, replay, info):
         md.append(f"| {row['target']} | {row['scope']} | {row['selected']} | {test['mae']:,.2f} | {test['wape']:.2%} | {row['test_coverage']:.2%} |")
     md += ["","LightGBM is selected per target, scope and horizon only when validation MAE beats the better baseline by more than 2%. "
            "Reported test outcomes can favor a different model. Bands have 90% nominal coverage. "
+           "Selection and interval calibration use separate chronological validation segments when enough history exists; "
+           "per-series reports disclose the actual ranges and independence status. "
            "Point errors and interval coverage can degrade on abrupt shifts, and rolling test origins overlap.",
            "","## Labeled anomaly test","","| Signal | Method | Precision | Recall | F1 | False-positive rate |","|---|---|---:|---:|---:|---:|"]
     for name in ("revenue","margin","facebook_spend","facebook_roas","facebook_conversion","stockout_risk"):

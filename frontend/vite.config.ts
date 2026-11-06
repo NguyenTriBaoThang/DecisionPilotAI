@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => ({
   } } },
   server: { port: 5173, allowedHosts: ["terminal.local"], proxy: {
     '/api': {
-      target: mode === 'container' ? 'http://backend:8000' : 'http://127.0.0.1:8000',
+      target: loadEnv(mode, '.', 'DECISIONPILOT_').DECISIONPILOT_API_URL || (mode === 'container' ? 'http://backend:8000' : 'http://127.0.0.1:8000'),
       changeOrigin: true,
       rewrite: (path) => path.replace(/^\/api/, ''),
     },

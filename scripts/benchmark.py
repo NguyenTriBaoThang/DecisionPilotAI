@@ -28,7 +28,7 @@ class Reference:
         self.first = {}
         for r in sorted(self.sales,key=lambda row:(row["date"],row["transaction_id"])):
             self.first.setdefault(r["customer_id"],r)
-        self.metadata = json.loads((directory/"metadata.json").read_text())
+        self.metadata = json.loads((directory/"metadata.json").read_text(encoding="utf-8"))
 
     def dates(self, period, extras):
         latest = date.fromisoformat(self.metadata["end"])
@@ -128,7 +128,7 @@ def numeric_check(reference,result, action,metric,period,extras,dimension,ascend
 
 def benchmark(client, directory=ROOT/"data/synthetic"):
     reference = Reference(directory)
-    cases = json.loads((ROOT/"tests/benchmark_cases.json").read_text())
+    cases = json.loads((ROOT/"tests/benchmark_cases.json").read_text(encoding="utf-8"))
     results = []
     for case in cases:
         question,action,metric,period,*optional = case
@@ -154,6 +154,8 @@ def benchmark(client, directory=ROOT/"data/synthetic"):
                 and (action!="explain" or "do not establish causality" in result["answer"]))
         else:
             item.update(intent=False,filters=False,chart=False,numerical=False,grounded=False)
+        if response.is_success and not all(item[key] for key in ("intent", "filters", "chart", "numerical", "grounded")):
+            item["diagnostic"] = {"expected": case[1:], "observed_intent": result["intent"], "evidence": result["evidence"]}
         results.append(item)
     scores = {name:sum(row[name] for row in results)/len(results)
               for name in ("intent","execution","numerical","filters","chart","grounded")}

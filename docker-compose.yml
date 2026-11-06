@@ -22,6 +22,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-decisionpilot}
       POSTGRES_HOST: postgres
       ROOT_PATH: /api
+      APP_ENV: ${APP_ENV:-local}
+      WORKSPACE_ACCESS_TOKENS: ${WORKSPACE_ACCESS_TOKENS:-{}}
       LLM_PROVIDER: ${LLM_PROVIDER:-none}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}

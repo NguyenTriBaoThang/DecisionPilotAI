@@ -21,6 +21,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { ModelQuality } from './components/ModelQuality'
 import {
   type Alert,
   type Audit,
@@ -31,6 +32,7 @@ import {
   type Recommendation,
   type Row,
   type Scenario,
+  type Session,
   dateLabel,
   decimal,
   integer,
@@ -355,6 +357,8 @@ export function Alerts({ dataset }: { dataset: Dataset }) {
         subtitle="Monitor sudden revenue contractions, ad spend spikes, margin pressure and stockout risks detected via Hybrid Isolation Forest & Rolling Z-Scores."
       />
 
+      <ModelQuality />
+
       {/* Anomaly Stats Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Card className="border-indigo-500/20">
@@ -563,14 +567,14 @@ export function ForecastPage({ options }: { options: Options }) {
       <Heading
         eyebrow="PREDICTIVE INTELLIGENCE"
         title="Forecast Center"
-        subtitle="Forecast demand, revenue and orders using LightGBM gradient boosting trees, point-in-time lag features and 90% confidence bands."
+        subtitle="Compare baseline and LightGBM forecasts using historical holdout errors and empirical prediction intervals."
       />
 
       <Card className="filters">
         <Select
           label="Target Metric"
           value={target}
-          onChange={setTarget}
+          onChange={value => { setTarget(value); mutation.reset() }}
           options={[
             ['revenue', 'Revenue (₫ VND)'],
             ['orders', 'Order Volume'],
@@ -580,7 +584,7 @@ export function ForecastPage({ options }: { options: Options }) {
         <Select
           label="Scope"
           value={scope}
-          onChange={setScope}
+          onChange={value => { setScope(value); mutation.reset() }}
           options={[
             ['', 'Entire Business'],
             ...options.categories.map<[string, string]>((c) => ['c:' + c, 'Category · ' + c]),
@@ -590,7 +594,7 @@ export function ForecastPage({ options }: { options: Options }) {
         <Select
           label="Forecast Horizon"
           value={horizon}
-          onChange={setHorizon}
+          onChange={value => { setHorizon(value); mutation.reset() }}
           options={[
             ['7', '7 Days Forward'],
             ['30', '30 Days Forward'],
@@ -631,7 +635,7 @@ export function ForecastPage({ options }: { options: Options }) {
               </div>
               <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-xs">
                 <span className="text-slate-400 block text-[11px]">Test Set Interval Coverage</span>
-                <strong className="text-lg text-emerald-400 font-mono">{percent(result.metrics.test_coverage)}</strong>
+                <strong className={`text-lg font-mono ${result.metrics.test_coverage < .90 ? 'text-amber-400' : 'text-emerald-400'}`}>{percent(result.metrics.test_coverage)}</strong>
               </div>
               <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-xs">
                 <span className="text-slate-400 block text-[11px]">Selected Model Test WAPE</span>
@@ -652,7 +656,7 @@ export function ForecastPage({ options }: { options: Options }) {
               </span>
               <span className="flex items-center gap-2">
                 <span className="h-3 w-3 rounded-full bg-violet-500/40 shadow-sm" />
-                <span>90% Confidence Band</span>
+                <span>90% nominal daily prediction band · verify observed coverage above</span>
               </span>
             </div>
 
@@ -673,6 +677,10 @@ export function ForecastPage({ options }: { options: Options }) {
               <CircleAlert size={16} className="text-cyan-400 flex-shrink-0" />
               <span>{result.stockout_note}</span>
             </div>
+          </Card>
+
+          <Card><SectionTitle title="Forecast reliability" detail={result.interval_method} />
+            <ul className="list-disc list-inside text-xs space-y-2">{result.warnings?.map(warning => <li key={warning} className="text-amber-300">{warning}</li>)}</ul>
           </Card>
 
           {/* Model Comparison & Feature Drivers */}
@@ -703,7 +711,7 @@ export function ForecastPage({ options }: { options: Options }) {
                   { key: 'value', title: 'Gain Importance' },
                 ]}
               />
-              <Source>Sales Transactions · Versioned Artifact Bundle dp-1.0</Source>
+              <Source>Sales Transactions · Versioned Artifact Bundle {result.model_version}</Source>
             </Card>
           </div>
         </div>
@@ -1036,14 +1044,16 @@ export function Simulator({ options }: { options: Options }) {
 
 export function Recommendations() {
   const client = useQueryClient()
+  const session = useQuery({ queryKey: ['session'], queryFn: () => request<Session>('/session') })
+  const [auditBefore, setAuditBefore] = useState<string | undefined>()
   const data = useQuery({
     queryKey: ['recommendations'],
     queryFn: () => request<{ rows: Recommendation[]; dataset_id: string }>('/recommendations'),
   })
 
   const audit = useQuery({
-    queryKey: ['audit'],
-    queryFn: () => request<{ rows: Audit[] }>('/audit?kind=recommendation_feedback'),
+    queryKey: ['audit', auditBefore],
+    queryFn: () => request<{ rows: Audit[]; next_before: number | null }>('/audit?' + params({ kind: 'decisions', before: auditBefore })),
   })
 
   const feedback = useMutation({
@@ -1064,7 +1074,7 @@ export function Recommendations() {
       <Heading
         eyebrow="HUMAN-IN-THE-LOOP DECISION INTELLIGENCE"
         title="Recommendations & Decision Audit"
-        subtitle="Review prioritized business actions backed by statistical evidence. Record executive decisions with immutable audit trails."
+        subtitle="Review business evidence and record decisions against the active dataset. Decision history is protected against ordinary database updates and deletes."
       />
 
       <ErrorState error={data.error || feedback.error} retry={data.error ? () => void data.refetch() : undefined} />
@@ -1132,7 +1142,7 @@ export function Recommendations() {
             <div className="pt-2 flex items-center gap-3">
               <Button
                 className="primary px-4 py-2 text-xs flex items-center gap-2"
-                disabled={feedback.isPending || row.decision === 'accepted'}
+                disabled={feedback.isPending || row.decision === 'accepted' || !session.data || session.data.role === 'viewer'}
                 onClick={() => feedback.mutate({ id: row.id, decision: 'accepted' })}
               >
                 <Check size={16} />
@@ -1141,7 +1151,7 @@ export function Recommendations() {
 
               <Button
                 className="px-4 py-2 text-xs flex items-center gap-2 border border-slate-700 bg-slate-900/60 hover:bg-rose-950/40 hover:border-rose-500/40 text-rose-300"
-                disabled={feedback.isPending || row.decision === 'rejected'}
+                disabled={feedback.isPending || row.decision === 'rejected' || !session.data || session.data.role === 'viewer'}
                 onClick={() => feedback.mutate({ id: row.id, decision: 'rejected' })}
               >
                 <X size={16} />
@@ -1161,16 +1171,21 @@ export function Recommendations() {
         />
         <ErrorState error={audit.error} />
         {audit.isLoading && <Loading />}
+        <div className="flex gap-2 mb-3"><Button disabled={!auditBefore} onClick={() => setAuditBefore(undefined)}>Latest events</Button><Button disabled={!audit.data?.next_before} onClick={() => setAuditBefore(String(audit.data?.next_before))}>Older events</Button></div>
         {audit.data && (
           <Table
-            rows={audit.data.rows.map((r) => ({
+            rows={audit.data.rows.filter(r => r.kind.endsWith('_feedback')).map((r) => ({
+              actor: String(r.payload.actor || 'Legacy local event'),
+              kind: r.kind,
               time: new Date(r.occurred_at).toLocaleString('en-GB', { timeZone: 'Asia/Ho_Chi_Minh' }),
               subject: r.subject,
               decision: r.payload.decision,
             }))}
             columns={[
               { key: 'time', title: 'Timestamp' },
-              { key: 'subject', title: 'Recommendation ID' },
+              { key: 'subject', title: 'Decision subject' },
+              { key: 'actor', title: 'Actor' },
+              { key: 'kind', title: 'Decision type' },
               { key: 'decision', title: 'Recorded Human Decision' },
             ]}
           />

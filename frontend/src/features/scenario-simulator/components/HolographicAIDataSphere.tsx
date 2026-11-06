@@ -15,6 +15,10 @@ export function HolographicAIDataSphere({ activeTab, mode, className = '' }: Hol
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setHasWebGL(false)
+      return
+    }
 
     // WebGL Check
     try {

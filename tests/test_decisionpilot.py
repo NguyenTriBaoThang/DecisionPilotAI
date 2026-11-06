@@ -2,6 +2,7 @@
 from datetime import timedelta
 from io import BytesIO
 from zipfile import ZipFile
+import os
 
 import pytest
 import sqlalchemy as sa
@@ -21,7 +22,7 @@ from scripts.pipeline import export_bundle, load_snapshot, read_directory, read_
 @pytest.fixture(scope="session")
 def client(tmp_path_factory):
     folder = tmp_path_factory.mktemp("demo")
-    database = "sqlite:///" + str(folder/"test.sqlite")
+    database = os.getenv("TEST_DATABASE_URL") or "sqlite:///" + str(folder/"test.sqlite")
     config = Config(str(ROOT/"alembic.ini"))
     with pytest.MonkeyPatch.context() as env:
         env.setenv("DATABASE_URL",database)
@@ -32,6 +33,7 @@ def client(tmp_path_factory):
         load_snapshot(engine,data,manifest)
         with TestClient(create_app(engine)) as http:
             yield http,engine
+        engine.dispose()
 
 
 def test_health_kpi_and_filters(client):
@@ -188,3 +190,86 @@ def test_features_use_only_previous_days():
     x = lag_features(series[:,:28],origin,np.array([1.]))
     assert tuple(x[0,:4])==(27,21,14,0)
     assert x[0,4]==pytest.approx(np.mean(np.arange(21,28)))
+
+
+def test_scenario_decision_uses_exact_run_and_retains_evidence(client):
+    http, engine = client
+    first = http.post('/simulate', json={'type': 'marketing', 'parameters': {'channel': 'Facebook Ads', 'changes': [.1]}}).json()
+    second = http.post('/simulate', json={'type': 'marketing', 'parameters': {'channel': 'Facebook Ads', 'changes': [.2]}}).json()
+    assert first['simulation_id'] != second['simulation_id']
+    body = {'simulation_id': first['simulation_id'], 'dataset_id': first['dataset_id'], 'decision': 'accepted'}
+    response = http.post('/scenarios/feedback', json=body)
+    assert response.status_code == 200
+    assert http.post('/scenarios/feedback', json=body).json()['id'] == response.json()['id']
+    event = http.get('/audit', params={'kind': 'scenario_feedback'}).json()['rows'][0]
+    assert event['subject'] == first['simulation_id']
+    assert event['payload']['request']['parameters']['changes'] == [.1]
+    assert event['payload']['recommended'] == first['recommended']
+    assert event['payload']['actor'] == 'local-workspace'
+    repeat = http.post('/simulate', json={'type': 'marketing', 'parameters': {'channel': 'Facebook Ads', 'changes': [.1]}}).json()
+    assert repeat['decision'] == 'accepted'
+    assert http.post('/scenarios/feedback', json={**body, 'dataset_id': 'c'*24}).status_code == 409
+    assert http.post('/scenarios/feedback', json={**body, 'simulation_id': '0'*64}).status_code == 404
+    with engine.begin() as conn:
+        with pytest.raises(sa.exc.DatabaseError, match='append-only'):
+            conn.execute(audit.update().where(audit.c.id == event['id']).values(subject='tampered'))
+    with engine.begin() as conn:
+        with pytest.raises(sa.exc.DatabaseError, match='append-only'):
+            conn.execute(audit.delete().where(audit.c.id == event['id']))
+
+
+def test_named_access_roles_and_production_configuration(client, monkeypatch):
+    import json
+    access = {'v'*32: {'actor': 'reader', 'role': 'viewer'}, 'a'*32: {'actor': 'analyst', 'role': 'analyst'}}
+    monkeypatch.setenv('APP_ENV', 'production')
+    monkeypatch.setenv('WORKSPACE_ACCESS_TOKENS', json.dumps(access))
+    with TestClient(create_app(client[1])) as http:
+        assert http.get('/health').json() == {'status': 'ok'}
+        assert http.get('/dataset').status_code == 401
+        viewer = {'Authorization': 'Bearer '+'v'*32}
+        analyst = {'Authorization': 'Bearer '+'a'*32}
+        assert http.get('/dataset', headers=viewer).status_code == 200
+        assert http.get('/session', headers=viewer).json()['actor'] == 'reader'
+        assert http.post('/scenarios/feedback', json={}, headers=viewer).status_code == 403
+        assert http.post('/import', headers=analyst).status_code == 403
+        run = http.post('/simulate', headers=analyst, json={'type': 'marketing', 'parameters': {'channel': 'Facebook Ads'}}).json()
+        body = {'simulation_id': run['simulation_id'], 'dataset_id': run['dataset_id'], 'decision': 'rejected'}
+        assert http.post('/scenarios/feedback', json=body, headers=analyst).status_code == 200
+        event = http.get('/audit?kind=scenario_feedback', headers=analyst).json()['rows'][0]
+        assert event['payload']['actor'] == 'analyst'
+    monkeypatch.setenv('WORKSPACE_ACCESS_TOKENS', '{}')
+    with pytest.raises(ValueError, match='Production requires'):
+        create_app(client[1])
+
+
+def test_latest_recommendation_survives_more_than_100_other_decisions(client):
+    http, engine = client
+    data = http.get('/recommendations').json()
+    subject = data['rows'][0]['id']
+    body = {'recommendation_id': subject, 'dataset_id': data['dataset_id'], 'decision': 'accepted'}
+    assert http.post('/recommendations/feedback', json=body).status_code == 200
+    with engine.begin() as conn:
+        conn.execute(audit.insert(), [{'kind': 'recommendation_feedback', 'subject': f'other:{i}',
+            'payload': {'dataset_id': data['dataset_id'], 'decision': 'rejected'}} for i in range(105)])
+    rows = http.get('/recommendations').json()['rows']
+    assert next(row for row in rows if row['id'] == subject)['decision'] == 'accepted'
+    page = http.get('/audit?limit=10&kind=decisions').json()
+    older = http.get('/audit', params={'limit': 10, 'kind': 'decisions', 'before': page['next_before']}).json()
+    assert len(page['rows']) == len(older['rows']) == 10
+    assert {row['id'] for row in page['rows']}.isdisjoint(row['id'] for row in older['rows'])
+
+
+def test_quality_discloses_limitations_and_sustained_detector_is_causal(client):
+    import numpy as np
+    import pandas as pd
+    from ai_service.anomaly import detect
+    quality = client[0].get('/models/quality').json()
+    assert quality['dataset_kind'] == 'synthetic'
+    assert quality['limitations']
+    assert any(row['metric'] == 'stockout_risk' and row['status'] == 'limited' for row in quality['anomaly'])
+    values = pd.Series(np.tile([95., 100., 105., 98., 102., 101., 99.], 20))
+    values.iloc[100:] *= .7
+    full = detect('revenue', values, None)
+    prefix = detect('revenue', values.iloc[:110], None)
+    assert full.flag.iloc[:110].equals(prefix.flag)
+    assert full.sustained_flag.iloc[106:110].any()

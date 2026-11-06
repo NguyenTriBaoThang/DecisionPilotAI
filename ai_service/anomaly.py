@@ -60,6 +60,16 @@ def detect(metric, series, model):
     work["flag"] = (work.direction & (work.relative.abs() >= min_deviation)
                     & ((work.robust.abs() >= threshold)
                        | ((scores < 0) & (work.robust.abs() >= ml_threshold))))
+    # Daily noise can hide sustained contractions. Compare complete weeks only;
+    # the reference ends before the monitored week and uses no future values.
+    work["sustained_flag"] = False
+    if metric == "revenue":
+        weekly = series.rolling(7, min_periods=7).mean()
+        reference = weekly.shift(7).rolling(56, min_periods=28)
+        baseline = reference.median()
+        spread = (reference.quantile(.75)-reference.quantile(.25)).clip(lower=baseline.abs()*.03+1e-8)/1.349
+        work["sustained_flag"] = (weekly < baseline*.85) & ((baseline-weekly)/spread >= 2.5)
+        work["flag"] |= work.sustained_flag
     return work
 
 
@@ -140,7 +150,8 @@ def alert_list(conn, frame, models, start, end):
                 end=str(batch.index[-1].date()), actual=actual, baseline=baseline, deviation=relative, severity=level,
                 score=score, action=action, scope="Facebook Ads" if metric.startswith("facebook_") else "Business-wide",
                 evidence=dict(daily_points=len(batch), baseline_method="56-day trailing median with seven-day exclusion",
-                    isolation_forest_signals=int((batch.isolation_score < 0).sum())),
+                    isolation_forest_signals=int((batch.isolation_score < 0).sum()),
+                    sustained_week_signals=int(batch.sustained_flag.sum())),
                 chart=[dict(date=str(index.date()),actual=float(row.actual),baseline=float(row.baseline) if pd.notna(row.baseline) else None)
                        for index,row in history.iterrows() if pd.notna(row.actual)]))
     latest = {}

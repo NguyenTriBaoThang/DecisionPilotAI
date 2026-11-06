@@ -69,8 +69,28 @@
 
 ---
 
-## 📑 Mục lục (Table of Contents)
+## 📑 Mục lục & Hệ thống Tài liệu (Table of Contents & Documentation System)
 
+### 📚 Hệ thống Tài liệu Kỹ thuật Chi tiết (Documentation Catalog)
+
+| Tài liệu / Đặc tả | Định dạng | Mục đích & Nội dung chính | Liên kết |
+| :--- | :---: | :--- | :---: |
+| **Competition Submission Proposal** | Markdown | Đề xuất giải pháp dự thi chính thức cho K-TECH Hackathon / LIKELION 2026. | [`COMPETITION_SUBMISSION.md`](./COMPETITION_SUBMISSION.md) |
+| **System Architecture Specification** | Markdown | Đặc tả kiến trúc 5 tầng, sơ đồ tuần tự, bảo mật và cơ chế chống ảo giác. | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
+| **Live Demo Presentation Script (5–7 min)**| Markdown | Kịch bản trình diễn trực tiếp bằng tiếng Anh dành cho Ban Giám Khảo quốc tế. | [`DEMO_SCRIPT.md`](./DEMO_SCRIPT.md) |
+| **Kịch bản Thuyết trình Toàn diện (12–15 min)**| Markdown | Kịch bản thuyết trình tiếng Việt đầy đủ kèm bộ câu hỏi phản biện chuyên sâu. | [`KICH_BAN_THUYET_TRINH_TOAN_DU_AN.md`](./KICH_BAN_THUYET_TRINH_TOAN_DU_AN.md) |
+| **Model Versioning & Lifecycle Policy** | Markdown | Quy chuẩn quản trị phiên bản mô hình AI/ML và cấu trúc gói artifact. | [`MODEL_VERSIONING.md`](./MODEL_VERSIONING.md) |
+| **Relational Data Model & Dictionary** | Markdown | Sơ đồ ERD 6 bảng, từ điển dữ liệu, ràng buộc toàn vẹn và logic sinh dữ liệu. | [`docs/data-model.md`](./docs/data-model.md) |
+| **REST API Reference Specification** | Markdown | Danh mục endpoint, schema JSON request/response và mã lỗi chi tiết. | [`docs/api.md`](./docs/api.md) |
+| **Machine Learning & Data Science Specs** | Markdown | Đặc tả chi tiết LightGBM, Isolation Forest, hàm co giãn vi mô và WAPE. | [`docs/ml-training-and-data.md`](./docs/ml-training-and-data.md) |
+| **Natural Language Prompt Catalog** | Markdown | Danh mục prompt phân loại ý định, quy tắc sinh SQL an toàn và fallback. | [`docs/ai-prompt-catalog.md`](./docs/ai-prompt-catalog.md) |
+| **Research & Business Innovation Proposal**| Markdown | Đề cương nghiên cứu học thuật, cơ sở lý thuyết và tác động kinh tế SME. | [`docs/research-proposal.md`](./docs/research-proposal.md) |
+| **Operations & Deployment Manual** | Markdown | Sổ tay hướng dẫn cài đặt trên Windows/Linux, Docker, CI/CD và FAQ. | [`docs/operations.md`](./docs/operations.md) |
+| **AI Explainability & Jury Q&A Evaluation** | Markdown | Trả lời trọn vẹn 8 câu hỏi cốt lõi của Ban Giám Khảo về tính minh bạch AI. | [`docs/AI_EXPLAINABILITY_AND_EVALUATION.md`](./docs/AI_EXPLAINABILITY_AND_EVALUATION.md) |
+
+---
+
+### 📑 Các đề mục trong README:
 - [🎖️ Mục tiêu & Định vị dự án (Project Objective & Positioning)](#️-mục-tiêu--định-vị-dự-án-project-objective--positioning)
 - [📸 Tổng quan 6 màn hình chức năng (Core Workspaces)](#-tổng-quan-6-màn-hình-chức-năng-core-workspaces)
 - [🧭 Tại sao chọn DecisionPilot AI (Why DecisionPilot AI)](#-tại-sao-chọn-decisionpilot-ai-why-decisionpilot-ai)
@@ -658,9 +678,11 @@ Dự án được phân phối dưới giấy phép **MIT License**. Xem chi ti�
 <div align="center">
   <p><b>DecisionPilot AI</b> — Phát triển với tinh thần kiến tạo giá trị đột phá cho Doanh nghiệp Việt 🇻🇳</p>
   <p>
-    <a href="./docs/ARCHITECTURE.md">Kiến trúc hệ thống</a> · 
-    <a href="./docs/DEMO.md">Kịch bản Demo</a> · 
-    <a href="./docs/API.md">Tài liệu API</a> · 
-    <a href="./docs/DATA_DICTIONARY.md">Từ điển dữ liệu</a>
+    <a href="./COMPETITION_SUBMISSION.md">Đề xuất dự thi</a> · 
+    <a href="./ARCHITECTURE.md">Kiến trúc hệ thống</a> · 
+    <a href="./DEMO_SCRIPT.md">Demo Script</a> · 
+    <a href="./KICH_BAN_THUYET_TRINH_TOAN_DU_AN.md">Kịch bản thuyết trình</a> · 
+    <a href="./docs/api.md">API Reference</a> · 
+    <a href="./docs/data-model.md">Mô hình dữ liệu</a>
   </p>
 </div>
