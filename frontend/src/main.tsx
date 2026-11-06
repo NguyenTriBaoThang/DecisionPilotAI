@@ -6,6 +6,7 @@ import {
   Activity,
   ArrowUpRight,
   Bell,
+  BookOpen,
   ChartNoAxesCombined,
   CircleGauge,
   Compass,
@@ -28,6 +29,7 @@ import { Dashboard } from './Dashboard'
 import { Alerts, Ask, ForecastPage, Recommendations, type ChatMessage } from './WorkspacePages'
 const ScenarioSimulator3D = lazy(() => import('./features/scenario-simulator/components/ScenarioSimulator3D').then(module => ({ default: module.ScenarioSimulator3D })))
 const LandingPage = lazy(() => import('./components/LandingPage').then(module => ({ default: module.LandingPage })))
+const TechnicalDocumentationPage = lazy(() => import('./components/TechnicalDocumentationPage').then(module => ({ default: module.TechnicalDocumentationPage })))
 import { DataSourcesPage } from './components/DataSourcesPage'
 import { SettingsPage } from './components/SettingsPage'
 import './styles.css'
@@ -39,6 +41,7 @@ const sections = [
   { to: '/forecast', title: 'Forecast Center', icon: ChartNoAxesCombined },
   { to: '/scenarios', title: 'Scenario Simulator', icon: SlidersHorizontal },
   { to: '/recommendations', title: 'Recommendations', icon: Compass },
+  { to: '/docs', title: 'Technical Documentation', icon: BookOpen },
   { to: '/data-sources', title: 'Data Sources', icon: Database },
   { to: '/settings', title: 'Settings', icon: Settings },
 ]
@@ -193,6 +196,13 @@ function AppShell({ session }: { session: Session }) {
           </div>
 
           <div className="top-actions flex items-center gap-3">
+            <Link
+              to="/docs"
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-950/50 hover:bg-indigo-900/50 hover:border-indigo-400 px-3 py-1 text-xs font-semibold text-indigo-200 transition-colors"
+            >
+              <BookOpen size={13} className="text-cyan-400" />
+              <span>Technical Docs</span>
+            </Link>
             {ds.data && (
               <span className="dataset-chip inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-950/40 px-3 py-1 text-xs font-semibold text-slate-200">
                 <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
@@ -232,6 +242,7 @@ function AppShell({ session }: { session: Session }) {
               <Route path="/forecast" element={<ForecastPage options={opts.data} />} />
               <Route path="/scenarios" element={<Suspense fallback={<Loading />}><ScenarioSimulator3D options={opts.data} /></Suspense>} />
               <Route path="/recommendations" element={<Recommendations />} />
+              <Route path="/docs" element={<Suspense fallback={<Loading />}><TechnicalDocumentationPage /></Suspense>} />
               <Route path="/data-sources" element={<DataSourcesPage dataset={ds.data} session={session} />} />
               <Route path="/settings" element={<SettingsPage dark={dark} setDark={setDark} session={session} />} />
               <Route path="*" element={<Navigate to="/" replace />} />

@@ -123,8 +123,6 @@ flowchart LR
 
 - [x] **Full Production Codebase:** Backend API + Web Client + AI Service.
 - [x] **System Architecture Guide:** [`ARCHITECTURE.md`](file:///g:/GITHUB/DecisionPilotAI/ARCHITECTURE.md).
-- [x] **Live Demo Presentation Script (5–7 min):** [`DEMO_SCRIPT.md`](file:///g:/GITHUB/DecisionPilotAI/DEMO_SCRIPT.md).
-- [x] **Vietnamese Presentation Narrative (12–15 min):** [`KICH_BAN_THUYET_TRINH_TOAN_DU_AN.md`](file:///g:/GITHUB/DecisionPilotAI/KICH_BAN_THUYET_TRINH_TOAN_DU_AN.md).
 - [x] **Model Governance & Lifecycle:** [`MODEL_VERSIONING.md`](file:///g:/GITHUB/DecisionPilotAI/MODEL_VERSIONING.md).
 - [x] **AI Explainability & Jury Answers:** [`docs/AI_EXPLAINABILITY_AND_EVALUATION.md`](file:///g:/GITHUB/DecisionPilotAI/docs/AI_EXPLAINABILITY_AND_EVALUATION.md).
 - [x] **Relational Data Model & Dictionary:** [`docs/data-model.md`](file:///g:/GITHUB/DecisionPilotAI/docs/data-model.md).

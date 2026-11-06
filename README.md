@@ -77,8 +77,6 @@
 | :--- | :---: | :--- | :---: |
 | **Competition Submission Proposal** | Markdown | Đề xuất giải pháp dự thi chính thức cho K-TECH Hackathon / LIKELION 2026. | [`COMPETITION_SUBMISSION.md`](./COMPETITION_SUBMISSION.md) |
 | **System Architecture Specification** | Markdown | Đặc tả kiến trúc 5 tầng, sơ đồ tuần tự, bảo mật và cơ chế chống ảo giác. | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| **Live Demo Presentation Script (5–7 min)**| Markdown | Kịch bản trình diễn trực tiếp bằng tiếng Anh dành cho Ban Giám Khảo quốc tế. | [`DEMO_SCRIPT.md`](./DEMO_SCRIPT.md) |
-| **Kịch bản Thuyết trình Toàn diện (12–15 min)**| Markdown | Kịch bản thuyết trình tiếng Việt đầy đủ kèm bộ câu hỏi phản biện chuyên sâu. | [`KICH_BAN_THUYET_TRINH_TOAN_DU_AN.md`](./KICH_BAN_THUYET_TRINH_TOAN_DU_AN.md) |
 | **Model Versioning & Lifecycle Policy** | Markdown | Quy chuẩn quản trị phiên bản mô hình AI/ML và cấu trúc gói artifact. | [`MODEL_VERSIONING.md`](./MODEL_VERSIONING.md) |
 | **Relational Data Model & Dictionary** | Markdown | Sơ đồ ERD 6 bảng, từ điển dữ liệu, ràng buộc toàn vẹn và logic sinh dữ liệu. | [`docs/data-model.md`](./docs/data-model.md) |
 | **REST API Reference Specification** | Markdown | Danh mục endpoint, schema JSON request/response và mã lỗi chi tiết. | [`docs/api.md`](./docs/api.md) |
@@ -621,7 +619,6 @@ DecisionPilotAI/
 │   ├── ARCHITECTURE.md            # Thiết kế kiến trúc & dòng chảy dữ liệu
 │   ├── DATA_DICTIONARY.md         # Từ điển dữ liệu chi tiết cho 6 bảng nghiệp vụ
 │   ├── API.md                     # Hướng dẫn chi tiết sử dụng REST API
-│   ├── DEMO.md                    # Kịch bản demo từng bước cho hội đồng giám khảo
 │   └── AI_SAFETY.md               # Nguyên tắc an toàn & ranh giới của AI
 ├── scripts/                       # Kịch bản quản trị và vận hành tự động
 │   ├── bootstrap.py               # Nạp dữ liệu mẫu vào cơ sở dữ liệu
@@ -680,8 +677,7 @@ Dự án được phân phối dưới giấy phép **MIT License**. Xem chi ti�
   <p>
     <a href="./COMPETITION_SUBMISSION.md">Đề xuất dự thi</a> · 
     <a href="./ARCHITECTURE.md">Kiến trúc hệ thống</a> · 
-    <a href="./DEMO_SCRIPT.md">Demo Script</a> · 
-    <a href="./KICH_BAN_THUYET_TRINH_TOAN_DU_AN.md">Kịch bản thuyết trình</a> · 
+    <a href="./MODEL_VERSIONING.md">Quản trị mô hình</a> · 
     <a href="./docs/api.md">API Reference</a> · 
     <a href="./docs/data-model.md">Mô hình dữ liệu</a>
   </p>
