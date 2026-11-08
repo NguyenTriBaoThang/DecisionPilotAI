@@ -60,6 +60,13 @@ export const NAV_SECTIONS: NavSection[] = [
 
   // AI & Analytics
   {
+    id: 'data-decision-intelligence',
+    num: '05★',
+    title: 'Data & Decision Intelligence',
+    blurb: 'Flagship interactive showcase for LIKELION 2026: Natural Language Analytics, Revenue Anomaly Diagnostics, Demand Forecasting, and Scenario Simulation.',
+    group: 'AI & Analytics',
+  },
+  {
     id: 'ai-engine',
     num: '06',
     title: 'AI & Machine Learning Engine',

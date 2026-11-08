@@ -11,6 +11,7 @@ import { Section02Workspaces } from './sections/Section02Workspaces'
 import { Section03Architecture } from './sections/Section03Architecture'
 import { Section04Schema } from './sections/Section04Schema'
 import { Section05Pipeline } from './sections/Section05Pipeline'
+import { DataDecisionIntelligenceSection } from './features/data-decision-intelligence/DataDecisionIntelligenceSection'
 import { Section06AI } from './sections/Section06AI'
 import { Section07Training } from './sections/Section07Training'
 import { Section08Benchmarks } from './sections/Section08Benchmarks'
@@ -77,6 +78,7 @@ export function App() {
           <Section03Architecture />
           <Section04Schema />
           <Section05Pipeline />
+          <DataDecisionIntelligenceSection />
           <Section06AI />
           <Section07Training />
           <Section08Benchmarks />
