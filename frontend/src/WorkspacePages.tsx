@@ -46,15 +46,26 @@ import {
 import { alertName } from './Dashboard'
 import { Button, Card, Chart, Empty, ErrorState, Heading, Loading, Pill, SectionTitle, Select, Source, Table } from './ui'
 import { Scenario3DLandscape } from './components/Scenario3DLandscape'
+import { useT } from './preferences'
+import { WorkflowNavigationFooter } from './components/EndToEndStepper'
 export { ScenarioSimulator3D } from './features/scenario-simulator/components/ScenarioSimulator3D'
 
-const prompts = [
+const promptsEN = [
   'How is our business performing this month?',
   'Why did revenue decrease this month?',
   'Which product generated the highest profit?',
   'Which marketing channel had the lowest ROAS?',
   'Forecast demand for SmartDesk Mini for the next 30 days.',
   'Compare revenue performance across regions.',
+]
+
+const promptsVI = [
+  'Tình hình kinh doanh tháng này thế nào?',
+  'Tại sao doanh thu tháng 10 bị sụt giảm?',
+  'Sản phẩm nào mang lại lợi nhuận cao nhất?',
+  'Kênh marketing nào có ROAS thấp nhất?',
+  'Dự báo nhu cầu SmartDesk Mini trong 30 ngày tới',
+  'So sánh doanh thu giữa các khu vực TP.HCM và Hà Nội',
 ]
 
 function Contribution({
@@ -113,6 +124,10 @@ export function Ask({
   messages: ChatMessage[]
   setMessages: Dispatch<SetStateAction<ChatMessage[]>>
 }) {
+  const { t, language } = useT()
+  const isVi = language === 'vi'
+  const prompts = isVi ? promptsVI : promptsEN
+
   const form = useForm<z.infer<typeof askForm>>({
     resolver: zodResolver(askForm),
     defaultValues: { question: '' },
@@ -122,9 +137,9 @@ export function Ask({
 
   const query = useMutation({
     mutationFn: async (question: string) => {
-      setThinkingStep('Parsing natural language intent…')
-      setTimeout(() => setThinkingStep('Querying verified business tables…'), 400)
-      setTimeout(() => setThinkingStep('Synthesizing evidence and chart artifacts…'), 800)
+      setThinkingStep(isVi ? 'Đang phân tích ý định câu hỏi…' : 'Parsing natural language intent…')
+      setTimeout(() => setThinkingStep(isVi ? 'Truy vấn các bảng dữ liệu đã kiểm thực…' : 'Querying verified business tables…'), 400)
+      setTimeout(() => setThinkingStep(isVi ? 'Tổng hợp bằng chứng và biểu đồ phân tích…' : 'Synthesizing evidence and chart artifacts…'), 800)
       const res = await request<QueryResult>('/query', { question })
       setThinkingStep(null)
       return res
@@ -149,16 +164,20 @@ export function Ask({
   return (
     <>
       <Heading
-        eyebrow="CONVERSATIONAL BUSINESS INTELLIGENCE"
+        eyebrow={isVi ? 'TRÍ TUỆ NHÂN TẠO ĐỐI THOẠI KINH DOANH' : 'CONVERSATIONAL BUSINESS INTELLIGENCE'}
         title="Ask Business Data"
-        subtitle="Ask complex business questions in natural language. Inspect executed analytics tools, formulas, data bounds and evidence."
+        subtitle={
+          isVi
+            ? 'Đặt câu hỏi phân tích kinh doanh bằng tiếng Việt hoặc tiếng Anh. Hệ thống tự động tạo câu lệnh SQL chuẩn xác và biểu đồ trực quan không ảo giác.'
+            : 'Ask complex business questions in natural language. Inspect executed analytics tools, formulas, data bounds and evidence.'
+        }
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <Card className="lg:col-span-3 chat flex flex-col min-h-[580px]">
           <SectionTitle
-            title="Analysis Conversation"
-            detail={'Connected snapshot through ' + dateLabel(dataset.end)}
+            title={isVi ? 'Phiên Phân tích Kinh doanh' : 'Analysis Conversation'}
+            detail={(isVi ? 'Dữ liệu kết nối đến ' : 'Connected snapshot through ') + dateLabel(dataset.end)}
             aside={
               <span className="p-2 rounded-xl bg-indigo-500/10 text-cyan-400">
                 <Sparkles size={18} />
@@ -171,9 +190,13 @@ export function Ask({
               <div className="p-4 rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shadow-inner">
                 <Sparkles size={32} />
               </div>
-              <h2 className="text-xl font-bold text-white">What would you like to understand?</h2>
+              <h2 className="text-xl font-bold text-white">
+                {isVi ? 'Bạn muốn tìm hiểu và chẩn đoán điều gì?' : 'What would you like to understand?'}
+              </h2>
               <p className="text-xs text-slate-400 max-w-md">
-                Ask about revenue trends, margin pressure, product popularity, marketing ROAS or run a 30-day forecast.
+                {isVi
+                  ? 'Hỏi về xu hướng doanh thu, áp lực biên lợi nhuận, hiệu quả SKU, tỷ lệ ROAS quảng cáo hoặc dự báo 30 ngày.'
+                  : 'Ask about revenue trends, margin pressure, product popularity, marketing ROAS or run a 30-day forecast.'}
               </p>
             </div>
           )}
@@ -198,7 +221,7 @@ export function Ask({
                         <Sparkles size={16} />
                         <span>DecisionPilot AI</span>
                       </div>
-                      <Pill tone="accent">Tool: {result.trace.tool}</Pill>
+                      <Pill tone="accent">{isVi ? 'Công cụ:' : 'Tool:'} {result.trace.tool}</Pill>
                     </div>
 
                     <p className="text-sm text-slate-100 leading-relaxed font-normal">{result.answer}</p>
@@ -232,21 +255,21 @@ export function Ask({
                     {/* Grounded Trace & Verification Drawer */}
                     <details className="text-xs text-slate-400 pt-2 border-t border-indigo-500/10">
                       <summary className="cursor-pointer font-semibold text-indigo-300 hover:text-indigo-200 py-1">
-                        View Sources, Data Bounds & Executed Formulas
+                        {isVi ? 'Xem Nguồn dữ liệu, Phạm vi & Công thức thực thi' : 'View Sources, Data Bounds & Executed Formulas'}
                       </summary>
                       <div className="mt-2 space-y-2 p-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] font-mono">
                         <div>
-                          <strong className="text-slate-300">Data Sources:</strong>{' '}
-                          {result.trace.sources?.join(' · ') || 'Verified Analytics'}
+                          <strong className="text-slate-300">{isVi ? 'Nguồn dữ liệu:' : 'Data Sources:'}</strong>{' '}
+                          {result.trace.sources?.join(' · ') || (isVi ? 'Phân tích Đã kiểm thực' : 'Verified Analytics')}
                         </div>
                         {result.trace.range && (
                           <div>
-                            <strong className="text-slate-300">Range:</strong> {result.trace.range.join(' to ')}
+                            <strong className="text-slate-300">{isVi ? 'Khoảng thời gian:' : 'Range:'}</strong> {result.trace.range.join(' to ')}
                           </div>
                         )}
                         {Object.values(result.trace.formulas).map((formula, idx) => (
                           <div key={idx} className="text-cyan-400">
-                            <strong>Formula:</strong> {formula}
+                            <strong>{isVi ? 'Công thức:' : 'Formula:'}</strong> {formula}
                           </div>
                         ))}
                       </div>
@@ -259,7 +282,7 @@ export function Ask({
             {query.isPending && (
               <div className="flex items-center gap-3 p-4 rounded-xl border border-indigo-500/30 bg-indigo-950/40 text-xs font-semibold text-cyan-300 animate-pulse">
                 <Sparkles size={16} />
-                <span>{thinkingStep || 'Analyzing business intelligence streams…'}</span>
+                <span>{thinkingStep || (isVi ? 'Đang phân tích chuỗi dữ liệu kinh doanh…' : 'Analyzing business intelligence streams…')}</span>
               </div>
             )}
           </div>
@@ -270,15 +293,19 @@ export function Ask({
             onSubmit={form.handleSubmit(({ question }) => send(question))}
           >
             <input
-              aria-label="Business question"
-              placeholder="Ask about revenue, SKU margins, marketing ROAS, or demand forecasts…"
+              aria-label={isVi ? 'Câu hỏi kinh doanh' : 'Business question'}
+              placeholder={
+                isVi
+                  ? 'Hỏi về doanh thu, biên lợi nhuận SKU, hiệu quả ROAS hoặc dự báo nhu cầu…'
+                  : 'Ask about revenue, SKU margins, marketing ROAS, or demand forecasts…'
+              }
               maxLength={500}
               className="flex-1 rounded-xl border border-indigo-500/20 bg-[#0c1224] px-4 py-3 text-xs text-white placeholder-slate-500 outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition-all"
               {...form.register('question')}
             />
             <Button className="primary px-5 py-3 text-xs flex items-center gap-2" type="submit" disabled={query.isPending}>
               <Send size={15} />
-              <span>Send</span>
+              <span>{isVi ? 'Gửi' : 'Send'}</span>
             </Button>
           </form>
           {form.formState.errors.question && (
@@ -289,8 +316,8 @@ export function Ask({
         {/* Suggested Business Questions Sidebar */}
         <Card className="prompts space-y-4">
           <SectionTitle
-            title="Suggested Queries"
-            detail="Grounded in active workspace dataset"
+            title={isVi ? 'Câu hỏi Gợi ý' : 'Suggested Queries'}
+            detail={isVi ? 'Dựa trên tập dữ liệu đang kích hoạt' : 'Grounded in active workspace dataset'}
             aside={<Zap size={16} className="text-cyan-400" />}
           />
           <div className="space-y-2">
@@ -306,9 +333,17 @@ export function Ask({
               </button>
             ))}
           </div>
-          <Source>Deterministic Analytics · AST Validated Tools</Source>
+          <Source>{isVi ? 'Phân tích Xác định · Công cụ Kiểm thực CSDL' : 'Deterministic Analytics · AST Validated Tools'}</Source>
         </Card>
       </div>
+
+      {/* Step 2 End-to-End Workflow Navigation Footer */}
+      <WorkflowNavigationFooter
+        prevPath="/"
+        prevLabelKey="Back to Overview & Diagnostics"
+        nextPath="/scenarios"
+        nextLabelKey="Next: Simulate What-If Scenarios in 3D"
+      />
     </>
   )
 }
@@ -1191,6 +1226,12 @@ export function Recommendations() {
           />
         )}
       </Card>
+
+      {/* Step 4 End-to-End Workflow Navigation Footer */}
+      <WorkflowNavigationFooter
+        prevPath="/scenarios"
+        prevLabelKey="Back to 3D Scenario Simulator"
+      />
     </>
   )
 }

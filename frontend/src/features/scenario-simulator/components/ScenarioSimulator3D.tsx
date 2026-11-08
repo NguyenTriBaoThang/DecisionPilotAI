@@ -34,6 +34,8 @@ import { MarketingScenarioTab } from './tabs/MarketingScenarioTab'
 import { InventoryScenarioTab } from './tabs/InventoryScenarioTab'
 import { RecommendationsTab } from './tabs/RecommendationsTab'
 import { ComparisonModeView } from './ComparisonModeView'
+import { useT } from '../../../preferences'
+import { WorkflowNavigationFooter } from '../../../components/EndToEndStepper'
 
 const tabConfigs: TabConfig[] = [
   {
@@ -74,6 +76,8 @@ const tabConfigs: TabConfig[] = [
 ]
 
 export function ScenarioSimulator3D({ options }: { options: Options }) {
+  const { t, language } = useT()
+  const isVi = language === 'vi'
   const [activeTab, setActiveTab] = useState<SimulatorTab>('pricing')
   const [mode, setMode] = useState<InteractionMode>('focus')
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -406,6 +410,14 @@ export function ScenarioSimulator3D({ options }: { options: Options }) {
           </div>
         </div>
       )}
+
+      {/* Step 3 End-to-End Workflow Navigation Footer */}
+      <WorkflowNavigationFooter
+        prevPath="/ask"
+        prevLabelKey="Back to AI Copilot Investigation"
+        nextPath="/recommendations"
+        nextLabelKey="Next: Review & Approve AI Recommendations"
+      />
     </div>
   )
 }
