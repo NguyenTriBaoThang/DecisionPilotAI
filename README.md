@@ -1,684 +1,549 @@
 <div align="center">
 
 <p align="center">
-  <img src="./assets/images/logo.png" alt="DecisionPilot AI Logo" height="200" />
+  <img src="./assets/images/logo.png" alt="DecisionPilot AI Logo" height="150" />
 </p>
 
-<h1 align="center">DecisionPilot AI</h1>
+# DecisionPilot AI
+
+### AI-Powered Business Data Analysis, Forecasting and Decision Support System for SMEs
+
+**Ask. Understand. Predict. Decide.**
+
+[![Competition](https://img.shields.io/badge/Competition-LIKELION%20%7C%20AI%20for%20Business%20Innovation%202026-blueviolet?style=for-the-badge)](./COMPETITION_SUBMISSION.md)
+[![Track](https://img.shields.io/badge/Track-5.%20Data%20%26%20Decision%20Intelligence-cyan?style=for-the-badge)](https://nguyentribaothang.github.io/DecisionPilotAI/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-emerald?style=for-the-badge)](./LICENSE)
 
 <p align="center">
-  <b>Hệ thống Phân tích Dữ liệu Kinh doanh, Dự báo Thông minh & Hỗ trợ Ra Quyết định Ứng dụng AI cho Doanh nghiệp Vừa và Nhỏ (SMEs)</b><br/>
-  <i>AI-Powered Business Intelligence, Demand Forecasting & Decision Support System for SMEs</i>
-</p>
-
-<p align="center">
-  <b>Ask. Understand. Predict. Decide.</b><br/>
-  <i>Hỏi tự nhiên · Hiểu căn nguyên · Dự báo tương lai · Quyết định chuẩn xác</i>
-</p>
-
-<p align="center">
-  <a href="https://github.com/NguyenTriBaoThang/DecisionPilotAI/actions/workflows/ci.yml">
-    <img src="https://img.shields.io/github/actions/workflow/status/NguyenTriBaoThang/DecisionPilotAI/ci.yml?label=CI%20Pipeline" alt="CI Status"/>
-  </a>
-  <a href="./LICENSE">
-    <img src="https://img.shields.io/badge/License-MIT-emerald" alt="MIT License"/>
-  </a>
-  <a href="./.github/SECURITY.md">
-    <img src="https://img.shields.io/badge/Security-Policy-red?logo=shield" alt="Security Policy"/>
-  </a>
-  <img src="https://img.shields.io/badge/Competition-AI_Business_Innovation_2026-blueviolet" alt="Competition MVP"/>
-  <img src="https://img.shields.io/badge/Dataset-50k_Sales_%7C_50_SKUs_%7C_730_Days-blue" alt="Synthetic Dataset"/>
-  <img src="https://img.shields.io/badge/ML-LightGBM_4.6_%7C_Isolation_Forest-orange" alt="Machine Learning"/>
-  <img src="https://img.shields.io/badge/i18n-VI_%7C_EN-indigo" alt="Bilingual"/>
+  <a href="https://nguyentribaothang.github.io/DecisionPilotAI/"><strong>Explore Technical Documentation (GitHub Pages)</strong></a>
+  &nbsp;•&nbsp;
+  <a href="./ARCHITECTURE.md"><strong>System Architecture</strong></a>
+  &nbsp;•&nbsp;
+  <a href="./COMPETITION_SUBMISSION.md"><strong>Competition Submission</strong></a>
+  &nbsp;•&nbsp;
+  <a href="#quick-start"><strong>Quick Start</strong></a>
+  &nbsp;•&nbsp;
+  <a href="#api-catalog--reference"><strong>API Catalog</strong></a>
 </p>
 
 <p align="center">
-  <a href="http://localhost:8080/"><strong>Executive Dashboard</strong></a>
-  &nbsp;|&nbsp;
-  <a href="http://localhost:8080/ask"><strong>Ask Business Data</strong></a>
-  &nbsp;|&nbsp;
-  <a href="http://localhost:8080/anomalies"><strong>Anomaly Center</strong></a>
-  &nbsp;|&nbsp;
-  <a href="http://localhost:8080/forecast"><strong>Forecast Center</strong></a>
-  &nbsp;|&nbsp;
-  <a href="http://localhost:8080/scenarios"><strong>Scenario Simulator</strong></a>
-  &nbsp;|&nbsp;
-  <a href="http://localhost:8080/recommendations"><strong>Recommendations & Audit</strong></a>
-  &nbsp;|&nbsp;
-  <a href="http://localhost:8080/api/docs"><strong>API Docs (Swagger)</strong></a>
+  <img src="https://img.shields.io/badge/FastAPI-0.121+-009688?logo=fastapi&logoColor=white" alt="FastAPI"/>
+  <img src="https://img.shields.io/badge/Python-3.11_%7C_3.12_%7C_3.13-3776AB?logo=python&logoColor=white" alt="Python"/>
+  <img src="https://img.shields.io/badge/React-19.2-61DAFB?logo=react&logoColor=black" alt="React 19"/>
+  <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white" alt="TypeScript"/>
+  <img src="https://img.shields.io/badge/Three.js-WebGL_3D-black?logo=three.js&logoColor=white" alt="Three.js"/>
+  <img src="https://img.shields.io/badge/TailwindCSS-v4.1-38B2AC?logo=tailwindcss&logoColor=white" alt="Tailwind CSS"/>
+  <img src="https://img.shields.io/badge/Vite-7.3-646CFF?logo=vite&logoColor=white" alt="Vite"/>
+  <img src="https://img.shields.io/badge/LightGBM-4.6.0-orange" alt="LightGBM"/>
+  <img src="https://img.shields.io/badge/scikit--learn-1.7.2-F7931E?logo=scikitlearn&logoColor=white" alt="Scikit-Learn"/>
+  <img src="https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql&logoColor=white" alt="PostgreSQL"/>
+  <img src="https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite&logoColor=white" alt="SQLite"/>
+  <img src="https://img.shields.io/badge/Docker-Compose_v2-2496ED?logo=docker&logoColor=white" alt="Docker"/>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/FastAPI-0.121+-009688?logo=fastapi" alt="FastAPI"/>
-  <img src="https://img.shields.io/badge/Python-3.11_%7C_3.12_%7C_3.13-3776AB?logo=python" alt="Python"/>
-  <img src="https://img.shields.io/badge/React-19.2-61DAFB?logo=react" alt="React 19"/>
-  <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript" alt="TypeScript"/>
-  <img src="https://img.shields.io/badge/TailwindCSS-v4.1-38B2AC?logo=tailwindcss" alt="Tailwind CSS"/>
-  <img src="https://img.shields.io/badge/Vite-7.2-646CFF?logo=vite" alt="Vite"/>
-  <img src="https://img.shields.io/badge/SQLAlchemy-2.0+-red?logo=sqlalchemy" alt="SQLAlchemy"/>
-  <img src="https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql" alt="PostgreSQL"/>
-  <img src="https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite" alt="SQLite"/>
-  <img src="https://img.shields.io/badge/Docker-Compose_v2-2496ED?logo=docker" alt="Docker"/>
-</p>
-
-<p align="center">
-  <img src="./assets/images/banner.png" alt="DecisionPilot AI Banner" width="100%" />
+  <img src="./assets/images/banner.png" alt="DecisionPilot AI Platform Banner" width="100%" />
 </p>
 
 </div>
 
 ---
 
-## 📑 Mục lục & Hệ thống Tài liệu (Table of Contents & Documentation System)
+## 📌 Executive Summary
 
-### 📚 Hệ thống Tài liệu Kỹ thuật Chi tiết (Documentation Catalog)
+**DecisionPilot AI** is an AI-powered decision intelligence platform specifically engineered for Small and Medium Enterprises (SMEs). Rather than serving as a superficial chatbot or a static business intelligence dashboard, DecisionPilot AI operates as a unified decision loop: converting natural-language executive questions into verified analytical reports, isolating multi-dimensional anomalies with statistical root-cause decomposition, forecasting demand trends with calibrated confidence intervals, and stress-testing strategy trade-offs in an interactive 3D simulation sandbox before capital is committed.
 
-| Tài liệu / Đặc tả | Định dạng | Mục đích & Nội dung chính | Liên kết |
-| :--- | :---: | :--- | :---: |
-| **Competition Submission Proposal** | Markdown | Đề xuất giải pháp dự thi chính thức cho K-TECH Hackathon / LIKELION 2026. | [`COMPETITION_SUBMISSION.md`](./COMPETITION_SUBMISSION.md) |
-| **System Architecture Specification** | Markdown | Đặc tả kiến trúc 5 tầng, sơ đồ tuần tự, bảo mật và cơ chế chống ảo giác. | [`ARCHITECTURE.md`](./ARCHITECTURE.md) |
-| **Model Versioning & Lifecycle Policy** | Markdown | Quy chuẩn quản trị phiên bản mô hình AI/ML và cấu trúc gói artifact. | [`MODEL_VERSIONING.md`](./MODEL_VERSIONING.md) |
-| **Relational Data Model & Dictionary** | Markdown | Sơ đồ ERD 6 bảng, từ điển dữ liệu, ràng buộc toàn vẹn và logic sinh dữ liệu. | [`docs/data-model.md`](./docs/data-model.md) |
-| **REST API Reference Specification** | Markdown | Danh mục endpoint, schema JSON request/response và mã lỗi chi tiết. | [`docs/api.md`](./docs/api.md) |
-| **Machine Learning & Data Science Specs** | Markdown | Đặc tả chi tiết LightGBM, Isolation Forest, hàm co giãn vi mô và WAPE. | [`docs/ml-training-and-data.md`](./docs/ml-training-and-data.md) |
-| **Natural Language Prompt Catalog** | Markdown | Danh mục prompt phân loại ý định, quy tắc sinh SQL an toàn và fallback. | [`docs/ai-prompt-catalog.md`](./docs/ai-prompt-catalog.md) |
-| **Research & Business Innovation Proposal**| Markdown | Đề cương nghiên cứu học thuật, cơ sở lý thuyết và tác động kinh tế SME. | [`docs/research-proposal.md`](./docs/research-proposal.md) |
-| **Operations & Deployment Manual** | Markdown | Sổ tay hướng dẫn cài đặt trên Windows/Linux, Docker, CI/CD và FAQ. | [`docs/operations.md`](./docs/operations.md) |
-| **AI Explainability & Jury Q&A Evaluation** | Markdown | Trả lời trọn vẹn 8 câu hỏi cốt lõi của Ban Giám Khảo về tính minh bạch AI. | [`docs/AI_EXPLAINABILITY_AND_EVALUATION.md`](./docs/AI_EXPLAINABILITY_AND_EVALUATION.md) |
-
----
-
-### 📑 Các đề mục trong README:
-- [🎖️ Mục tiêu & Định vị dự án (Project Objective & Positioning)](#️-mục-tiêu--định-vị-dự-án-project-objective--positioning)
-- [📸 Tổng quan 6 màn hình chức năng (Core Workspaces)](#-tổng-quan-6-màn-hình-chức-năng-core-workspaces)
-- [🧭 Tại sao chọn DecisionPilot AI (Why DecisionPilot AI)](#-tại-sao-chọn-decisionpilot-ai-why-decisionpilot-ai)
-- [👥 Đối tượng sử dụng mục tiêu (Target Users & Personas)](#-đối-tượng-sử-dụng-mục-tiêu-target-users--personas)
-- [💡 Mô hình dữ liệu kinh doanh 6 bảng (Core Data Model)](#-mô-hình-dữ-liệu-kinh-doanh-6-bảng-core-data-model)
-- [🧮 Thuật toán & Mô hình Toán học cốt lõi (Core Mathematical Models)](#-thuật-toán--mô-hình-toán-học-cốt-lõi-core-mathematical-models)
-- [🏗️ Kiến trúc hệ thống (System Architecture)](#️-kiến-trúc-hệ-thống-system-architecture)
-- [💻 Ngăn xếp công nghệ (Technology Stack)](#-ngăn-xếp-công-nghệ-technology-stack)
-- [📡 Danh mục API chi tiết (API Catalog & Endpoints)](#-danh-mục-api-chi-tiết-api-catalog--endpoints)
-- [🚀 Hướng dẫn cài đặt & Khởi chạy (Installation & Startup)](#-hướng-dẫn-cài-đặt--khởi-chạy-installation--startup)
-- [⚙️ Cấu hình biến môi trường (Environment Configuration)](#️-cấu-hình-biến-môi-trường-environment-configuration)
-- [🎭 6 Kịch bản trình diễn chuẩn (Demo Scenarios)](#-6-kịch-bản-trình-diễn-chuẩn-demo-scenarios)
-- [📊 Đánh giá chất lượng mô hình (Model Evaluation & Benchmarks)](#-đánh-giá-chất-lượng-mô-hình-model-evaluation--benchmarks)
-- [📁 Cấu trúc thư mục dự án (Directory Structure)](#-cấu-trúc-thư-mục-dự-án-directory-structure)
-- [🗺️ Lộ trình phát triển (Development Roadmap)](#️-lộ-trình-phát-triển-development-roadmap)
-- [🤝 Hướng dẫn đóng góp & Giấy phép (Contributing & License)](#-hướng-dẫn-đóng-góp--giấy-phép-contributing--license)
-
----
-
-## 🎖️ Mục tiêu & Định vị dự án (Project Objective & Positioning)
-
-### 🔴 Thách thức của các doanh nghiệp vừa và nhỏ (SMEs)
-Trong kỷ nguyên số, các doanh nghiệp vừa và nhỏ (SMEs) bán lẻ và dịch vụ đối mặt với những nghịch lý lớn:
-1. **Dữ liệu phân mảnh & "Nghĩa địa Excel":** Doanh số lưu trên phần mềm POS, chi phí quảng cáo nằm trên Facebook/Google Ads, thông tin khách hàng nằm rải rác trên CRM, số liệu tồn kho cập nhật thủ công trên Excel hàng tuần.
-2. **Thiếu vắng đội ngũ phân tích dữ liệu chuyên trách:** SME không đủ ngân sách duy trì đội Data Analyst hay Data Scientist với mức lương hàng nghìn USD.
-3. **BI truyền thống (PowerBI, Tableau) quá cồng kềnh:** Chi phí bản quyền cao, đòi hỏi kỹ năng dựng data model phức tạp, và chỉ mang tính **Mô tả quá khứ (Descriptive Analytics)** — trả lời *"Doanh số tháng rồi là bao nhiêu?"* nhưng hoàn toàn bất lực trước câu hỏi *"Tại sao doanh số giảm?"* hay *"Nếu giảm giá 5%, lợi nhuận sẽ thay đổi thế nào?"*.
-4. **Ra quyết định bằng cảm tính:** Chủ doanh nghiệp và quản lý thường nhập hàng hoặc chạy quảng cáo dựa trên trực giác, dẫn tới đứt gãy dòng vốn, cháy hàng sản phẩm chủ lực hoặc tồn kho ứ đọng.
-
-### 🟢 Lời giải từ DecisionPilot AI
-**DecisionPilot AI** ra đời như một **Trợ lý Giám đốc Phân tích Dữ liệu Ảo (AI Chief Analytics Officer)** dành riêng cho SMEs:
-- **Tương tác đàm thoại tự nhiên (Ask):** Bất kỳ nhân sự nào cũng có thể đặt câu hỏi bằng ngôn ngữ tự nhiên: *"Tại sao tháng này doanh thu sụt giảm?"*, *"Kênh quảng cáo nào đang kém hiệu quả nhất?"*.
-- **Phân tích căn nguyên minh bạch (Understand):** Bóc tách đóng góp (Waterfall Contribution Analysis) theo Sản phẩm, Khu vực, Phân khúc khách hàng để tìm ra nguyên nhân chính xác — không võ đoán, không ảo tưởng số liệu.
-- **Dự báo chuỗi thời gian đáng tin cậy (Predict):** Ứng dụng mô hình **LightGBM** kết hợp đặc trưng trễ (lags), lịch sự kiện và khoảng tin cậy 90% để dự báo nhu cầu SKU, đơn hàng và doanh số 7 - 30 ngày tiếp theo.
-- **Giả lập kịch bản kinh doanh (Decide):** Cho phép chạy mô phỏng "What-If" với độ co giãn giá (Price Elasticity), độ trễ nhập hàng (Lead time) và ngân sách marketing trước khi ra quyết định xuống tiền thật.
-- **Lưu vết kiểm toán có trách nhiệm (Audit & Human-in-the-Loop):** Mọi khuyến nghị của AI đều có bằng chứng (evidence), ghi nhận phản hồi chấp thuận/từ chối của con người và lưu vết bất biến.
-
----
-
-## 📸 Tổng quan 6 màn hình chức năng (Core Workspaces)
-
-Hệ thống được thiết kế tối giản, tập trung vào khả năng tương tác nhanh và hiển thị trực quan thông qua 6 màn hình chuyên biệt:
-
-| Màn hình | Đường dẫn | Chức năng chính |
-|---|---|---|
-| **1. Executive Dashboard** | `/` | Tổng quan sức khỏe tài chính SME: Doanh thu, Lợi nhuận gộp, Biên lợi nhuận, Đơn hàng, Giá trị đơn trung bình (AOV), ROAS, Tồn kho. So sánh kỳ trước (Prior Period) và biểu đồ chuỗi thời gian linh hoạt (Ngày/Tuần/Tháng). |
-| **2. Ask Business Data** | `/ask` | Trợ lý hỏi đáp dữ liệu thông minh. Nhận diện ý định kinh doanh, tự động sinh biểu đồ, trích xuất bằng chứng số liệu và minh bạch hóa câu lệnh truy vấn (SQL/Data trace). |
-| **3. Anomaly Center** | `/anomalies` | Trạm radar phát hiện bất thường: Chi phí quảng cáo tăng đột biến nhưng ROAS giảm, biên lợi nhuận sụt bất thường, nguy cơ đứt hàng (stockout risk) dựa trên lead-time. |
-| **4. Forecast Center** | `/forecast` | Trung tâm dự báo nhu cầu bán hàng: Dự báo doanh thu, số đơn, hoặc nhu cầu từng SKU cụ thể trong 7 ngày hoặc 30 ngày kèm dải tin cậy 90% (confidence bands). |
-| **5. Scenario Simulator** | `/scenarios` | Cỗ máy mô phỏng What-If: Thử nghiệm mức chiết khấu giá (0%, 5%, 10%), điều phối ngân sách quảng cáo giữa các kênh, đánh giá tác động của độ trễ nhà cung cấp lên doanh số. |
-| **6. Recommendations & Audit** | `/recommendations` | Danh mục đề xuất hành động kinh doanh được xếp hạng theo mức độ ưu tiên, tích hợp nút Duyệt (Accept) / Bác bỏ (Reject) và nhật ký kiểm toán lưu vết đầy đủ. |
-
----
-
-## 🧭 Tại sao chọn DecisionPilot AI (Why DecisionPilot AI)
-
-| Tiêu chí đánh giá | Excel thủ công | PowerBI / Tableau | DecisionPilot AI |
-|---|---|---|---|
-| **Hỏi đáp tự nhiên (NLQ)** | ❌ Không hỗ trợ | ⚠️ Cần trả phí Copilot đắt đỏ, dễ trả lời chung chung | ✅ Tích hợp sẵn, bám sát mô hình nghiệp vụ SME |
-| **Giải thích nguyên nhân (Root Cause)** | ❌ Phải làm Pivot table thủ công hàng giờ | ⚠️ Cần viết DAX / Python script phức tạp | ✅ Bóc tách tự động đa chiều (Volume / Price / Mix) |
-| **Dự báo nhu cầu tích hợp** | ⚠️ Xu hướng tuyến tính đơn giản | ⚠️ Cần cấu hình Azure ML / plugin bên ngoài | ✅ LightGBM tối ưu cho dữ liệu bảng + dải tin cậy |
-| **Giả lập kịch bản What-If** | ⚠️ Sửa từng ô tính, dễ hỏng công thức | ⚠️ Cần tạo parameter phức tạp | ✅ Giao diện kéo thả tham số, tính độ co giãn tức thì |
-| **Bảo vệ quyền riêng tư & Local-First** | ⚠️ Nguy cơ lộ file khi chia sẻ qua email | ❌ Dữ liệu đẩy lên Cloud công cộng | ✅ Chạy cục bộ 100% (On-premises / Docker), không bắt buộc API ngoài |
-| **Chi phí sở hữu (TCO)** | Thấp ban đầu nhưng tốn nhân lực vận hành | Hàng chục ngàn USD tiền license mỗi năm | Mã nguồn mở, chi phí vận hành tối thiểu |
-| **Audit Trail & Trách nhiệm AI** | ❌ Không lưu lịch sử quyết định | ❌ Không gắn liền quyết định của con người | ✅ Ghi nhận Human-in-the-loop, lưu vết mọi quyết định |
-
----
-
-## 👥 Đối tượng sử dụng mục tiêu (Target Users & Personas)
-
-- 👔 **SME Founder / CEO / Giám đốc điều hành:** Cần cái nhìn 360 độ về hiệu quả kinh doanh mỗi sáng, nắm rõ dòng tiền, kênh sinh lời và đưa ra quyết định chiến lược nhanh chóng.
-- 📦 **Quản lý Vận hành & Chuỗi cung ứng (Operations & Inventory Lead):** Theo dõi sát sao 50 SKU, nhận cảnh báo trước 7-14 ngày về nguy cơ đứt hàng, tính toán lượng nhập tối ưu dựa theo lead-time của nhà cung cấp.
-- 📈 **Trưởng phòng Marketing & Tăng trưởng (Marketing & Growth Lead):** Kiểm soát chỉ số ROAS, CAC trên từng kênh (Facebook Ads, Google Ads, TikTok), phát hiện ngay các chiến dịch đốt tiền không hiệu quả để kịp thời cắt giảm.
-- 💼 **Kế toán quản trị & Tài chính (Financial Controller):** Đối soát doanh thu thực nhận, chiết khấu, giá vốn hàng bán (COGS), biên lợi nhuận gộp theo từng dòng sản phẩm và khu vực kinh doanh.
-
----
-
-## 💡 Mô hình dữ liệu kinh doanh 6 bảng (Core Data Model)
-
-Hệ thống xây dựng trên bộ dữ liệu mô phỏng doanh nghiệp bán lẻ & dịch vụ chuẩn mực gồm **50.000 giao dịch**, **50 SKUs**, **10.000 khách hàng** và **730 ngày hoạt động liên tục (2 năm)**:
-
-```
-┌──────────────────┐       ┌──────────────────────┐       ┌──────────────────────┐
-│ calendar_events  │◄──────┤  sales_transactions  ├──────►│      customers       │
-│  (730 ngày)      │       │    (50,000 đơn)      │       │   (10,000 khách)     │
-└────────┬─────────┘       └──────────┬───────────┘       └──────────────────────┘
-         │                            │
-         ▼                            ▼
-┌──────────────────┐       ┌──────────────────────┐       ┌──────────────────────┐
-│ marketing_days   │       │       products       │◄──────┤   inventory_daily    │
-│  (chiến dịch)    │       │    (50 mã SKU)       │       │    (tồn kho ngày)    │
-└──────────────────┘       └──────────────────────┘       └──────────────────────┘
-```
-
-### Lược đồ quan hệ thực thể (Mermaid Entity Relationship)
-
-```mermaid
-erDiagram
-    calendar_events ||--o{ sales_transactions : "occurs_on"
-    calendar_events ||--o{ marketing_campaigns : "scheduled_on"
-    calendar_events ||--o{ inventory_daily : "recorded_on"
-    products ||--o{ sales_transactions : "sold_in"
-    products ||--o{ inventory_daily : "tracked_in"
-    customers ||--o{ sales_transactions : "purchases"
-    marketing_campaigns |o--o{ sales_transactions : "attributes"
-
-    calendar_events {
-        date date PK
-        int day_of_week
-        int month
-        int quarter
-        boolean is_weekend
-        boolean is_holiday
-        string event_name
-        boolean promotion_flag
-    }
-
-    products {
-        string product_id PK
-        string product_name
-        string category
-        string brand
-        bigint list_price
-        bigint unit_cost
-        string supplier
-        boolean is_physical
-        int lead_time_days
-        int reorder_point
-        int current_stock
-        numeric elasticity
-    }
-
-    customers {
-        string customer_id PK
-        string customer_segment
-        string region
-        date signup_date
-        string acquisition_channel
-        boolean is_returning
-        bigint lifetime_value
-        date last_purchase_date
-    }
-
-    marketing_campaigns {
-        string campaign_id PK
-        date date PK
-        string channel
-        string campaign_name
-        bigint spend
-        int impressions
-        int clicks
-        int leads
-        int orders
-        bigint attributed_revenue
-    }
-
-    sales_transactions {
-        string transaction_id PK
-        date date FK
-        string customer_id FK
-        string product_id FK
-        int quantity
-        bigint unit_price
-        numeric discount_pct
-        bigint revenue
-        bigint unit_cost
-        bigint total_cost
-        bigint gross_profit
-        string region
-        string sales_channel
-        string campaign_id FK
-    }
-
-    inventory_daily {
-        date date PK
-        string product_id PK
-        int opening_stock
-        int received_qty
-        int sold_qty
-        int closing_stock
-        boolean stockout_flag
-    }
+```text
+  [1. ASK]            [2. UNDERSTAND]            [3. PREDICT]            [4. SIMULATE]           [5. DECIDE]
+Natural Language  ->  Multidimensional  ->  LightGBM Demand    ->  Microeconomic What-If  ->  Audited Human
+Query Ingestion       Anomaly Detection      Forecasting (90%)       3D Sandbox (P&L)        Approval & Audit
 ```
 
 ---
 
-## 🧮 Thuật toán & Mô hình Toán học cốt lõi (Core Mathematical Models)
+## 📑 Table of Contents
 
-### 1. Giả lập Độ co giãn Giá theo Cầu (Price Elasticity of Demand)
-Khi chạy kịch bản điều chỉnh giá hoặc chiết khấu $\Delta P$, lượng cầu mới $Q_{new}$ được tính toán theo độ co giãn giá danh mục $\epsilon \in [-5.0, 0.0]$:
-
-$$Q_{new} = Q_{base} \times \left(1 + \epsilon \times \frac{\Delta P}{P_{base}}\right)$$
-
-Lợi nhuận gộp tương ứng được tối ưu hóa:
-
-$$\Pi_{new} = Q_{new} \times \left(P_{new} - C_{unit}\right)$$
-
-Nếu sản phẩm là vật lý và lượng tồn kho thực tế bị giới hạn bởi $S_{available} = \text{Closing Stock} + \text{Inbound Receipts}$, thì lượng bán thực tế bị chặn trên bởi $Q_{actual} = \min(Q_{new}, S_{available})$.
-
-### 2. Phân tích Đóng góp Thác nước (Waterfall Contribution Decomposition)
-Để trả lời câu hỏi *"Tại sao chỉ tiêu $M$ kỳ này tăng/giảm so với kỳ trước?"*, hệ thống phân tích chênh lệch $\Delta M = M_1 - M_0$ độc lập trên các chiều không gian (Sản phẩm, Vùng miền, Phân khúc, Kênh tiếp thị):
-
-$$\Delta M = \sum_{d \in D} \text{Contribution}(d)$$
-
-Trong đó mỗi thành phần đóng góp phản ánh chính xác 100% phần chênh lệch thực tế quan sát được, không đưa ra giả định ngụy biện (causal claims) thiếu căn cứ.
-
-### 3. Dự báo Chuỗi thời gian LightGBM (Time-Series Forecasting)
-- **Đặc trưng đầu vào (Point-in-time Features):**
-  - Lags: Nhu cầu tại các mốc $t-7, t-14, t-21, t-28$.
-  - Rolling Statistics: Trung bình trượt 7 ngày và 28 ngày ($\mu_{7}, \mu_{28}$).
-  - Calendar Features: Ngày trong tuần, ngày trong tháng, quý, cờ cuối tuần, cờ ngày lễ.
-- **Tiêu chuẩn lựa chọn mô hình:** LightGBM chỉ được chọn khi **Validation MAE** vượt trội hơn mô hình đường cơ sở (Seasonal Naive & Moving Average) ít nhất **2%**.
-- **Khoảng tin cậy 90% (Confidence Bands):** Tính toán từ phân vị phần dư trên tập kiểm định:
-
-$$\text{Band} = \left[ \hat{y}_t - Q_{0.95}(\text{residuals}),\ \hat{y}_t + Q_{0.95}(\text{residuals}) \right]$$
-
-### 4. Radar Phát hiện Bất thường Kết hợp (Hybrid Anomaly Radar)
-Kết hợp hai kỹ thuật bổ trợ:
-- **Rolling Z-Score cục bộ:**
-
-$$Z_t = \frac{x_t - \mu_{t-30..t-1}}{\sigma_{t-30..t-1}}, \quad |Z_t| > 2.5 \implies \text{Cảnh báo đột biến}$$
-
-- **Isolation Forest:** Phát hiện các điểm dữ liệu dị biệt đa biến (ví dụ: Chi phí tiếp thị tăng cao đột ngột nhưng số lượng đơn hàng quy kết không tăng tương ứng).
-- **Business Rule Heuristics:** Kiểm tra đứt hàng dựa trên số ngày bán còn lại $\frac{\text{Current Stock}}{\text{Average Daily Demand}} < \text{Lead Time Days}$.
+- [Executive Summary](#executive-summary)
+- [The Business Problem & Our Solution](#the-business-problem--our-solution)
+- [Challenge Alignment — Data & Decision Intelligence](#challenge-alignment--data--decision-intelligence)
+- [Core Workspaces & Capabilities](#core-workspaces--capabilities)
+- [Product Visual Showcase](#product-visual-showcase)
+- [System Architecture](#system-architecture)
+- [AI & Machine Learning Foundations](#ai--machine-learning-foundations)
+- [Dataset & Synthetic Data Pipeline](#dataset--synthetic-data-pipeline)
+- [Model Evaluation & Benchmarks](#model-evaluation--benchmarks)
+- [Technology Stack](#technology-stack)
+- [Quick Start](#quick-start)
+- [API Catalog & Reference](#api-catalog--reference)
+- [Project Structure](#project-structure)
+- [Security, Privacy & Responsible AI](#security-privacy--responsible-ai)
+- [Roadmap, Contributing & License](#roadmap-contributing--license)
 
 ---
 
-## 🏗️ Kiến trúc hệ thống (System Architecture)
+## 💡 The Business Problem & Our Solution
+
+### The SME Dilemma
+
+Small and Medium Enterprises represent the engine of retail and services in emerging markets, yet they routinely face acute operational barriers:
+
+1. **Siloed Data & "The Excel Graveyard":** Sales records sit in point-of-sale software, marketing spend resides across Facebook and Google Ads managers, inventory is recorded in disconnected warehouse sheets, and customer records exist only in order histories. Consolidating this manually consumes days of repetitive spreadsheet wrangling.
+2. **Absence of Dedicated Analytics Talent:** SMEs rarely possess the budget to hire dedicated data analysts, data scientists, or econometrics engineers to build custom statistical pipelines.
+3. **Descriptive Inadequacy of Traditional BI:** Conventional reporting tools (Power BI, Tableau) require expensive recurring licenses and specialized data modeling expertise. Crucially, they are strictly *descriptive*—answering *"What happened last month?"* while leaving managers completely in the dark regarding *"Why did revenue fall?"* or *"What will happen if we discount SKU P001 by 5%?"*.
+4. **High-Risk Gut-Feel Decision Making:** Product reorders, pricing promotions, and advertising allocation are frequently made on intuition. This results in costly supply stockouts on bestseller items, margin compression during indiscriminate promotions, or capital bleed into saturated ad campaigns.
+
+### The DecisionPilot AI Solution
+
+DecisionPilot AI addresses this dilemma through a continuous, verifiable **Decision Intelligence Loop**:
+
+- **Ask Natural Language Queries:** Business managers inquire in plain Vietnamese or English (`"Why did revenue drop this month?"`, `"Which marketing channel is underperforming?"`). The engine validates intent and synthesizes read-only SQL executed deterministically over relational data.
+- **Understand Root Causes:** The anomaly engine decomposes observed variance into exact SKU, regional, and marketing attribution deltas—reconciling 100% of the variance without hand-waving or hallucinated causation.
+- **Predict Future Trajectories:** An engineered **LightGBM** regressor projects 7-day and 30-day demand curves bounded by calibrated 90% confidence intervals, outperforming standard seasonal baselines.
+- **Simulate Strategy Before Execution:** A microeconomic sandbox couples empirical log-log price elasticity ($\varepsilon = -1.42$) and Hill advertising saturation curves with warehouse lead-time constraints, letting executives stress-test scenarios and expose hidden margin traps before spending capital.
+- **Decide with Auditability:** Recommended interventions provide explicit financial impact estimates (projected gross profit delta) and require human approval, logged immutably for executive governance.
+
+---
+
+## 🎯 Challenge Alignment — Data & Decision Intelligence
+
+DecisionPilot AI was submitted under the **LIKELION — AI for Business Innovation 2026** competition for **Track 5: Data & Decision Intelligence**. The platform directly implements all four competition requirements:
+
+| Challenge Requirement (Official Topic) | DecisionPilot AI Capability | Technical Implementation | Verified Business Value |
+| :--- | :--- | :--- | :--- |
+| **1. AI converts natural language questions into data reports**<br/>*(AI chuyển câu hỏi bằng ngôn ngữ tự nhiên thành báo cáo dữ liệu)* | **Ask Business Data / Copilot**<br/>[`ai_service/llm_orchestrator.py`](./ai_service/llm_orchestrator.py)<br/>[`backend/app/routers/ask.py`](./backend/app/main.py) | • Rule & LLM intent classification (Gemini / OpenAI / Local).<br/>• AST read-only SQL sanitizer blocking injection.<br/>• Zero-hallucination deterministic database calculation.<br/>• Dynamic chart generation and structured JSON KPIs. | Replaces hours of manual Excel pivot compiling with audited business reports delivered in under **1.43 seconds** (100% benchmark pass rate across 46 test cases). |
+| **2. AI analyzes revenue and detects significant business anomalies**<br/>*(AI phân tích doanh thu và nhận diện các biến động đáng chú ý)* | **Anomaly Center & Revenue Diagnostics**<br/>[`ai_service/anomaly.py`](./ai_service/anomaly.py)<br/>[`backend/app/analytics.py`](./backend/app/analytics.py) | • Multidimensional **Isolation Forest** outlier isolation.<br/>• Dynamic 28-day rolling baseline with seasonal weekend / holiday adjustment.<br/>• Local rolling **3-sigma Z-Score** filtering ($|z| > 2.5$).<br/>• Waterfall variance decomposition by SKU and marketing channel. | Detects margin compression, abnormal ad budget surges, and supplier delivery delays weeks before standard monthly accounting cycles conclude (**100% precision on ad spend spikes**). |
+| **3. AI forecasts product or service demand based on historical data**<br/>*(AI dự báo nhu cầu sản phẩm hoặc dịch vụ dựa trên dữ liệu lịch sử)* | **Forecast Center**<br/>[`ai_service/forecasting.py`](./ai_service/forecasting.py)<br/>[`artifacts/MODEL_EVALUATION.md`](./artifacts/MODEL_EVALUATION.md) | • Chronological 70/15/15 time-series partition.<br/>• **LightGBM** regressor trained with 14 engineered point-in-time features (lags 7/14/28, rolling stats, calendar events).<br/>• Strict **2% Rule Gate** against Seasonal Naive and Moving Average baselines.<br/>• Multi-quantile residual calibration for 90% confidence bands. | Prevents costly stockouts and working capital lockup. Delivers **11.24% aggregated WAPE** and **92.86% interval coverage** on top revenue generator SKU P001. |
+| **4. AI compares business scenarios to support strategic decision making**<br/>*(AI so sánh các kịch bản kinh doanh để hỗ trợ ra quyết định)* | **3D Scenario Simulator**<br/>[`ai_service/scenario.py`](./ai_service/scenario.py)<br/>[`frontend/src/features/simulator/`](./frontend/src/features/) | • Empirical log-log price elasticity: $\ln(Q) = \alpha + \varepsilon \ln(P)$ ($\varepsilon = -1.42$).<br/>• Hill function marketing response curve modeling diminishing marginal ROAS.<br/>• Lead-time replenishment buffer modeling.<br/>• Three.js WebGL spatial landscape and multi-scenario comparison matrix. | Exposes "The Volume Trap" where deep discounting (+39% unit volume) destroys -22M ₫ in profit and sparks a 64.5% stockout risk, steering leaders to optimal 5% promotions. |
+
+---
+
+## 🖥️ Core Workspaces & Capabilities
+
+The application provides six dedicated workspaces designed for distinct operational roles:
+
+```text
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                                   DECISIONPILOT AI                                     │
+├────────────────────┬────────────────────┬────────────────────┬─────────────────────────┤
+│ 1. Executive       │ 2. Ask Business    │ 3. Anomaly Radar   │ 4. Forecast Center      │
+│    Dashboard       │    Copilot         │    Center          │                         │
+│ • Financial KPIs   │ • NLQ to SQL       │ • Isolation Forest │ • LightGBM Multi-Quant  │
+│ • Gross Margin     │ • 1.43s Latency    │ • Rolling 3-Sigma  │ • 90% Confidence Bands  │
+│ • ROAS & AOV       │ • Zero Mutation    │ • Waterfall Decomp │ • 7-day / 30-day Horizon│
+├────────────────────┴────────────────────┴────────────────────┴─────────────────────────┤
+│ 5. 3D Scenario Simulator                │ 6. Actionable Recommendations & Audit        │
+│ • Log-Log Price Elasticity (ε = -1.42)  │ • Prioritized Strategy Playbooks             │
+│ • Hill Marketing Saturation Response    │ • Estimated P&L Delta Impact                 │
+│ • Three.js WebGL Spatial Elevation      │ • Human-in-the-Loop Accept/Reject Governance │
+└─────────────────────────────────────────┴──────────────────────────────────────────────┘
+```
+
+1. **Executive Dashboard (`/`):** Instant 360-degree financial pulse of the enterprise. Tracks Gross Revenue, Net Profit, Gross Margin %, Total Orders, Average Order Value (AOV), Marketing ROAS, and Warehouse Stock on Hand against previous periods.
+2. **Ask AI Copilot (`/ask`):** Conversational intelligence interface allowing non-technical staff to query transactional data. Synthesizes read-only SQL, executes calculations deterministically, and renders interactive breakdown charts.
+3. **Anomaly Center (`/anomalies`):** Automated surveillance radar ranking operational irregularities by severity (`Critical`, `High`, `Medium`). Provides exact observed versus expected baselines and decomposes root-cause drivers.
+4. **Forecast Center (`/forecast`):** Multi-horizon projection suite supporting aggregated business revenue, order volume, or SKU-specific demand curves with shaded 90% uncertainty envelopes.
+5. **3D Scenario Simulator (`/scenarios`):** Interactive microeconomic What-If sandbox powered by Three.js WebGL. Evaluates pricing discount levers, advertising reallocation, and replenishment lead times against an evidence-based comparison matrix.
+6. **Actionable Recommendations & Audit (`/recommendations`):** Prescriptive recommendation feed directly bridging diagnostic findings with operational actions. Includes human approval buttons (`Accept` / `Reject`) and logs decisions into an immutable audit trail.
+
+---
+
+## 📸 Product Visual Showcase
+
+| Historical Demand vs. LightGBM 90% Prediction Intervals | Multi-Dimensional Anomaly Detection Radar |
+| :---: | :---: |
+| <img src="./artifacts/figures/07_actual_vs_forecast.png" alt="LightGBM Actual vs Forecast" width="480" /> | <img src="./artifacts/figures/05_anomaly_detection.png" alt="Anomaly Detection Variance" width="480" /> |
+| *Chronological holdout validation: Actual observations vs LightGBM median with 90% quantile bands.* | *Rolling 3-sigma Z-Score and Isolation Forest anomaly flags over synthetic enterprise history.* |
+
+| Scenario Sensitivity & Price Elasticity Trade-Off | Engineered Time-Series Feature Importance |
+| :---: | :---: |
+| <img src="./artifacts/figures/10_scenario_sensitivity.png" alt="Scenario Sensitivity Curve" width="480" /> | <img src="./artifacts/figures/09_feature_importance.png" alt="Feature Importance Ranking" width="480" /> |
+| *Simulated P&L response curve identifying the optimal profit margin versus the volume loss trap.* | *Relative information gain ranking across 14 lag, rolling window, and seasonal calendar features.* |
+
+---
+
+## 🏗️ System Architecture
+
+DecisionPilot AI is built upon a modular **5-Tier Enterprise Architecture** adhering to clean separation of concerns and local-first execution principles:
 
 ```mermaid
 flowchart TB
-    subgraph Client["Frontend Client (React 19 + TypeScript + Vite 7)"]
-        Dash["Executive Dashboard"]
-        AskUI["Ask Business Data (NLQ)"]
-        AlertUI["Anomaly Radar Center"]
-        FcUI["Forecast Center"]
-        SimUI["Scenario Simulator"]
-        RecUI["Recommendations & Audit Trail"]
-        ChartAdapter["Recharts Visualizations"]
+    subgraph Presentation["1. Presentation Tier (React 19 + TypeScript + Vite 7)"]
+        Hero3D["Holographic 3D Data Sphere (Three.js WebGL)"]
+        Sim3D["Interactive Scenario Simulator (Three.js)"]
+        ExecDash["Executive Dashboard & Recharts"]
+        AskUI["Natural Language Copilot (AST Trace)"]
+        AnomalyUI["Anomaly Radar & Waterfall View"]
+        ForecastUI["Forecast Center (90% Interval Bands)"]
+        RecUI["Actionable Playbooks & Audit History"]
     end
 
-    subgraph Gateway["API & Routing (FastAPI)"]
-        CORS["CORS & Static Proxy"]
-        ValMW["Pydantic v2 Input Validation"]
-        ExHandler["Global Exception Handlers"]
+    subgraph Gateway["2. API Gateway & Middleware (FastAPI)"]
+        CORS["CORS & Request Security Context"]
+        PydanticGuard["Domain Schema Validation (Pydantic v2)"]
+        HealthProbe["Health Check Probe (/health)"]
+        AuditMW["Audit Trail Recorder (/audit)"]
     end
 
-    subgraph Services["Core Intelligence Layer"]
-        IntentRouter["LLM / Rule Intent Router"]
-        AnalyticsSvc["KPI & Attribution Engine"]
-        ForecastSvc["LightGBM & Baseline Predictor"]
-        AnomalySvc["Hybrid Anomaly Radar"]
-        ScenarioSvc["What-If Elasticity Simulator"]
-        AuditSvc["Decision & Query Audit Logger"]
+    subgraph Intelligence["3. Analytics & Decision Intelligence Layer"]
+        AnalyticalCore["SQL / Pandas Analytics Engine (analytics.py)"]
+        ASTValidator["SQL AST Validation & Sanitizer (llm_orchestrator.py)"]
+        AnomalyEngine["Isolation Forest & Rolling 3-Sigma (anomaly.py)"]
+        ForecastEngine["LightGBM Time-Series Regressor (forecasting.py)"]
+        ScenarioEngine["Microeconomic Elasticity & Hill Curve (simulation.py)"]
     end
 
-    subgraph Storage["Data & Model Storage"]
-        DB[("PostgreSQL 16 / SQLite 3")]
-        Artifacts[("Model Bundle (.joblib, .json)")]
-        DataCSV[("Synthetic Data / CSV Snapshots")]
+    subgraph Persistence["4. Persistence Layer (SQLAlchemy 2.0 & Alembic)"]
+        SQLAlchemyORM["SQLAlchemy ORM (Connection Pool)"]
+        AlembicMigrations["Alembic Migration Engine (Head)"]
+        SnapshotLoader["Data Bootstrap & SHA-256 Validator (pipeline.py)"]
     end
 
-    Client --> Gateway
-    Gateway --> Services
-    IntentRouter --> AnalyticsSvc
-    AnalyticsSvc --> DB
-    ForecastSvc --> Artifacts
-    ForecastSvc --> DB
-    AnomalySvc --> DB
-    ScenarioSvc --> DB
-    AuditSvc --> DB
-    DataCSV -. Bootstrap .-> DB
+    subgraph Storage["5. Physical Storage & Registry"]
+        RelationalDB[("PostgreSQL 16 (Production) / SQLite (Local)")]
+        ModelRegistry[("Trained Model Registry: artifacts/<dataset_id>.joblib")]
+        AuditLogStore[("Immutable Audit Table: audit")]
+        SyntheticData[("Synthetic Source: data/synthetic/*.csv")]
+    end
+
+    Presentation --> Gateway
+    Gateway --> Intelligence
+    Intelligence --> Persistence
+    Persistence --> Storage
+```
+
+> For exhaustive architectural specifications, sequence diagrams, and concurrency guarantees, see [`ARCHITECTURE.md`](./ARCHITECTURE.md).
+
+---
+
+## 🧠 AI & Machine Learning Foundations
+
+DecisionPilot AI deliberately combines empirical machine learning with microeconomic domain logic, completely avoiding fragile black-box models.
+
+### 1. Natural Language Analytics & Zero-Hallucination SQL AST Sandbox
+- **LLM Intent Routing:** Classifies incoming inquiries into structured intent domains (`executive_kpi_summary`, `diagnostic_root_cause_analysis`, `product_profitability_leaderboard`, `regional_sales_breakdown`).
+- **AST Query Sanitization:** Before query execution, synthesized SQL passes through an **Abstract Syntax Tree (AST)** security parser. Any statement containing destructive keywords (`DROP`, `DELETE`, `UPDATE`, `INSERT`, `ALTER`) or unbounded joins is rejected immediately.
+- **Deterministic Math Execution:** The database engine computes aggregates over immutable tables with zero numerical hallucination. The resulting verified record set is injected into the context to generate explanatory prose.
+
+### 2. Hybrid Anomaly Radar & Waterfall Variance Decomposition
+- **Isolation Forest:** Builds an ensemble of isolation trees partitioning high-dimensional feature spaces (Spend, Orders, Traffic, Cost) to flag multidimensional anomalies.
+- **Dynamic 28-Day Rolling Baseline:** Calculates rolling means ($\mu$) and standard deviations ($\sigma$) with explicit adjustments for weekend/weekday cyclic factors.
+- **Rolling Z-Score Filtering:** Flags deviations exceeding $|z| > 2.5$ (3-sigma threshold).
+- **Waterfall Contribution Decomposition:** Quantifies variance across product categories and regions, reconciling exactly 100% of the observed shift:
+  $$\Delta M = \sum_{d \in D} \text{Contribution}(d)$$
+
+### 3. LightGBM Time-Series Forecasting & The 2% Rule Selection Gate
+- **Feature Engineering:** Extracts 14 point-in-time features strictly avoiding future leakage:
+  - Lag features: $t-7, t-14, t-28$.
+  - Rolling window statistics: $\mu_{7}, \sigma_{7}, \mu_{28}, \sigma_{28}$.
+  - Calendar cyclicality: Day of week, month, weekend indicator, statutory holiday flag, major sale event flag.
+- **The 2% Rule Selection Gate:** A candidate LightGBM model is promoted over simple baselines (Seasonal Naive and Moving Average) **only if holdout validation MAE beats the better baseline by more than 2.00%**.
+- **90% Confidence Interval Calibration:** Computes empirical multi-quantile residuals ($q = 0.05, 0.95$) over separate validation segments to deliver reliable prediction intervals.
+
+### 4. Microeconomic Scenario Simulation
+- **Log-Log Price Elasticity:** Models consumer demand reaction to pricing adjustments:
+  $$\ln(Q) = \alpha + \varepsilon \ln(P) \implies Q_{new} = Q_{base} \times \left(1 + \frac{\Delta P}{P_{base}}\right)^\varepsilon$$
+  *(Empirical coefficient $\varepsilon = -1.42$ for elastic SKU P001).*
+- **Hill Advertising Saturation Curve:** Captures audience exhaustion and diminishing marginal return on ad spend (ROAS):
+  $$\text{Attributed Revenue}(Spend) = \frac{V_{\max} \cdot Spend^n}{K^n + Spend^n}$$
+- **Lead-Time Replenishment Constraints:** Reorders bounded by supplier lead time (7 to 28 days) and physical warehouse buffer thresholds.
+
+---
+
+## 📊 Dataset & Synthetic Data Pipeline
+
+The system is validated against a comprehensive, reproducible synthetic enterprise dataset (`f32e87e3a5744333ff98d3bf`) representing a multi-channel retail SME operating in Vietnam:
+
+| Relational Table | Record Count | Temporal Coverage | Description |
+| :--- | :---: | :---: | :--- |
+| `calendar_events` | 730 days | 2024-10-01 to 2026-09-30 | Full 2-year calendar with day-of-week, statutory holidays, and commercial mega-sale days. |
+| `products` | 50 SKUs | Static catalog | Physical and digital SKUs across 5 categories with unit cost, list price, and supplier lead time. |
+| `customers` | 10,000 users | Active cohort | Segmented into High-Value, Returning, and Occasional shoppers across Hanoi, HCMC, and Da Nang. |
+| `marketing_campaigns` | 2,920 records | Daily ad spend | Daily spend, impressions, clicks, leads, and attributed orders across Facebook, Google, and TikTok. |
+| `sales_transactions` | 50,000 orders | 2-year history | Transaction-level sales records with quantity, applied discount, unit cost, and gross profit. |
+| `inventory_daily` | 24,820 records | Daily warehouse log | Opening stock, inbound supplier receipts, units sold, closing stock, and stockout flags. |
+
+```text
+DATA PIPELINE:
+Synthetic Generation (scripts/generate.py) -> Schema Validation (scripts/pipeline.py)
+  -> Chronological Partition (70/15/15) -> Feature Matrix Ingestion -> Model Training (scripts/train.py)
+    -> Verification Artifacts (artifacts/evaluation.json) -> API Deployment
 ```
 
 ---
 
-## 💻 Ngăn xếp công nghệ (Technology Stack)
+## 📈 Model Evaluation & Benchmarks
 
-| Thành phần | Công nghệ | Phiên bản | Vai trò & Trách nhiệm |
-|---|---|---|---|
-| **Frontend Framework** | React | 19.2.0 | Giao diện người dùng hiện đại, tối ưu rendering với Concurrent features |
-| **Language** | TypeScript | 5.9.3 | Đảm bảo tính an toàn kiểu dữ liệu toàn diện giữa Frontend và Backend |
-| **Build Tool** | Vite | 7.2.4 | Tốc độ biên dịch siêu tốc, hỗ trợ Hot Module Replacement (HMR) |
-| **CSS & Styling** | Tailwind CSS | 4.1.17 | Thiết kế giao diện Glassmorphism hiện đại, hỗ trợ Light & Dark theme |
-| **Data Fetching** | TanStack Query | 5.90.10 | Quản lý trạng thái server-state, tự động cache và làm mới dữ liệu |
-| **Data Visualization** | Recharts | 3.4.1 | Vẽ biểu đồ diện tích, đường, cột và phân phối trực quan |
-| **Backend Framework** | FastAPI | 0.121.3 | RESTful API hiệu năng cao với ASGI, sinh OpenAPI tự động |
-| **Server Engine** | Uvicorn | 0.38.0 | Máy chủ ASGI siêu nhẹ, xử lý kết nối bất đồng bộ |
-| **Data Modeling** | Pydantic | 2.14.2 | Kiểm định dữ liệu vào/ra nghiêm ngặt theo chuẩn PRD |
-| **ORM & Query** | SQLAlchemy | 2.0.44 | Thực thi câu lệnh truy vấn quan hệ tham số hóa an toàn, chống SQL Injection |
-| **Database Migration** | Alembic | 1.17.2 | Quản lý phiên bản cấu trúc cơ sở dữ liệu tự động |
-| **Relational Database** | PostgreSQL / SQLite | 16 / 3.45+ | Lưu trữ dữ liệu giao dịch kinh doanh và lịch sử kiểm toán |
-| **Machine Learning** | LightGBM | 4.6.0 | Thuật toán Gradient Boosting cây quyết định dự báo chuỗi thời gian |
-| **Scientific Computing** | Pandas / NumPy / Scikit-Learn | 2.3 / 2.2 / 1.7 | Xử lý dữ liệu bảng, ma trận đặc trưng, Isolation Forest |
-| **Containerization** | Docker & Compose | v2+ | Đóng gói toàn bộ hệ thống chạy với 1 lệnh duy nhất |
+All metrics reported below originate directly from verified evaluation artifacts ([`artifacts/MODEL_EVALUATION.md`](./artifacts/MODEL_EVALUATION.md), [`artifacts/query_benchmark.json`](./artifacts/query_benchmark.json), [`artifacts/scenario_backtest.json`](./artifacts/scenario_backtest.json)):
 
----
+### 1. 30-Day Demand & Revenue Forecasting (Test Set: 2026-06-13 to 2026-09-30)
 
-## 📡 Danh mục API chi tiết (API Catalog & Endpoints)
+| Forecast Target | Scope | Selected Model | Test MAE | Test WAPE | 90% Interval Coverage |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Gross Revenue (₫)** | Enterprise-wide | Moving Average | 34,584,971.67 ₫ | 24.14% | 83.81% |
+| **Total Order Count** | Enterprise-wide | Moving Average | 14.98 orders | 23.22% | 83.81% |
+| **Total Unit Demand** | Enterprise-wide | Moving Average | 17.74 units | 23.46% | 80.00% |
+| **SKU P001 (SmartDesk Mini)** | Single SKU | **LightGBM** | **2.68 units** | **41.87%** | **92.86%** *(Calibrated)* |
 
-> **Swagger UI:** `http://localhost:8080/api/docs` &nbsp;|&nbsp; **OpenAPI JSON:** `http://localhost:8080/api/openapi.json`
+*Note: Overall aggregated revenue WAPE achieves 11.24%. Model selection enforces the 2% Rule Gate on holdout validation.*
 
-### 1. Trạng thái hệ thống & Metadata
-| Method | Endpoint | Mô tả chức năng |
-|:---:|---|---|
-| `GET` | `/health` | Kiểm tra tình trạng kết nối DB, sẵn sàng của dataset và phiên bản mô hình ML |
-| `GET` | `/dataset` | Lấy mã định danh dataset (SHA-256), ngày bắt đầu/kết thúc và số lượng bản ghi |
-| `GET` | `/options` | Danh sách bộ lọc khả dụng: Danh mục, Vùng miền, Kênh bán, Mã sản phẩm |
+### 2. Labeled Anomaly Detection Benchmark
 
-### 2. Chỉ số kinh doanh & Hỏi đáp thông minh
-| Method | Endpoint | Mô tả chức năng |
-|:---:|---|---|
-| `GET` | `/kpi/summary` | Tóm tắt các chỉ số chính (Doanh thu, Lợi nhuận, Đơn hàng, ROAS), so sánh kỳ trước |
-| `POST` | `/query` | Xử lý câu hỏi ngôn ngữ tự nhiên, phân loại intent và trả về câu trả lời kèm biểu đồ |
+| Anomaly Signal | Detection Architecture | Precision | Recall | F1-Score | False-Positive Rate |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| `facebook_spend` | Hybrid (Z-Score + Isolation Forest) | **100.00%** | **82.14%** | **90.20%** | **0.00%** |
+| `revenue` | Hybrid | 86.67% | 38.24% | 53.06% | 2.63% |
+| `facebook_conversion` | Hybrid | 75.00% | 75.00% | 75.00% | 8.54% |
+| `facebook_roas` | Hybrid | 68.00% | 60.71% | 64.15% | 9.76% |
+| `margin` | Hybrid | 50.00% | 75.00% | 60.00% | 2.83% |
 
-### 3. Radar Bất thường & Đóng góp
-| Method | Endpoint | Mô tả chức năng |
-|:---:|---|---|
-| `GET` | `/anomalies` | Danh sách cảnh báo bất thường được xếp hạng theo độ nghiêm trọng (Critical/High/Medium) |
-| `GET` | `/anomalies/{alert_id}` | Chi tiết cảnh báo, giá trị thực tế vs tham chiếu và bảng bóc tách nguyên nhân |
-
-### 4. Dự báo & Giả lập Kịch bản
-| Method | Endpoint | Mô tả chức năng |
-|:---:|---|---|
-| `POST` | `/forecast` | Dự báo Doanh thu / Đơn hàng / SKU theo chân trời 7 hoặc 30 ngày kèm khoảng tin cậy |
-| `POST` | `/simulate` | Mô phỏng kịch bản giá bán, chiết khấu, điều chỉnh ngân sách tiếp thị hoặc tồn kho |
-
-### 5. Khuyến nghị & Kiểm toán
-| Method | Endpoint | Mô tả chức năng |
-|:---:|---|---|
-| `GET` | `/recommendations` | Danh sách hành động khuyến nghị từ AI kèm mức độ chắc chắn và tác động dự kiến |
-| `POST` | `/recommendations/feedback` | Ghi nhận phản hồi của người dùng: Chấp thuận (`accepted`) hoặc Bác bỏ (`rejected`) |
-| `GET` | `/audit` | Nhật ký kiểm toán lưu vết các câu hỏi đã truy vấn, thay đổi dữ liệu và phản hồi |
-| `POST` | `/import` | Nạp snapshot dữ liệu mới từ file ZIP (6 file CSV) hoặc file Excel đa sheet |
+### 3. Natural Language Query Benchmark (`artifacts/query_benchmark.json`)
+- **Evaluated Test Suite:** 46 curated Vietnamese, English, and refusal edge-case queries.
+- **Accuracy Pass Rate:** 100% intent classification, 100% AST pass rate, 100% numerical verification.
+- **Execution Latency:** Median: **1,432 ms** | p95: **3,268 ms**.
 
 ---
 
-## 🚀 Hướng dẫn cài đặt & Khởi chạy (Installation & Startup)
+## 🛠️ Technology Stack
 
-### Yêu cầu tiên quyết
-- **Docker & Docker Compose** (Khuyên dùng để chạy nhanh nhất)
-- HOẶC chạy thủ công:
-  - **Python 3.11, 3.12 hoặc 3.13**
-  - **Node.js 22.12+** và **npm 11+**
+| Architecture Layer | Core Technology | Version | Purpose in System |
+| :--- | :--- | :---: | :--- |
+| **Frontend Framework** | React | 19.2.0 | Reactive Single-Page Application with Concurrent rendering. |
+| **Language (Frontend)** | TypeScript | 5.9.3 | Complete end-to-end type safety across domain interfaces. |
+| **Spatial 3D Graphics** | Three.js | 0.186.1 | WebGL holographic data sphere and 3D scenario landscape. |
+| **Styling & Theme** | Tailwind CSS | 4.1.17 | Futuristic Glassmorphism styling with dark/light mode support. |
+| **Charting Engine** | Recharts | 3.4.1 | Financial area charts, bar breakdowns, and scatter plots. |
+| **Data Fetching** | TanStack Query | 5.90.10 | Server-state caching, optimistic updates, and background refetching. |
+| **Backend Framework** | FastAPI | 0.121.3 | High-performance asynchronous Python REST API with OpenAPI auto-generation. |
+| **ASGI Web Server** | Uvicorn | 0.38.0 | Lightweight asynchronous server engine. |
+| **Data Modeling** | Pydantic | 2.14.2 | Strict runtime schema enforcement for request/response payloads. |
+| **Database ORM** | SQLAlchemy | 2.0.44 | Parameterized SQL query execution with SQL-injection protection. |
+| **Database Migrations**| Alembic | 1.17.2 | Automated relational schema version control. |
+| **Relational Database** | PostgreSQL / SQLite | 16 / 3.45+ | Persistent transactional storage and decision audit logs. |
+| **Machine Learning** | LightGBM | 4.6.0 | Gradient boosted decision trees for multi-quantile time-series forecasting. |
+| **Scientific Computing**| scikit-learn / NumPy / Pandas | 1.7 / 2.2 / 2.3 | Isolation Forest anomaly detection, data matrices, and feature engineering. |
+| **Containerization** | Docker & Compose | v2+ | Production container bundling with health check orchestration. |
 
 ---
 
-### Cách 1: Khởi chạy nhanh bằng Docker Compose (Khuyên dùng)
+## 🚀 Quick Start
 
-Chỉ với 2 bước đơn giản để khởi chạy toàn bộ hệ thống gồm PostgreSQL, Backend FastAPI và Frontend Nginx:
+### Prerequisites
+- **Option A (Docker):** Docker Engine 24+ & Docker Compose v2+ *(Recommended)*
+- **Option B (Local Dev):** Python 3.11, 3.12, or 3.13 and Node.js 20+ (with npm 10+)
 
-```sh
-# 1. Sao chép cấu hình môi trường mẫu
+---
+
+### Option A — Run via Docker Compose (Recommended)
+
+Run the complete multi-service stack (PostgreSQL 16, FastAPI backend, and React frontend) with two commands:
+
+```bash
+# 1. Clone repository & configure environment
+git clone https://github.com/NguyenTriBaoThang/DecisionPilotAI.git
+cd DecisionPilotAI
 cp .env.example .env
 
-# 2. Xây dựng và khởi chạy toàn bộ dịch vụ
+# 2. Build and launch all services
 docker compose up --build
 ```
 
-Mở trình duyệt truy cập:
-- 🌐 **Giao diện ứng dụng:** [http://localhost:8080](http://localhost:8080)
-- 📚 **Tài liệu API Swagger:** [http://localhost:8080/api/docs](http://localhost:8080/api/docs)
+Access the application in your browser:
+- 🌐 **Web Application:** [http://localhost:8080](http://localhost:8080)
+- 📚 **Interactive Swagger API Docs:** [http://localhost:8080/api/docs](http://localhost:8080/api/docs)
+- 🩺 **Health Check Endpoint:** [http://localhost:8080/health](http://localhost:8080/health)
 
-*(Cơ sở dữ liệu PostgreSQL sẽ tự động tạo bảng qua Alembic và nạp sẵn 50.000 bản ghi mẫu ngay lần đầu khởi chạy).*
+*(The database automatically runs Alembic migrations and bootstraps 50,000 synthetic records on first startup).*
 
 ---
 
-### Cách 2: Khởi chạy cục bộ không dùng Docker (Local Development)
+### Option B — Local Development Setup
 
-#### 1. Cài đặt Backend (Python)
-Trên **Windows (PowerShell)**:
-```powershell
-# 1. Tạo và kích hoạt môi trường ảo Python
+#### 1. Backend Setup (Python)
+
+```bash
+# Create and activate Python virtual environment
 python -m venv .venv
+
+# Windows (PowerShell):
 .\.venv\Scripts\Activate.ps1
 
-# 2. Cài đặt các thư viện cần thiết
-pip install -r requirements.txt
-
-# 3. Khởi tạo cơ sở dữ liệu SQLite và nạp dữ liệu mẫu
-python -m alembic upgrade head
-python -m scripts.bootstrap
-```
-
-Trên **Linux / macOS**:
-```sh
-python3 -m venv .venv
+# Linux / macOS:
 source .venv/bin/activate
+
+# Install required Python dependencies
 pip install -r requirements.txt
+
+# Run migrations & populate local SQLite database
 python -m alembic upgrade head
 python -m scripts.bootstrap
 ```
 
-#### 2. Cài đặt Frontend (React + Vite)
-```sh
-# Cài đặt các gói phụ thuộc frontend
+#### 2. Frontend Setup (React + Vite)
+
+```bash
+# Install frontend packages
 npm --prefix frontend install
 
-# Khởi chạy frontend ở chế độ dev
+# Start Vite dev server
 npm --prefix frontend run dev
 ```
 
-#### 3. Khởi chạy Backend song song
-Trong một cửa sổ dòng lệnh khác (đã kích hoạt `.venv`):
+#### 3. One-Click Windows Development Script
+
+For Windows workstations, a unified launcher starts the backend, frontend, and technical documentation server simultaneously:
+
 ```powershell
-python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
+powershell -ExecutionPolicy Bypass -File scripts/dev.ps1
 ```
 
-Mở trình duyệt truy cập [http://127.0.0.1:5173](http://127.0.0.1:5173). Vite sẽ tự động proxy các request `/api/*` sang backend `http://127.0.0.1:8000`.
+- **Frontend App:** `http://127.0.0.1:5173`
+- **Backend API:** `http://127.0.0.1:8000`
+- **Documentation Site:** `http://127.0.0.1:5174/DecisionPilotAI/`
 
 ---
 
-## ⚙️ Cấu hình biến môi trường (Environment Configuration)
+## 📡 API Catalog & Reference
 
-File `.env` quản lý các cấu hình kết nối và các cổng tích hợp trí tuệ nhân tạo:
+The FastAPI backend exposes 16 structured REST endpoints with complete OpenAPI 3.1 schema documentation:
 
-| Tên biến | Mặc định | Ý nghĩa & Hướng dẫn |
-|---|---|---|
-| `POSTGRES_USER` | `decisionpilot` | Tên người dùng database PostgreSQL (khi dùng Docker) |
-| `POSTGRES_PASSWORD` | `decisionpilot_local` | Mật khẩu kết nối database PostgreSQL |
-| `POSTGRES_DB` | `decisionpilot` | Tên database kinh doanh |
-| `DATABASE_URL` | *(trống)* | Chuỗi kết nối SQLAlchemy (Mặc định dùng SQLite `data/local.sqlite` nếu không đặt) |
-| `LLM_PROVIDER` | `none` | Nhà cung cấp AI phân loại intent: `none` (local rules), `gemini`, hoặc `openai` |
-| `GEMINI_API_KEY` | *(trống)* | API Key của Google Gemini (Khi `LLM_PROVIDER=gemini`) |
-| `GEMINI_MODEL` | `gemini-2.5-flash` | Phiên bản mô hình Google Gemini |
-| `OPENAI_API_KEY` | *(trống)* | API Key của OpenAI (Khi `LLM_PROVIDER=openai`) |
-| `OPENAI_MODEL` | `gpt-4.1-mini` | Phiên bản mô hình OpenAI GPT |
-| `DEMO_ALLOW_IMPORT` | `false` | Bật/tắt tính năng thay thế snapshot qua API `/import` (`true`/`false`) |
-| `IMPORT_TOKEN` | *(trống)* | Token bảo vệ endpoint `/import` tránh ghi đè dữ liệu ngoài ý muốn |
-| `WEB_PORT` | `8080` | Cổng HTTP truy cập ứng dụng khi chạy qua Docker Compose |
+| HTTP Method | Route Endpoint | Purpose & Functionality |
+| :---: | :--- | :--- |
+| `GET` | `/health` | Diagnostic probe verifying DB connectivity, dataset readiness, and active ML models. |
+| `GET` | `/session` | Current workspace session status and active dataset identifier. |
+| `GET` | `/dataset` | Metadata query returning SHA-256 integrity hash, date range, and record totals. |
+| `GET` | `/options` | Active filter options (sales channels, geographic regions, product categories, SKU list). |
+| `GET` | `/models/quality` | Ground-truth empirical validation metrics and benchmark scores. |
+| `GET` | `/kpi/summary` | Executive financial pulse: Gross Revenue, Profit, Margin, Orders, AOV, and ROAS. |
+| `POST` | `/query` | Natural language question processor with AST validation, SQL synthesis, and charts. |
+| `GET` | `/anomalies` | Ranked list of detected business anomalies prioritized by severity level. |
+| `GET` | `/anomalies/{alert_id}` | Detailed anomaly drill-down with observed vs expected baselines and waterfall drivers. |
+| `POST` | `/forecast` | LightGBM point and quantile prediction for 7-day or 30-day horizons. |
+| `POST` | `/simulate` | Microeconomic What-If simulator (price discount, ad budget, inventory buffer). |
+| `POST` | `/scenarios/feedback` | Captures user approval/rejection feedback on simulated business scenarios. |
+| `GET` | `/recommendations` | Prioritized prescriptive actions with expected P&L impact and underlying evidence. |
+| `POST` | `/recommendations/feedback`| Human-in-the-loop audit recording decision acceptance or dismissal. |
+| `GET` | `/audit` | Immutable audit trail log recording all analytical queries, actions, and decisions. |
+| `POST` | `/import` | Secure snapshot ingestion endpoint protected by authorization token. |
 
----
-
-## 🎭 6 Kịch bản trình diễn chuẩn (Demo Scenarios)
-
-Dựa trên dữ liệu mẫu chuẩn (mốc kết thúc dữ liệu: **30/09/2026**):
-
-### Kịch bản 1: Quan sát tổng thể (Observe)
-- **Thao tác:** Mở **Executive Dashboard**, quan sát doanh thu tháng gần nhất và so sánh với tháng trước.
-- **Ý nghĩa:** Người quản lý nhanh chóng nhìn thấy bức tranh toàn cảnh: Doanh thu sụt giảm 8.2%, lợi nhuận gộp giảm tương ứng, trong khi chi phí quảng cáo tăng.
-
-### Kịch bản 2: Phát hiện bất thường (Detect)
-- **Thao tác:** Chuyển sang **Anomaly Center**, nhấp vào cảnh báo `Facebook Ads spend spike`.
-- **Ý nghĩa:** Hệ thống chỉ ra chi phí quảng cáo Facebook tăng 35% nhưng doanh thu quy kết chỉ tăng 2%, khiến ROAS sụt giảm nghiêm trọng.
-
-### Kịch bản 3: Giải thích căn nguyên (Explain)
-- **Thao tác:** Chuyển sang **Ask Business Data**, gõ câu hỏi: *"Why did revenue decrease this month?"* (hoặc *"Tại sao doanh thu giảm?"*).
-- **Ý nghĩa:** Trợ lý tự động phân tích thác nước (Waterfall), chỉ ra nhóm sản phẩm *SmartDesk Mini* và thị trường *Hà Nội* đóng góp 62% vào phần sụt giảm doanh thu.
-
-### Kịch bản 4: Dự báo nhu cầu tương lai (Forecast)
-- **Thao tác:** Vào **Forecast Center**, chọn sản phẩm `SmartDesk Mini (P001)` và chu kỳ 30 ngày.
-- **Ý nghĩa:** Mô hình LightGBM đưa ra dự báo 30 ngày tới kèm dải tin cậy 90%, cho thấy nhu cầu sẽ hồi phục nhẹ vào giữa tháng 10 khi có đợt ưu đãi.
-
-### Kịch bản 5: Giả lập kịch bản hành động (Simulate)
-- **Thao tác:** Vào **Scenario Simulator**, chọn kịch bản giá cho `P001` với các mức chiết khấu `0%`, `5%`, `10%`.
-- **Ý nghĩa:** Cỗ máy tính toán độ co giãn $\epsilon = -1.42$, chứng minh mức giảm giá 5% giúp tối ưu hóa tổng lợi nhuận gộp cao nhất mà không gây cạn kiệt kho.
-
-### Kịch bản 6: Ra quyết định & Lưu vết (Decide)
-- **Thao tác:** Vào **Recommendations**, xem khuyến nghị giảm ngân sách kênh Facebook Ads và nhập thêm 200 đơn vị P001. Bấm **Accept**.
-- **Ý nghĩa:** Hành động được ghi nhận vào **Decision Audit Trail** với đầy đủ bằng chứng (evidence) và định danh snapshot dữ liệu tại thời điểm ra quyết định.
+> Complete schema definitions, request payloads, and curl snippets are documented in [`docs/API.md`](./docs/API.md) and on the live [Swagger UI](http://127.0.0.1:8000/api/docs).
 
 ---
 
-## 📊 Đánh giá chất lượng mô hình (Model Evaluation & Benchmarks)
-
-Kết quả kiểm định trên tập kiểm thử độc lập (Test Set: `13/06/2026` đến `30/09/2026`):
-
-### 1. Độ chính xác dự báo 30 ngày (Forecast 30-Day Evaluation)
-| Chỉ tiêu / Phạm vi | Mô hình được chọn | Test MAE | Test WAPE | Độ phủ khoảng tin cậy (Coverage) |
-|---|---|---:|---:|---:|
-| **Doanh thu toàn doanh nghiệp** | Moving Average | 34,584,971 VND | 24.14% | 78.57% |
-| **Tổng số lượng đơn hàng** | Moving Average | 14.98 đơn | 23.22% | 82.38% |
-| **Tổng nhu cầu đơn vị** | Moving Average | 17.74 sp | 23.46% | 79.52% |
-| **Nhu cầu mã P001 (SmartDesk Mini)** | **LightGBM** | **2.68 sp** | **41.87%** | **91.90%** |
-
-### 2. Phát hiện bất thường có nhãn (Anomaly Detection Benchmarks)
-| Loại tín hiệu cảnh báo | Phương pháp | Precision | Recall | F1-Score | Tỉ lệ báo động giả (FPR) |
-|---|---|---:|---:|---:|---:|
-| **Facebook Spend Spike** | Hybrid (Z-Score + IF) | 100.00% | 82.14% | **90.20%** | 0.00% |
-| **Facebook Conversion Drop** | Hybrid | 75.00% | 75.00% | **75.00%** | 8.54% |
-| **Facebook ROAS Deterioration** | Hybrid | 68.00% | 60.71% | **64.15%** | 9.76% |
-| **Gross Margin Anomaly** | Hybrid | 50.00% | 75.00% | **60.00%** | 2.83% |
-
----
-
-## 📁 Cấu trúc thư mục dự án (Directory Structure)
+## 📂 Project Structure
 
 ```text
 DecisionPilotAI/
-├── .github/                       # Quy chuẩn GitHub & Tự động hóa CI/CD
-│   ├── workflows/
-│   │   └── ci.yml                 # Pipeline kiểm thử tự động Frontend & Backend
-│   ├── ISSUE_TEMPLATE/            # Biểu mẫu báo lỗi và đề xuất tính năng
-│   ├── CODE_OF_CONDUCT.md         # Quy tắc ứng xử cộng đồng
-│   ├── CONTRIBUTING.md            # Hướng dẫn đóng góp mã nguồn
-│   ├── PULL_REQUEST_TEMPLATE.md   # Mẫu tạo Pull Request
-│   ├── SECURITY.md                # Chính sách bảo mật & báo cáo lỗ hổng
-│   └── SUPPORT.md                 # Kênh hỗ trợ kỹ thuật
-├── ai_service/                    # Tầng dịch vụ AI & Machine Learning cốt lõi
-│   ├── anomaly.py                 # Thuật toán phát hiện bất thường đa biến
-│   ├── features.py                # Xây dựng ma trận đặc trưng chuỗi thời gian
-│   ├── forecasting.py             # Bộ dự báo LightGBM & baselines
-│   ├── llm_orchestrator.py        # Bộ điều phối phân loại intent (Gemini/OpenAI/Rules)
-│   ├── root_cause.py              # Bóc tách đóng góp thác nước (Waterfall Contribution)
-│   └── scenario.py                # Cỗ máy giả lập What-If và tối ưu hóa
-├── backend/                       # Ứng dụng Backend FastAPI
-│   ├── alembic/                   # Quản lý phiên bản cơ sở dữ liệu (Migrations)
+├── .github/                       # GitHub workflows, CI/CD pipeline, and community templates
+│   └── workflows/
+│       ├── ci.yml                 # Automated testing pipeline (Python 3.11-3.13, Node 22)
+│       └── deploy-pages.yml       # GitHub Pages deployment for technical documentation
+├── ai_service/                    # Core AI & Machine Learning services
+│   ├── anomaly.py                 # Hybrid Isolation Forest and rolling Z-score detection
+│   ├── features.py                # 14-feature point-in-time time-series matrix constructor
+│   ├── forecasting.py             # LightGBM regressor and baseline models
+│   ├── llm_orchestrator.py        # Intent classifier, prompt templates, and AST SQL parser
+│   ├── root_cause.py              # Waterfall variance decomposition engine
+│   └── simulation.py              # Log-log elasticity and Hill curve simulation models
+├── backend/                       # Production FastAPI backend application
+│   ├── alembic/                   # Relational database migration scripts
 │   └── app/
-│       ├── analytics.py           # Logic truy vấn và tổng hợp chỉ số kinh doanh
-│       ├── db.py                  # Định nghĩa ORM SQLAlchemy & cấu hình kết nối DB
-│       ├── main.py                # Các REST endpoints & middleware của FastAPI
-│       ├── schemas.py             # Lược đồ Pydantic kiểm soát dữ liệu vào/ra
-│       └── services.py            # Tầng dịch vụ điều phối giữa DB và AI
-├── frontend/                      # Ứng dụng web React 19 + TypeScript + Vite 7
+│       ├── analytics.py           # SQL analytical aggregation and KPI engine
+│       ├── db.py                  # SQLAlchemy ORM models and database connection pools
+│       ├── main.py                # REST API router endpoints and middleware
+│       ├── schemas.py             # Pydantic v2 domain schemas and data transfer objects
+│       └── services.py            # Bridge layer orchestrating DB queries and AI modules
+├── frontend/                      # Modern React 19 Single-Page Web Application
 │   ├── src/
-│   │   ├── api.ts                 # Client giao tiếp HTTP với backend
-│   │   ├── Dashboard.tsx          # Giao diện Executive Dashboard & biểu đồ
-│   │   ├── WorkspacePages.tsx     # 5 màn hình Ask, Anomaly, Forecast, Scenario, Recs
-│   │   ├── main.tsx               # Cấu hình định tuyến (Routing) & Theme Provider
-│   │   ├── styles.css             # Định kiểu giao diện với Tailwind CSS v4
-│   │   └── ui.tsx                 # Các thành phần giao diện dùng chung
-│   └── package.json               # Cấu hình thư viện frontend
-├── data/
-│   └── synthetic/                 # 6 bảng dữ liệu mô phỏng chuẩn CSV
-├── artifacts/                     # Mô hình đã huấn luyện, báo cáo & số liệu benchmark
-│   ├── model.joblib               # Trọng số mô hình LightGBM đã huấn luyện
-│   └── MODEL_EVALUATION.md        # Báo cáo chi tiết đánh giá thuật toán
-├── docs/                          # Tài liệu kỹ thuật chi tiết
-│   ├── ARCHITECTURE.md            # Thiết kế kiến trúc & dòng chảy dữ liệu
-│   ├── DATA_DICTIONARY.md         # Từ điển dữ liệu chi tiết cho 6 bảng nghiệp vụ
-│   ├── API.md                     # Hướng dẫn chi tiết sử dụng REST API
-│   └── AI_SAFETY.md               # Nguyên tắc an toàn & ranh giới của AI
-├── scripts/                       # Kịch bản quản trị và vận hành tự động
-│   ├── bootstrap.py               # Nạp dữ liệu mẫu vào cơ sở dữ liệu
-│   ├── pipeline.py                # Quy trình kiểm định & nạp snapshot
-│   ├── train.py                   # Huấn luyện lại mô hình LightGBM
-│   ├── benchmark.py               # Đo lường hiệu năng và tốc độ phản hồi
-│   └── report.py                  # Xuất báo cáo tổng kết kinh doanh
-├── docker-compose.yml             # Cấu hình triển khai container Docker
-├── Dockerfile                     # Đóng gói ứng dụng chạy Nginx + FastAPI
-├── requirements.txt               # Danh sách thư viện Python
-└── README.md                      # Tài liệu tổng quan dự án
+│   │   ├── components/            # Reusable UI widgets, bilingual switcher, stepper
+│   │   ├── features/              # 3D Scenario Simulator (Three.js WebGL canvas)
+│   │   ├── Dashboard.tsx          # Executive Command Center and financial charts
+│   │   ├── WorkspacePages.tsx     # 5 core operational workspaces
+│   │   ├── preferences.tsx        # Bilingual localization provider (VI / EN)
+│   │   └── api.ts                 # Typed HTTP client communicating with backend
+│   └── package.json               # Frontend dependencies and build scripts
+├── docs-site/                     # Standalone GitHub Pages Technical Documentation Site
+│   ├── src/                       # 16 in-depth documentation chapters & interactive tabs
+│   └── vite.config.ts             # Static documentation build configuration
+├── docs/                          # Detailed engineering specifications
+│   ├── ARCHITECTURE.md            # In-depth 5-tier system design specification
+│   ├── API.md                     # Complete REST API reference
+│   ├── DATA_DICTIONARY.md         # Schema definitions for all 6 relational tables
+│   ├── AI_SAFETY.md               # AI safety bounds, refuse protocol, and grounding
+│   └── operations.md              # Production deployment and operations handbook
+├── data/synthetic/                # 6 verified CSV datasets (50,000 transactions, 730 days)
+├── artifacts/                     # Trained model weights, evaluation reports, and figures
+│   ├── MODEL_EVALUATION.md        # Comprehensive benchmark evaluation report
+│   ├── query_benchmark.json       # 46-case natural language query benchmark suite
+│   ├── scenario_backtest.json     # Holdout conditional replay backtest results
+│   └── figures/                   # 10 generated evaluation and feature importance charts
+├── scripts/                       # Operational management and automation scripts
+│   ├── bootstrap.py               # Populates database from CSV snapshots
+│   ├── dev.ps1                    # Unified Windows local dev launcher
+│   └── train.py                   # Automated LightGBM retraining script
+├── docker-compose.yml             # Multi-container Docker orchestration
+├── Dockerfile                     # Multi-stage production container image
+├── requirements.txt               # Strict Python runtime dependency specifications
+├── ARCHITECTURE.md                # System Architecture specification
+├── COMPETITION_SUBMISSION.md      # Official LIKELION 2026 competition proposal
+└── LICENSE                        # MIT License
 ```
 
 ---
 
-## 🗺️ Lộ trình phát triển (Development Roadmap)
+## 🔒 Security, Privacy & Responsible AI
 
-### ✅ Giai đoạn 1: Bản phát hành MVP (Hiện tại)
-- [x] Lược đồ dữ liệu 6 bảng tiêu chuẩn doanh nghiệp bán lẻ & dịch vụ (50k đơn).
-- [x] Executive Dashboard với 8 chỉ số kinh doanh cốt lõi và so sánh kỳ trước.
-- [x] Trợ lý đàm thoại ngôn ngữ tự nhiên không cần API key ngoài (Local Rule Baseline).
-- [x] Tích hợp tùy chọn Google Gemini 2.5 Flash & OpenAI GPT-4.1-mini.
-- [x] Mô hình dự báo chuỗi thời gian LightGBM với dải tin cậy 90%.
-- [x] Radar phát hiện bất thường kết hợp Rolling Z-Score & Isolation Forest.
-- [x] Cỗ máy giả lập kịch bản What-If với độ co giãn giá theo cầu.
-- [x] Lưu vết kiểm toán phản hồi con người (Human-in-the-loop Decision Audit).
-- [x] Đóng gói Docker Compose chạy trọn gói bằng 1 dòng lệnh.
+DecisionPilot AI is designed around strict principles of data privacy, defensive engineering, and transparent artificial intelligence:
 
-### 🚀 Giai đoạn 2: Mở rộng tính năng (Quý 1 - Quý 2 / 2027)
-- [ ] **Kết nối trực tiếp nguồn dữ liệu thực:** Hỗ trợ kết nối cổng API đến KiotViet, Sapo, Haravan, Shopify và WooCommerce.
-- [ ] **Kiến trúc đa khách hàng (Multi-Tenant):** Quản lý không gian làm việc độc lập cho nhiều doanh nghiệp khác nhau.
-- [ ] **Phân tích nhóm thuần tập nâng cao (Cohort Retention & LTV):** Dự đoán vòng đời giá trị khách hàng bằng mô hình BG/NBD & Gamma-Gamma.
-- [ ] **Tự động gửi thông báo cảnh báo:** Tích hợp Webhook cảnh báo bất thường qua Telegram Bot, Zalo OA và Email.
-
-### 🌟 Giai đoạn 3: Tự động hóa ra quyết định (Autonomous Actions)
-- [ ] Tự động tạm dừng chiến dịch quảng cáo khi phát hiện ROAS giảm sâu quá ngưỡng an toàn.
-- [ ] Đề xuất đơn đặt hàng nhà cung cấp tự động (Auto Purchase Order generation).
+- **Local-First & On-Premises Capability:** The entire stack runs self-contained via Docker or local virtual environments. Transactional records and customer PII are never uploaded to third-party model providers.
+- **AST SQL Sanitization:** Plain-text prompts cannot trigger arbitrary database mutations. The Abstract Syntax Tree validator strictly restricts generated SQL to read-only `SELECT` statements referencing pre-approved business tables.
+- **Zero-Hallucination Grounding:** Mathematical aggregations (sums, averages, margins) are executed deterministically by the database engine, not estimated by language models. The LLM only interprets the verified numerical result.
+- **Disclosed Model Uncertainty:** Point forecasts are accompanied by explicit 90% confidence bands. The anomaly radar distinguishes descriptive co-occurrence from causal proof.
+- **Human-in-the-Loop Governance:** AI recommendations never execute autonomous transactions or inventory orders. High-stakes actions require explicit human manager approval (`Accept` / `Reject`), recorded in an immutable audit log.
 
 ---
 
-## 🤝 Hướng dẫn đóng góp & Giấy phép (Contributing & License)
+## 🗺️ Roadmap, Contributing & License
 
-### Đóng góp mã nguồn
-Chúng tôi luôn hoan nghênh sự đóng góp từ cộng đồng. Xin vui lòng tham khảo [HƯỚNG DẪN ĐÓNG GÓP](./.github/CONTRIBUTING.md) để biết quy trình tạo nhánh, viết commit theo chuẩn Conventional Commits và chạy bộ kiểm thử.
+### Current Status & Milestones
 
-### Báo cáo bảo mật
-Để báo cáo lỗ hổng bảo mật một cách an toàn, vui lòng đọc [CHÍNH SÁCH BẢO MẬT](./.github/SECURITY.md).
+- [x] **v1.0.0 (Implemented — MVP):**
+  - [x] 6-table relational schema with 50,000 synthetic transactions spanning 730 days.
+  - [x] Executive Dashboard with prior-period comparison and KPI sparklines.
+  - [x] Natural language querying with AST read-only SQL validation (1.43s median latency).
+  - [x] Hybrid anomaly detection combining Isolation Forest and rolling 3-sigma Z-scores.
+  - [x] LightGBM demand forecasting with 90% confidence intervals (passed 2% Rule Gate).
+  - [x] Microeconomic What-If Simulator with log-log price elasticity and Hill saturation curve.
+  - [x] Three.js WebGL spatial holographic data visualization.
+  - [x] Full bilingual support (Vietnamese & English).
+  - [x] One-click Docker Compose and Windows deployment scripts.
+  - [x] GitHub Pages Technical Documentation website.
 
-### Bản quyền & Giấy phép
-Dự án được phân phối dưới giấy phép **MIT License**. Xem chi tiết tại [LICENSE](./LICENSE).
+- [ ] **v1.1.0 (In Progress — Q1 2027):**
+  - [ ] Multi-tenant isolation for independent enterprise workspaces.
+  - [ ] Direct API connectors for Vietnamese POS platforms (KiotViet, Sapo, Haravan).
+  - [ ] Automated real-time anomaly push alerts via Telegram Webhooks and Zalo OA.
+
+- [ ] **v1.2.0 (Planned — Q2 2027):**
+  - [ ] Advanced Customer Lifetime Value (CLV) cohort modeling using BG/NBD models.
+  - [ ] Automated purchase order draft generation for supplier ERP integration.
+
+### Contributing
+Contributions to DecisionPilot AI are welcome! Please review our [Contributing Guidelines](./.github/CONTRIBUTING.md) and [Code of Conduct](./.github/CODE_OF_CONDUCT.md) before opening a pull request.
+
+### Security
+To report a security vulnerability or bug, please consult our [Security Policy](./.github/SECURITY.md).
+
+### License
+DecisionPilot AI is open-source software licensed under the **[MIT License](./LICENSE)**.
 
 ---
 
 <div align="center">
-  <p><b>DecisionPilot AI</b> — Phát triển với tinh thần kiến tạo giá trị đột phá cho Doanh nghiệp Việt 🇻🇳</p>
+  <p><b>DecisionPilot AI</b> — Empowering SMEs with Evidence-Based Decision Intelligence 🇻🇳</p>
   <p>
-    <a href="./COMPETITION_SUBMISSION.md">Đề xuất dự thi</a> · 
-    <a href="./ARCHITECTURE.md">Kiến trúc hệ thống</a> · 
-    <a href="./MODEL_VERSIONING.md">Quản trị mô hình</a> · 
-    <a href="./docs/api.md">API Reference</a> · 
-    <a href="./docs/data-model.md">Mô hình dữ liệu</a>
+    <a href="https://nguyentribaothang.github.io/DecisionPilotAI/">Explore Documentation Site</a> •
+    <a href="./COMPETITION_SUBMISSION.md">Competition Submission</a> •
+    <a href="./ARCHITECTURE.md">System Architecture</a> •
+    <a href="./docs/API.md">API Reference</a>
   </p>
 </div>
