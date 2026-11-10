@@ -14,32 +14,33 @@ flowchart TD
   subgraph Gateway ["Tier 2: API Gateway & Security"]
     FASTAPI["FastAPI Async REST Service"]
     RBAC["RBAC & Bearer Token Validator"]
-    HMAC["HMAC Snapshot Authenticator"]
+    DSLOCK["Dataset Snapshot Hash Lock"]
   end
 
   subgraph Orchestration ["Tier 3: Analytics & Orchestration"]
-    LLM_ORCH["NL Query Orchestrator"]
-    SQL_GEN["Safe SQL Synthesizer & Validator"]
-    AUDIT["Immutable Audit Ledger"]
+    LLM_ORCH["Intent Router (llm_orchestrator.py)"]
+    SQL_CORE["Parameterized SQLAlchemy Core"]
+    AUDIT["Append-Only Audit Ledger"]
   end
 
   subgraph AI_Engine ["Tier 4: AI & Machine Learning"]
-    LGBM["LightGBM Chronological Forecaster"]
+    LGBM["LightGBM & Baseline Forecaster"]
     ISOF["Hybrid Anomaly Detector (Isolation Forest)"]
-    SIM_ENG["Microeconomic Elasticity Engine"]
+    SIM_ENG["Scenario Counterfactual Engine"]
   end
 
   subgraph Persistence ["Tier 5: Persistence & Storage"]
     DB[("PostgreSQL 16 / SQLite Engine")]
-    TABLES["6 Normalized Relational Tables"]
-    CACHE["In-Memory Feature Snapshot"]
+    TABLES["6 Data + 3 Meta/Audit/Sim Tables"]
+    CACHE["Versioned Joblib Model Bundle"]
   end
 
   UI -->|HTTP Bearer Requests| FASTAPI
   FASTAPI --> RBAC
+  RBAC --> DSLOCK
   RBAC --> LLM_ORCH
-  LLM_ORCH --> SQL_GEN
-  SQL_GEN -->|Read-Only Execution| DB
+  LLM_ORCH --> SQL_CORE
+  SQL_CORE -->|Read-Only Execution| DB
   DB --> TABLES
   FASTAPI --> LGBM
   FASTAPI --> ISOF
@@ -77,7 +78,7 @@ flowchart TD
             Advisory Locking &amp; Snapshot Consistency
           </div>
           <p className="card-desc">
-            To prevent race conditions during scenario evaluation, DecisionPilot AI implements PostgreSQL transaction-level advisory locks (<code>SELECT pg_advisory_xact_lock(...)</code>) and SQLite <code>BEGIN IMMEDIATE</code> locks. Simulations are cryptographically keyed to the exact <code>dataset_id</code> hash. If the dataset is modified during an analyst's simulation run, the API rejects stale submissions with HTTP 409 Conflict.
+            To prevent race conditions during snapshot loading and audit logging, DecisionPilot AI acquires PostgreSQL transaction-level advisory locks (<code>SELECT pg_advisory_xact_lock(177480102)</code>) and SQLite <code>BEGIN IMMEDIATE</code> locks. Scenario feedback and recommendations bind to the exact <code>dataset_id</code> SHA-256 prefix, returning HTTP 409 Conflict if the underlying dataset changes.
           </p>
         </div>
 
@@ -87,7 +88,7 @@ flowchart TD
             Read-Only Connection Pool Isolation
           </div>
           <p className="card-desc">
-            The analytical querying engine (<code>ai_service/llm_orchestrator.py</code>) operates strictly over an isolated read-only SQLAlchemy database connection pool. Direct table writes, <code>DROP</code>, <code>ALTER</code>, or <code>DELETE</code> statements are rejected at both the AST syntax level and the database role permission level, ensuring absolute data immutability.
+            Analytical querying (<code>ai_service/llm_orchestrator.py</code>) maps natural language into a strict Pydantic <code>Intent</code> (<code>extra=&quot;forbid&quot;</code>) with regex injection guards and executes parameterized SQLAlchemy Core queries via <code>read_connection</code> (PostgreSQL <code>READ ONLY</code> + 8s timeout; SQLite <code>PRAGMA query_only = ON</code>).
           </p>
         </div>
       </div>

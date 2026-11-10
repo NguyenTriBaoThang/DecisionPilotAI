@@ -39,12 +39,12 @@ export const ANOMALY_BENCHMARKS: AnomalyBenchmark[] = [
 ]
 
 export const COPILOT_BENCHMARKS: QueryMetric[] = [
-  { metric: 'Intent Recognition Accuracy', score: '100.0%', description: '46/46 test queries classified correctly to the intended business scope' },
-  { metric: 'SQL Execution Success', score: '100.0%', description: 'Zero syntax errors or relational constraint violations on synthesized SQL' },
-  { metric: 'Numerical Consistency', score: '100.0%', description: '100% agreement between LLM narrative totals and deterministic SQL aggregates' },
-  { metric: 'Zero Hallucination Grounding', score: '100.0%', description: 'Every metric cited in answer traces directly to database result set' },
-  { metric: 'Median Query Latency', score: '1,432 ms', description: 'Real-time interactive response suitable for live executive presentation' },
-  { metric: '95th Percentile Latency', score: '3,268 ms', description: 'Worst-case query processing across multi-table analytical joins' },
+  { metric: 'Intent Recognition Accuracy', score: '100.0%', description: '46/46 benchmark cases (local rules mode) mapped accurately to typed Pydantic Intent' },
+  { metric: 'Analytical Query Execution', score: '100.0%', description: '46/46 parameterized SQLAlchemy Core queries executed on read-only sessions without errors' },
+  { metric: 'Numerical Consistency', score: '100.0%', description: '100% agreement between rendered answers and deterministic database/forecast outputs' },
+  { metric: 'Zero Hallucination Grounding', score: '100.0%', description: 'Every figure traces to executed read-only analytics and explicit formulas (refusals verified on unsupported scopes)' },
+  { metric: 'Median Query Latency', score: '1,432.2 ms', description: 'Median end-to-end HTTP turnaround across the 46 benchmark cases (~1.43s)' },
+  { metric: '95th Percentile Latency', score: '3,268.6 ms', description: 'P95 turnaround including multi-dimension driver explanations and forecasts' },
 ]
 
 export const SCENARIO_REPLAY = {

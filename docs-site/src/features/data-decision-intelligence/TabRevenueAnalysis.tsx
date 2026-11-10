@@ -7,12 +7,12 @@ export function TabRevenueAnalysis() {
   const [selectedIncident, setSelectedIncident] = useState<AnomalyIncident>(ANOMALY_INCIDENTS[0])
 
   const pipelineSteps = [
-    { step: '01', title: 'Continuous Stream Ingestion', desc: 'Aggregates daily revenue, channel ad spend, and inventory movements.' },
-    { step: '02', title: 'Dynamic 28-day Baseline', desc: 'Computes rolling mean and standard deviation factoring in weekday/weekend seasonality.' },
-    { step: '03', title: 'Hybrid Isolation Forest', desc: 'Isolates multi-dimensional outlier points using decision partition trees.' },
-    { step: '04', title: 'Rolling Z-Score Filtering', desc: 'Flags deviations exceeding 3-sigma thresholds (|z| > 2.5).' },
-    { step: '05', title: 'Contribution Decomposition', desc: 'Calculates SKU, regional, and channel delta shares reconciling to 100% of change.' },
-    { step: '06', title: 'Actionable Alert Generation', desc: 'Outputs severity-ranked alerts with contributing root cause factors.' },
+    { step: '01', title: 'Continuous Stream Ingestion', desc: 'Aggregates daily revenue, gross margin, marketing channel spend/ROAS, and stock movements.' },
+    { step: '02', title: 'Shifted 56-Day Baseline', desc: 'Computes rolling median & IQR statistics on a 56-day window shifted by 7 days to avoid contamination.' },
+    { step: '03', title: 'Hybrid Isolation Forest', desc: 'Scores multi-metric [robust_z, z] feature vectors via sklearn IsolationForest (120 trees).' },
+    { step: '04', title: 'IQR & Robust Z Filtering', desc: 'Requires directional deviation bounds and robust |z| thresholds plus 7-day sustained revenue drops.' },
+    { step: '05', title: 'Contribution Decomposition', desc: 'Calculates product, region, channel, and customer-segment contribution deltas in root_cause.py.' },
+    { step: '06', title: 'Actionable Alert Generation', desc: 'Outputs severity-ranked alerts with contributing factors and deterministic recommended actions.' },
   ]
 
   const getSeverityBadge = (sev: string) => {
@@ -82,7 +82,7 @@ export function TabRevenueAnalysis() {
             </h4>
           </div>
           <span className="badge badge-amber" style={{ fontSize: '0.72rem' }}>
-            5 Injected Anomaly Events Detected (Ground Truth)
+            Representative Alerts from 7 Injected Synthetic Scenarios
           </span>
         </div>
 
@@ -209,7 +209,9 @@ export function TabRevenueAnalysis() {
           <ul style={{ paddingLeft: '18px', marginTop: '8px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
             <li><strong>facebook_spend:</strong> 100.0% Precision, 82.14% Recall, 0.0% False Positive Rate.</li>
             <li><strong>revenue:</strong> 86.67% Precision, 38.24% Recall, 2.63% False Positive Rate.</li>
-            <li><strong>facebook_conversion:</strong> 75.0% Precision, 75.0% Recall, 75.0% F1.</li>
+            <li><strong>facebook_conversion:</strong> 75.0% Precision, 75.0% Recall, 75.0% F1, 8.54% FPR.</li>
+            <li><strong>facebook_roas:</strong> 68.0% Precision, 60.71% Recall, 64.15% F1.</li>
+            <li><strong>margin / stockout_risk:</strong> 50.0% / 18.75% Precision; 75.0% / 25.0% Recall.</li>
           </ul>
         </div>
 
@@ -227,7 +229,7 @@ export function TabRevenueAnalysis() {
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.84rem', color: 'var(--text-dim)', paddingTop: '8px' }}>
         <span>Source Code References:</span>
         <code style={{ fontSize: '0.75rem' }}>ai_service/anomaly.py</code>
-        <code style={{ fontSize: '0.75rem' }}>backend/app/services.py (alerts)</code>
+        <code style={{ fontSize: '0.75rem' }}>ai_service/root_cause.py</code>
         <code style={{ fontSize: '0.75rem' }}>backend/app/main.py (GET /anomalies)</code>
       </div>
     </div>

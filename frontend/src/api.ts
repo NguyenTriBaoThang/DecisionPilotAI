@@ -35,7 +35,7 @@ function resolveMockFallback<T>(path: string, body?: unknown): T | undefined {
     return {
       status: 'success',
       audit_id: 101,
-      decision: 'approved',
+      decision: 'accepted',
       timestamp: new Date().toISOString(),
     } as T
   }
@@ -47,7 +47,7 @@ function resolveMockFallback<T>(path: string, body?: unknown): T | undefined {
           occurred_at: new Date().toISOString(),
           kind: 'recommendation_feedback',
           subject: 'REC-2026-10-15-01',
-          payload: { decision: 'approved', actor: 'Executive Demo' },
+          payload: { decision: 'accepted', actor: 'Executive Demo' },
         },
       ],
     } as T

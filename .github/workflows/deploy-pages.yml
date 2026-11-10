@@ -25,7 +25,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: |
             docs-site/package-lock.json
@@ -41,13 +41,18 @@ jobs:
         working-directory: frontend
         run: |
           npm ci
-          npm run build
+          npm run build -- --base=/DecisionPilotAI/app/
 
       - name: Bundle Documentation & Live App Artifacts
         run: |
           mkdir -p docs-site/dist/app
           cp -r frontend/dist/* docs-site/dist/app/
-          cp docs-site/dist/index.html docs-site/dist/404.html
+          python3 -c '
+          from pathlib import Path
+          html = Path("docs-site/dist/index.html").read_text(encoding="utf-8")
+          script = "<script>if(location.pathname.startsWith(\"/DecisionPilotAI/app\")){sessionStorage.setItem(\"dp-spa-redirect\",location.pathname+location.search+location.hash);location.replace(\"/DecisionPilotAI/app/\");}</script>"
+          Path("docs-site/dist/404.html").write_text(html.replace("<head>", "<head>" + script, 1), encoding="utf-8")
+          '
           cp docs-site/dist/app/index.html docs-site/dist/app/404.html
 
       - name: Configure GitHub Pages

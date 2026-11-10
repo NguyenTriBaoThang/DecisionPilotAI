@@ -1,141 +1,110 @@
-# DecisionPilot AI — Machine Learning Pipeline & Data Science Specification
+# DecisionPilot AI — Machine Learning Pipeline & Econometric Specification
 
-> **Module Location:** [`ai_service/`](file:///g:/GITHUB/DecisionPilotAI/ai_service)  
-> **Key Libraries:** LightGBM 4.6, scikit-learn 1.5, NumPy, Pandas, Joblib  
-> **Artifacts Path:** [`artifacts/`](file:///g:/GITHUB/DecisionPilotAI/artifacts)
+> **Modules:** [`ai_service/features.py`](../ai_service/features.py), [`ai_service/forecasting.py`](../ai_service/forecasting.py), [`ai_service/anomaly.py`](../ai_service/anomaly.py), [`ai_service/scenario.py`](../ai_service/scenario.py)  
+> **Key Libraries:** LightGBM `4.6.0`, scikit-learn `1.7.2`, Pandas `2.3.3`, NumPy `2.2.6`, Joblib `1.5.2`  
+> **Active Bundle (`dp-1.1`):** [`artifacts/f32e87e3a5744333ff98d3bf.joblib`](../artifacts/f32e87e3a5744333ff98d3bf.joblib) & [`artifacts/MODEL_EVALUATION.md`](../artifacts/MODEL_EVALUATION.md)
 
 ---
 
-## 1. Machine Learning Architecture Overview
-
-DecisionPilot AI integrates machine learning not as an isolated experiment, but as an operational backbone designed to solve four interrelated business challenges:
+## 1. End-to-End ML Architecture
 
 ```mermaid
 flowchart TD
-    Raw["Raw Transactions & Inventory DB"] --> FeatEng["Temporal Feature Engineering Engine<br/>(ai_service/features.py)"]
-    FeatEng --> Split["Temporal Chronological Split<br/>(Train 70% | Val 15% | Test 15%)"]
-    
-    Split --> Model1["LightGBM Demand Regressor<br/>(ai_service/forecasting.py)"]
-    Split --> Model2["Isolation Forest Anomaly Detector<br/>(ai_service/anomaly.py)"]
-    
-    Model1 --> Eval1["WAPE / MAE Evaluation<br/>(vs Naive & 7d MA Baselines)"]
-    Model2 --> Eval2["Precision / Recall Evaluation<br/>(on Injected Business Shocks)"]
-    
-    Eval1 --> Bundle["Serialized Artifact Bundle<br/>(artifacts/<dataset_id>.joblib)"]
-    Eval2 --> Bundle
-    
-    Bundle --> Simulator["Microeconomic What-If Engine<br/>(ai_service/scenario.py)"]
+    DB["Validated 6-Table Snapshot"] --> Feat["Point-in-Time Feature Builder<br/>(ai_service/features.py)"]
+    Feat --> Split["Chronological Split<br/>Train 70% | Val 15% | Test 15%"]
+
+    Split --> LGBM["LGBMRegressor (17 features)<br/>+ Moving Avg + Seasonal Naive"]
+    Split --> IF["IsolationForest (9 series)<br/>+ 56d Shifted IQR/Robust Z"]
+
+    LGBM --> Gate{">2% Validation MAE<br/>Improvement Gate"}
+    Gate --> Cal["Empirical 90% Interval Calibration<br/>(1-7d & 8-30d Validation Residuals)"]
+    IF --> EvalA["Labeled Holdout Evaluation<br/>& Stockout Risk Rules"]
+
+    Cal --> Bundle["artifacts/<dataset_id>.joblib<br/>& evaluation.json"]
+    EvalA --> Bundle
+    Bundle --> Sim["Econometric What-If Simulator<br/>(ai_service/scenario.py)"]
 ```
 
 ---
 
-## 2. Temporal Feature Engineering Specification
+## 2. Exact 17 Forecast Features (`ai_service/features.py`)
 
-Time-series features are generated deterministically per product and region:
+`lag_features()` constructs 17 strictly causal features scaled by series mean (`scale = max(mean_train, 1)`), using only observations up to index $t-1$ (minimum 28-day lookback):
 
-| Feature Name | Type | Window / Lags | Mathematical Definition / Logic |
-| :--- | :--- | :---: | :--- |
-| `lag_1` | Numeric | $t - 1$ | Yesterday's fulfilled demand volume. |
-| `lag_7` | Numeric | $t - 7$ | Same weekday demand from prior week. |
-| `lag_14` | Numeric | $t - 14$ | Same weekday demand from two weeks prior. |
-| `lag_28` | Numeric | $t - 28$ | Same weekday demand from four weeks prior (monthly cycle). |
-| `rolling_mean_7` | Numeric | 7 Days | $\frac{1}{7}\sum_{i=1}^7 y_{t-i}$ (Short-term baseline level). |
-| `rolling_std_7` | Numeric | 7 Days | Rolling sample standard deviation over prior 7 days (Demand volatility). |
-| `rolling_mean_14`| Numeric | 14 Days | Two-week rolling moving average level. |
-| `rolling_mean_28`| Numeric | 28 Days | Four-week rolling moving average level (Trend baseline). |
-| `growth_rate_7d` | Numeric | 7 Days | $\frac{\text{rolling\_mean\_7}_t - \text{rolling\_mean\_7}_{t-7}}{\text{rolling\_mean\_7}_{t-7}}$ (Short-term momentum). |
-| `day_of_week` | Categorical | — | Day index $0 = \text{Monday}, \dots, 6 = \text{Sunday}$. |
-| `month` | Categorical | — | Calendar month index $1 = \text{January}, \dots, 12 = \text{December}$. |
-| `is_weekend` | Binary | — | $1$ if day is Saturday or Sunday, else $0$. |
-| `promotion_flag` | Binary | — | $1$ if promotional campaign active, else $0$. |
-
-### Anti-Leakage Protocol
-To guarantee zero future information leakage:
-1. All lag and rolling calculations strictly reference observations at index $\le t-1$.
-2. The dataset is partitioned chronologically:
-   - **Training Set (First 70% of timeline):** Days 1 to 511.
-   - **Validation Set (Next 15% of timeline):** Days 512 to 620.
-   - **Test Set (Final 15% of timeline):** Days 621 to 730 (Never seen during hyperparameter tuning).
+| Index | Feature Name | Definition & Leakage Safeguard |
+| :---: | :--- | :--- |
+| `1–4` | `lag_1`, `lag_7`, `lag_14`, `lag_28` | Scaled demand/revenue/order lags at `t-1`, `t-7`, `t-14`, `t-28`. |
+| `5–10` | `mean_7`, `std_7`, `mean_14`, `std_14`, `mean_28`, `std_28` | Rolling mean and population std over trailing `7`, `14`, and `28` days (normalized by `scale`). |
+| `11` | `growth_7` | `clip((lag_1 - lag_7) / max(lag_7, 0.1), -3, 3)` short-term momentum ratio. |
+| `12–16` | `weekday`, `month`, `quarter`, `weekend`, `holiday` | Known calendar covariates (`holiday` resolved from `calendar_events` or `HOLIDAYS = {(1,1),(4,30),(5,1),(9,2),(12,25)}`). |
+| `17` | `scale` | `np.log1p(scale)` allowing pooled learning across business-wide, category, and SKU volumes. |
 
 ---
 
-## 3. LightGBM Demand Forecasting Model
+## 3. Forecasting Training, Baseline Gate & Interval Calibration (`ai_service/forecasting.py`)
 
-### 3.1 Why LightGBM over Deep Learning / ARIMA for SME Decision Intelligence
-1. **CPU Speed & Low Footprint:** Trains in under 2 seconds on commodity quad-core CPUs; memory footprint is under 30MB.
-2. **Direct Feature Importance:** Native Split & Gain metrics explain exactly which drivers (e.g., weekend effect vs promotional uplift) dictate the forecast.
-3. **Robustness to Missingness & Outliers:** Gradient boosted decision trees naturally partition non-linear sales thresholds without requiring Gaussian normalization.
-
-### 3.2 Hyperparameter Configuration
+### 3.1 Hyperparameters & Recursive Rollout
+One pooled `LGBMRegressor` is fit per target (`revenue`, `orders`, `demand`) on `2024-10-01`–`2026-02-22` (`train_end = 70%`):
 ```python
-LIGHTGBM_PARAMS = {
-    "objective": "regression_l1",       # Minimizes MAE directly for robust inventory sizing
-    "metric": "l1",
-    "boosting_type": "gbdt",
-    "n_estimators": 350,
-    "learning_rate": 0.04,
-    "num_leaves": 31,
-    "min_child_samples": 20,
-    "feature_fraction": 0.85,
-    "bagging_fraction": 0.80,
-    "bagging_freq": 1,
-    "random_state": 42,
-    "verbose": -1
-}
+LGBMRegressor(
+    n_estimators=125,
+    learning_rate=0.045,
+    num_leaves=23,
+    min_child_samples=28,
+    random_state=42,
+    verbosity=-1,
+    n_jobs=2,
+)
 ```
+Multi-step predictions (`horizon` $\in \{7, 30\}$) roll recursively day-by-day, feeding non-negative predictions `max(0, y_hat)` back into `window` alongside two baselines:
+- `seasonal_naive`: repeats `history[:, -7 + lead % 7]`
+- `moving_average`: constant trailing 14-day mean `history[:, -14:].mean(axis=1)`
 
-### 3.3 Benchmark Performance vs Baselines
-Evaluated over 30-day out-of-sample test horizon across 50 SKUs:
+### 3.2 The >2% Validation Selection Gate & Empirical 90% Bands
+When `validation_end - train_end >= 2 * horizon`, validation splits into disjoint `selection_range` and `calibration_range`:
+1. **Model Selection:** LightGBM is chosen for `(target, scope, horizon)` only if `val_mae["lightgbm"] < 0.98 * val_mae[best_baseline]`.
+2. **Calibration:** Absolute errors on `calibration_range` compute two empirical quantile radii (`NOMINAL = 0.90`, order statistic rank `ceil((N + 1) * 0.90)`): one for lead days `1–7` and a wider band for lead days `8–30`.
 
-| Metric | Naive Last-Value | 7-Day Moving Average | DecisionPilot LightGBM | Relative Gain |
+### 3.3 Verified 30-Day Holdout Metrics (`2026-06-13` to `2026-09-30`, `dp-1.1`)
+
+| Target | Scope | Selected Model | Test MAE | Test WAPE | 90% Coverage | Note |
+| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| `revenue` | `all` | `moving_average` | 34,584,971.67 ₫ | 24.14% | 83.81% | LightGBM (`22.96%` test WAPE) did not clear `>2%` gate on validation (`15.59%` vs `16.49%`). |
+| `orders` | `all` | `moving_average` | 14.98 | 23.22% | 83.81% | Baselines generalize robustly across smooth aggregate traffic. |
+| `demand` | `all` | `moving_average` | 17.74 | 23.46% | 80.00% | Aggregate units follow `moving_average` stability. |
+| `demand` | `sku:P001` | **`lightgbm`** | **2.68** | **41.87%** | **92.86%** | Beats MA (`43.28%` WAPE) & Seasonal Naive (`54.54%` WAPE). |
+
+*(7-day horizon `revenue | all` selects `moving_average` with `21.84%` test WAPE and `91.96%` empirical interval coverage).*
+
+---
+
+## 4. Hybrid Anomaly Detection Engine (`ai_service/anomaly.py`)
+
+To prevent an active crisis from distorting its own baseline, daily metrics compare today's value against a **56-day trailing reference shifted back 7 days (`shift(7).rolling(56, min_periods=28)`)**:
+- `robust_z = (actual - median) / ((q3 - q1) / 1.349)` with relative spread floor `0.03 * |median| + 1e-8`.
+- `IsolationForest(n_estimators=120, contamination=0.065, random_state=42)` trained on training-period `(robust_z, z)` pairs across 9 monitored signals.
+- Direction-aware flagging requires minimum relative magnitude (`0.35` for ROAS/conversion, `0.09` for margin, `0.20` for spend/revenue) combined with `|robust| >= threshold` or `(isolation_score < 0 and |robust| >= ml_threshold)`.
+- **Sustained Contraction Signal (Added in `dp-1.1`):** Flags 7-day rolling weekly `revenue < 0.85 * baseline` and robust decline $\ge 2.5$.
+- **Physical Inventory Check (`inventory_risk`):** Flags physical SKU-days where `closing_stock < trailing_28d_rate * lead_time_days`.
+
+| Signal | Precision | Recall | F1-Score | FPR |
 | :--- | :---: | :---: | :---: | :---: |
-| **WAPE (Weighted MAPE)** | $31.4\%$ | $26.8\%$ | **$11.2\%$** | **$+58.2\%$ accuracy uplift** |
-| **MAE (Units / Day)** | $38.2$ | $31.6$ | **$14.8$** | **$-53.1\%$ unit error** |
-| **RMSE** | $54.1$ | $43.8$ | **$21.1$** | **$-51.8\%$ squared error** |
-
-$$\text{WAPE} = \frac{\sum_{t=1}^N |y_t - \hat{y}_t|}{\sum_{t=1}^N y_t}$$
-
----
-
-## 4. Multi-Variate Anomaly Detection Engine
-
-Implemented via scikit-learn's `IsolationForest` combined with dynamic robust $z$-score rules:
-
-```python
-from sklearn.ensemble import IsolationForest
-
-def detect_business_anomalies(features_df, contamination=0.03):
-    model = IsolationForest(
-        n_estimators=150,
-        contamination=contamination,
-        random_state=42,
-        n_jobs=-1
-    )
-    predictions = model.fit_predict(features_df)
-    return predictions == -1  # True indicates an anomaly
-```
-
-### Anomaly Prioritization & Severity Scoring
-Detected events are assigned a continuous severity score $S \in [0, 1]$ based on financial exposure:
-$$S = \min\left(1.0, 0.4 \times |z_{\text{revenue}}| + 0.35 \times |z_{\text{profit}}| + 0.25 \times |z_{\text{roas}}|\right)$$
-Events where $S \ge 0.75$ trigger High Severity alerts in the Anomaly Center with automated causal drill-downs.
+| `facebook_spend` (`hybrid`) | **100.00%** | **82.14%** | **90.20%** | **0.00%** |
+| `revenue` (`hybrid`) | 86.67% | 38.24% | 53.06% | 2.63% |
+| `facebook_conversion` (`hybrid`) | 75.00% | 75.00% | 75.00% | 8.54% |
+| `facebook_roas` (`hybrid`) | 68.00% | 60.71% | 64.15% | 9.76% |
+| `margin` (`hybrid`) | 50.00% | 75.00% | 60.00% | 2.83% |
+| `stockout_risk` (`business_rule`) | 18.75% | 25.00% | 21.43% | 13.27% |
 
 ---
 
-## 5. Microeconomic What-If Simulation Engine
+## 5. Counterfactual What-If Calculators (`ai_service/scenario.py`)
 
-The What-If engine in [`ai_service/scenario.py`](file:///g:/GITHUB/DecisionPilotAI/ai_service/scenario.py) implements three microeconomic equations:
-
-### 5.1 Calibrated Price Elasticity
-$$\epsilon = \frac{\% \Delta Q}{\% \Delta P}$$
-$$\text{Demand}_{\text{simulated}} = \max\left(0, \text{Demand}_{\text{baseline}} \times \left(1 + \epsilon \times \text{Discount Percentage}\right)\right)$$
-
-### 5.2 Physical Stockout Censoring
-If projected sales exceed warehouse capacity + scheduled incoming shipments:
-$$\text{Fulfilled Sales} = \min\left(\text{Demand}_{\text{simulated}}, \text{Current Stock} + \text{Inbound Deliveries}\right)$$
-$$\text{Unfulfilled Risk (Stockout Units)} = \max\left(0, \text{Demand}_{\text{simulated}} - \text{Fulfilled Sales}\right)$$
-
-### 5.3 Concave Marketing Response Function
-$$\text{Revenue}_{\text{marketing}} = \text{Revenue}_{\text{base}} \times \left(1 + \frac{\Delta \text{Budget}}{\text{Budget}_{\text{base}}}\right)^\alpha$$
-*Where $\alpha = 0.45$ for Meta Ads and $\alpha = 0.62$ for Google Search, reflecting diminishing marginal returns as audiences saturate.*
-
+1. **Price Elasticity (`price_scenario`):** Linear in percentage change from 90-day weighted realized unit price $P_0$:
+   $$Q_{\text{demand}} = Q_{\text{forecast}} \cdot \max\left(0,\; 1 + e \cdot \left(\frac{P_{\text{new}}}{P_0} - 1\right)\right), \qquad Q_{\text{sold}} = \min(Q_{\text{demand}},\; \text{stock})$$
+   Evaluates sensitivity across $(e - 0.30, e, e + 0.30)$.
+2. **Marketing Budget (`marketing_scenario`):** Power-law response over trailing 28 observed channel days prorated to horizon `7` or `30`:
+   $$\text{uplift} = (1 + \Delta \text{Spend})^\alpha, \qquad \alpha \in [0.20, 0.95] \text{ (default } 0.65\text{)}$$
+   Sensitivity sweeps $\alpha \pm 0.15$.
+3. **Inventory Replenishment (`inventory_scenario`):** Steps daily over forecast demand, crediting `incoming_stock` + `order_qty` at `arrival_day` and counting `lost_units`, `stockout_days`, and `below_safety_days` against `reorder_point`.
+4. **7-Day Conditional Replay (`artifacts/scenario_backtest.json`):** Weekly observed `P001` units improved from `24.24%` baseline WAPE to **`23.99%` WAPE**; `P003` stock depletion checks matched **`15/15` weeks**; weekly Facebook Ads attributed revenue recorded `33.00%` WAPE vs `25.44%` baseline (disclosed explicitly on UI).

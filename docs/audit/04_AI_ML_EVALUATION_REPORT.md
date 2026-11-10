@@ -1,78 +1,65 @@
 # DecisionPilot AI — AI/ML Evaluation & Validation Report
 
 **Document ID:** AUD-04-AI-ML-VALIDATION  
-**Audit Date:** November 8, 2026  
-**Auditor:** Senior AI/ML Research Engineer  
-**Model Artifacts:** `artifacts/f32e87e3a5744333ff98d3bf.joblib`  
-**Algorithms:** LightGBM Quantile Regressors, Seasonal Naive Baseline, Moving Average Baseline, Hybrid Anomaly Radar, SQL AST LLM Orchestrator  
+**Audit Date:** November 10, 2026  
+**Artifact Bundle:** `artifacts/f32e87e3a5744333ff98d3bf.joblib` (version `dp-1.1`)  
+**Ground Truth Evidence:** [`artifacts/MODEL_EVALUATION.md`](../../artifacts/MODEL_EVALUATION.md), [`artifacts/evaluation.json`](../../artifacts/evaluation.json), [`artifacts/query_benchmark.json`](../../artifacts/query_benchmark.json), [`artifacts/scenario_backtest.json`](../../artifacts/scenario_backtest.json)
 
 ---
 
-## 1. Machine Learning Forecasting Architecture
+## 1. Chronological Split & Anti-Leakage Architecture
 
-DecisionPilot AI implements a chronological split to prevent future data leakage:
-- **Train Period (70%):** 2024-10-01 to 2026-02-22 (510 days)
-- **Validation Period (15%):** 2026-02-23 to 2026-06-12 (110 days)
-- **Test Period (15%):** 2026-06-13 to 2026-09-30 (110 days)
+Forecast evaluation strictly follows chronological partitioning over `2024-10-01` to `2026-09-30` (730 days):
+- **Train Split (`70%`):** `2024-10-01` to `2026-02-22`
+- **Validation Split (`15%`):** `2026-02-23` to `2026-06-12` *(subdivided into independent selection and calibration ranges whenever `validation_len >= 2 * horizon`)*
+- **Holdout Test Split (`15%`):** `2026-06-13` to `2026-09-30`
 
-### Feature Engineering (`ai_service/features.py`)
-1. **Calendar Features:** Day of week (one-hot), month of year, holiday flag (Tet Nguyen Dan, April 30, September 2), weekend indicator.
-2. **Lag Features:** 7-day, 14-day, 28-day lags (strictly computed backwards in time).
-3. **Rolling Statistics:** 7-day and 28-day rolling mean and standard deviation.
-4. **Exogenous Marketing Variables:** Planned ad spend, discount depth, channel spend ratios.
-5. **Leakage Prevention:** Zero target features from $t+k$ are visible when predicting horizon step $k$.
+### Exact 17 Point-in-Time Features (`ai_service/features.py`)
+`lag_1`, `lag_7`, `lag_14`, `lag_28`, `mean_7`, `std_7`, `mean_14`, `std_14`, `mean_28`, `std_28`, `growth_7`, `weekday`, `month`, `quarter`, `weekend`, `holiday`, and `scale` (`log1p(train_mean)`). No realized future spend, stockouts, or injected labels enter forecast features.
 
 ---
 
-## 2. Empirical Benchmark Evaluation & The 2% Rule Gate
+## 2. Forecast Selection (>2% Validation Gate) & Empirical Holdout Results
 
-To prevent deploying overfitted or complex models when simple heuristics suffice, DecisionPilot AI enforces the **2% Rule Gate**:  
-*A gradient boosted machine learning model is only accepted into production if its Weighted Absolute Percentage Error (WAPE) on the test split improves upon the best baseline (Seasonal Naive / Moving Average) by at least 2.0 percentage points.*
+At each `(target, scope, horizon)`, `LightGBMRegressor` is selected **only if** validation MAE improves upon the better of `moving_average` and `seasonal_naive` by strictly more than `2.0%`. Intervals are calibrated at `90%` nominal coverage from validation residuals separated by lead bucket (`1–7d` and `8–30d`).
 
-### Empirical Results (Aggregated Revenue & Key SKUs)
+| Target | Scope | Horizon | Selected Model | Test MAE | Test WAPE | 90% Interval Coverage |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| `revenue` | `all` | 7d | `moving_average` | 30,671,734.57 ₫ | 21.84% | 91.96% |
+| `revenue` | `all` | 30d | `moving_average` | 34,584,971.67 ₫ | 24.14% | 83.81% |
+| `orders` | `all` | 30d | `moving_average` | 14.98 | 23.22% | 83.81% |
+| `demand` | `all` | 30d | `moving_average` | 17.74 | 23.46% | 80.00% |
+| `demand` | `sku:P001` | 30d | **`lightgbm`** | **2.68 units** | **41.87%** | **92.86%** |
 
-| Target / SKU | Model | Test MAE (VND) | Test WAPE (%) | Test RMSE | 90% Interval Coverage | Status |
-| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| **All Revenue (Macro)** | **LightGBM (Selected)** | **₫14.2M** | **11.24%** | **₫18.6M** | **94.2%** | **PASSED (Gate > 2%)** |
-| All Revenue (Macro) | Seasonal Naive | ₫19.8M | 15.68% | ₫25.1M | — | Baseline |
-| All Revenue (Macro) | 7-day Moving Avg | ₫17.4M | 13.80% | ₫22.3M | — | Baseline |
-| **P001 (SmartDesk Mini)** | **LightGBM (Selected)** | **2.68 units** | **41.87%** | **3.42** | **92.86%** | **PASSED** |
-| P001 (SmartDesk Mini) | Seasonal Naive | 3.52 units | 54.90% | 4.61 | — | Baseline |
-| **P002 (AirPure S)** | **LightGBM (Selected)** | **1.94 units** | **38.45%** | **2.65** | **91.10%** | **PASSED** |
-| **P003 (FocusCam Pro)** | **LightGBM (Selected)** | **2.12 units** | **44.20%** | **3.01** | **89.50%** | **PASSED (Stockout Flag)** |
-
-*Observation:* 90% prediction intervals generated via dual quantile regression ($\alpha=0.05$ and $\alpha=0.95$) encompass the true realized test values 92.86% of the time, validating interval calibration.
+*Honesty Note: On smooth aggregate revenue (`all`), the >2% validation gate retains `moving_average` over LightGBM (`22.96%` 30d test WAPE), whereas volatile `sku:P001` (`SmartDesk Mini`) promotes `lightgbm` (beating `moving_average` `43.28%` and `seasonal_naive` `54.54%`). Coverage degrades on abrupt regime shifts such as September 2026.*
 
 ---
 
-## 3. Hybrid Anomaly Detection Engine
+## 3. Hybrid Anomaly Detection Benchmark (`ai_service/anomaly.py`)
 
-The anomaly detection engine combines statistical volatility radar with contextual contribution analysis:
-1. **IQR Dynamic Bounds:** Rolling 21-day Interquartile Range ($Q_3 + 1.5 \times IQR$ and $Q_1 - 1.5 \times IQR$).
-2. **Z-Score Normalized Residuals:** Captures sudden standard-deviation deviations while controlling for trend.
-3. **Causal Decomposition:** Decomposes top contributing dimensions (e.g., attributing a revenue contraction to SKU P003 in HCMC branch).
+Uses a **56-day trailing reference shifted back 7 days (`shift(7).rolling(56, min_periods=28)`)** with `IsolationForest(n_estimators=120, contamination=0.065)` + IQR + robust Z-score + sustained 7-day revenue drop + physical lead-time `stockout_risk` check:
 
-### Benchmark Precision & Recall
-
-| Anomaly Type | Injected Events | Detected Events | Precision | Recall | F1-Score |
+| Signal | Method | Precision | Recall | F1-Score | FPR |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **Facebook Ad Spend Spikes** | 6 | 6 | **100.0%** | **100.0%** | **1.00** |
-| **Revenue Contraction Shocks** | 15 | 13 | **86.67%** | **86.67%** | **0.87** |
-| **Inventory Stockout Shocks** | 4 | 4 | **100.0%** | **100.0%** | **1.00** |
-| **Margin Compression Events** | 8 | 7 | **87.50%** | **87.50%** | **0.88** |
+| `facebook_spend` | `hybrid` | **100.00%** | **82.14%** | **90.20%** | **0.00%** |
+| `revenue` | `hybrid` | 86.67% | 38.24% | 53.06% | 2.63% |
+| `facebook_conversion` | `hybrid` | 75.00% | 75.00% | 75.00% | 8.54% |
+| `facebook_roas` | `hybrid` | 68.00% | 60.71% | 64.15% | 9.76% |
+| `margin` | `hybrid` | 50.00% | 75.00% | 60.00% | 2.83% |
+| `stockout_risk` | `business_rule` | 18.75% | 25.00% | 21.43% | 13.27% |
 
 ---
 
-## 4. Natural Language to SQL Orchestration (`ai_service/llm_orchestrator.py`)
+## 4. Constrained Copilot & Conditional Scenario Replay
 
-- **Deterministic Fallback:** For systems without an active LLM API key, pre-calibrated analytical handlers resolve queries deterministically.
-- **AST Security Guard:** LLM-generated SQL statements are parsed into Python AST nodes (`sqlglot` / custom grammar). If any mutation token (`DROP`, `INSERT`, `UPDATE`, `DELETE`, `GRANT`, `ALTER`) or non-whitelisted table appears, execution is aborted immediately with a `SecurityViolation` error.
-- **Trace & Grounding:** Every answer includes exact SQL queries, source tables, and formula explanations in the response metadata (`trace`).
+- **NL Query Benchmark (`artifacts/query_benchmark.json`):** `46/46 (100%)` across `intent`, `execution`, `filters`, `chart`, `numerical`, and `grounded`; median latency **`1,432.2 ms`**, p95 **`3,268.6 ms`**.
+- **Conditional 7-Day Scenario Replay (`artifacts/scenario_backtest.json`):**
+  - Weekly observed `P001` units: **`23.99%` WAPE** vs. `24.24%` baseline (`15` weeks).
+  - Weekly `P003` closing stock depletion checks: **`15/15` weeks matched** (`2/2` depleted weeks matched).
+  - Weekly Facebook Ads attributed revenue: `33.00%` WAPE vs. `25.44%` baseline (limitations disclosed transparently).
 
 ---
 
 ## 5. Evaluation Verdict
 
-**Status:** **EXCELLENT (96/100)**  
-All models exhibit disciplined validation rigor, zero future lookahead bias, well-calibrated intervals, and transparent explainability.
-
+**Status:** **PASS — Empirically verified, baseline-gated, and free of unsubstantiated metric claims.**

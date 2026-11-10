@@ -1,56 +1,26 @@
-# DecisionPilot AI — LIKELION 2026 Competition Compliance Report
+# DecisionPilot AI — LIKELION 2026 Compliance Report
 
 **Document ID:** AUD-08-LIKELION-COMPLIANCE  
-**Audit Date:** November 8, 2026  
-**Auditor:** Technical Product Architect & Hackathon Evaluation Specialist  
+**Audit Date:** November 10, 2026  
 **Competition:** LIKELION — AI for Business Innovation 2026  
-**Challenge Track:** 5. Data & Decision Intelligence  
-**Evaluation Rubric:** Problem Solving (25%), Technical Innovation (30%), Feasibility & Execution (25%), Presentation & Usability (20%)  
+**Track:** 5. Data & Decision Intelligence
 
 ---
 
 ## 1. Track 5 Four-Pillar Compliance Matrix
 
-| Track 5 Requirement (LIKELION Prompt) | DecisionPilot AI Implementation | Source Evidence | Compliance |
+| Track 5 Requirement | DecisionPilot AI Implementation | Verified Evidence & Code Modules | Status |
 | :--- | :--- | :--- | :---: |
-| **1. AI converts natural language questions into data reports** | Conversational BI copilot translates Vietnamese and English questions into read-only SQL, executes against relational data, and returns analytical answers with interactive charts and execution traces. | `ai_service/llm_orchestrator.py`, `/ask`, `frontend/src/WorkspacePages.tsx` | **100% PASS** |
-| **2. AI analyzes revenue and identifies significant fluctuations** | Hybrid Anomaly Radar combining 21-day rolling IQR bounds and normalized Z-scores. Decomposes root causes across marketing channels and product SKUs. | `ai_service/forecasting.py`, `backend/app/analytics.py`, `/anomalies` | **100% PASS** |
-| **3. AI forecasts demand for products/services based on historical data** | LightGBM quantile regression engine predicting P10, P50, and P90 intervals over 30/60/90 day horizons. Enforces the 2% Rule Gate against statistical baselines. | `ai_service/forecasting.py`, `artifacts/*.joblib`, `/forecast` | **100% PASS** |
-| **4. AI compares business scenarios to support executive decision-making** | Multi-scenario simulator modeling price elasticity, marketing spend reallocation, and inventory stockout risks with real-time 3D Three.js terrain visualization. | `backend/app/analytics.py`, `frontend/src/components/ScenarioSimulator3D.tsx`, `/scenarios` | **100% PASS** |
+| **1. AI converts natural language questions into data reports** | Bilingual VI/EN orchestrator translates questions (OpenAI `gpt-4.1-mini`, Gemini `gemini-2.5-flash`, or regex fallback) into strict Pydantic `Intent` schemas (`extra="forbid"`) bound to allowlisted SQLAlchemy Core queries on `read_connection` (`READ ONLY`). | [`ai_service/llm_orchestrator.py`](../../ai_service/llm_orchestrator.py), [`backend/app/analytics.py`](../../backend/app/analytics.py), `/ask`; **46/46 (100%)** benchmark accuracy (`1,432.2 ms` median). | **IMPLEMENTED & VERIFIED** |
+| **2. AI analyzes revenue and detects significant business anomalies** | Hybrid surveillance using a **56-day rolling window shifted 7 days (`min_periods=28`)** combining `IsolationForest(n_estimators=120, contamination=0.065)` + IQR + robust Z-score + 7d sustained contraction + lead-time `stockout_risk` check, with additive root-cause decomposition. | [`ai_service/anomaly.py`](../../ai_service/anomaly.py), [`ai_service/root_cause.py`](../../ai_service/root_cause.py), `/anomalies`; **100.00% precision / 90.20% F1** on `facebook_spend`, **86.67% precision** on `revenue`. | **IMPLEMENTED & VERIFIED** |
+| **3. AI forecasts demand for products/services based on historical data** | Global scaled `LGBMRegressor` across **17 causal point-in-time features** competing per `(target, scope, horizon)` over `7` and `30` days via strict `>2%` validation MAE gate vs. `moving_average` and `seasonal_naive`, plus empirical 90% interval calibration (`1–7d` / `8–30d`). | [`ai_service/features.py`](../../ai_service/features.py), [`ai_service/forecasting.py`](../../ai_service/forecasting.py), `/forecast`; promotes **LightGBM** on `sku:P001` (`2.68` units MAE, **92.86% coverage**); selects `moving_average` on aggregate revenue (`24.14%` 30d WAPE). | **IMPLEMENTED & VERIFIED** |
+| **4. AI compares business scenarios to support strategic decision making** | Counterfactual pricing (linear-% elasticity $1 + e \cdot \Delta P/P_0$ with stock caps), marketing power-law diminishing returns ($(1+\Delta S)^\alpha$, $\alpha = 0.65$), and daily stock ledger balance inside interactive Three.js 3D WebGL control center with immutable decision persistence. | [`ai_service/scenario.py`](../../ai_service/scenario.py), [`frontend/src/features/scenario-simulator/components/ScenarioSimulator3D.tsx`](../../frontend/src/features/scenario-simulator/components/ScenarioSimulator3D.tsx), `/scenarios`; **23.99% WAPE** P001 conditional replay & `15/15` P003 depletion checks. | **IMPLEMENTED & VERIFIED** |
 
 ---
 
-## 2. Scoring Rubric Alignment & Strengths
+## 2. Architectural & Responsible AI Differentiators
 
-### Dimension 1: Problem Solving & Business Impact (25% — Weight: 25/25)
-- **Target Persona:** Vietnamese SMEs struggling with fragmented Excel files, delayed monthly reports, and guesswork marketing allocations.
-- **Measurable Impact:** Reduces root-cause diagnostic time from 3 days to 10 seconds; eliminates stockout losses; optimizes advertising ROAS by up to 28%.
-
-### Dimension 2: Technical Innovation & AI/ML Rigor (30% — Weight: 29/30)
-- **Zero Hallucination Architecture:** Pure SQL aggregation for arithmetic calculations; LLM is restricted to semantic query understanding.
-- **Chronological Split & 2% Rule Gate:** Prevents data leakage and ensures ML models actually beat seasonal baselines.
-- **Three.js 3D Visualizer:** Industry-first 3D decision landscape rendering business risk and profit trade-offs in real time.
-
-### Dimension 3: Feasibility & Architectural Execution (25% — Weight: 24/25)
-- **Clean Architecture:** Strict separation between database, services, APIs, and client.
-- **Enterprise Controls:** Role-based access control, cryptographic verification, and advisory database locking.
-- **Lightweight Footprint:** Capable of running locally on a standard laptop via SQLite or scaling in cloud Kubernetes clusters with PostgreSQL.
-
-### Dimension 4: Presentation, Usability & Documentation (20% — Weight: 20/20)
-- **Dual Language Support:** Instant Vietnamese/English toggling across all charts, tables, and stepper workflows.
-- **Comprehensive Documentation Portal:** 16-chapter technical documentation website deployed directly on GitHub Pages.
-- **Interactive Demos:** Zero friction for judges to test scenarios directly in their browser.
-
----
-
-## 3. Total Weighted Score
-
-$$\text{Total Score} = 25/25 + 29/30 + 24/25 + 20/20 = 98 / 100 \quad (\mathbf{98\%})$$
-
----
-
-## 4. Compliance Verdict
-
-**Status:** **FULLY COMPLIANT & HIGHLY COMPETITIVE**  
-DecisionPilot AI directly satisfies all competition criteria and delivers an exemplary submission for LIKELION 2026.
-
+1. **Zero Numerical Hallucination:** Arithmetic, margins, KPIs, and variance attributions execute deterministically inside PostgreSQL/SQLite via SQLAlchemy Core rather than LLM token estimation.
+2. **Baseline Gate Discipline & Honest Limitations:** `moving_average` is surfaced openly when LightGBM does not clear the `>2%` validation MAE threshold; `MODEL_EVALUATION.md` and `/models/quality` disclose limited `stockout_risk` precision/recall and marketing replay variance.
+3. **Human-in-the-Loop Governance:** Decisions recorded on `/scenarios/feedback` and `/recommendations/feedback` are persisted cleanly into trigger-protected `audit_events` (`accepted` / `rejected`), never issuing unsupervised prices or purchase orders.
+4. **Zero-Friction Judging Experience:** Accessible both full-stack (Docker Compose / local scripts) and serverless on GitHub Pages (`/DecisionPilotAI/` technical showcase + `/DecisionPilotAI/app/` interactive SPA).

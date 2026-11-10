@@ -1,137 +1,121 @@
 # DecisionPilot AI — Operations, Deployment & Troubleshooting Manual
 
-> **Deployment Environments:** Local Development (Windows / macOS / Linux) & Production Docker Containerization  
-> **Backend Service:** FastAPI on Uvicorn (Port 8000)  
-> **Frontend Workspace:** Vite SPA on Node.js (Port 5173)
+> **Deployment Environments:** Local Development (Windows / macOS / Linux), Docker Compose Stack, and GitHub Pages Showcase  
+> **Backend Service:** FastAPI on Uvicorn (Port `8000`)  
+> **Frontend Workspace:** Vite SPA (Dev Port `5173`) | **Docs Site:** Vite (Dev Port `5174`, GitHub Pages `/`)
 
 ---
 
 ## 1. System Prerequisites
 
-| Dependency | Minimum Version | Recommended Version | Verification Command |
-| :--- | :---: | :---: | :--- |
-| **Python** | 3.11+ | 3.13.0 | `python --version` |
-| **Node.js** | 20.0+ | 22.0+ | `node --version` |
-| **npm** | 10.0+ | 10.8+ | `npm --version` |
-| **PowerShell** *(Windows)* | 5.1+ | 7.4+ | `$PSVersionTable.PSVersion` |
-| **Docker Engine** *(Optional)* | 24.0+ | 27.0+ | `docker --version` |
+| Dependency | Recommended Version | Purpose | Verification |
+| :--- | :---: | :--- | :--- |
+| **Python** | **3.12** (tested CI/Docker; compatible with 3.11–3.13) | FastAPI backend, Alembic, LightGBM & scikit-learn | `python --version` |
+| **Node.js & npm** | **Node 22+** (matching Dockerfile & CI) | React 19 frontend, Vitest, Playwright & Docs Portal | `node --version` |
+| **Docker & Compose** | Docker Engine 24+ / Compose v2+ | Optional one-command PostgreSQL 16 + FastAPI + Nginx stack | `docker compose version` |
 
 ---
 
 ## 2. Quickstart Launch Guide
 
-### 2.1 Option A: One-Click Execution on Windows (Recommended)
-Double-click the [`run.bat`](file:///g:/GITHUB/DecisionPilotAI/run.bat) file in the project root directory.
-
-This script automatically executes:
-1. Virtual environment verification (`.venv\Scripts\python.exe`).
-2. Database schema migrations via Alembic (`alembic upgrade head`).
-3. Bootstrap dataset validation (ensuring 50,000 transactions are populated).
-4. Launches the FastAPI backend on `http://127.0.0.1:8000`.
-5. Launches the Vite frontend on `http://127.0.0.1:5173`.
-
-### 2.2 Option B: Native PowerShell Launch
-Open PowerShell in the workspace root and run:
+### 2.1 Option A: One-Click Windows Execution
+Double-click [`run.bat`](../run.bat) or execute via npm from repo root:
 ```powershell
-.\scripts\dev.ps1
+npm run dev
+```
+[`scripts/dev.ps1`](../scripts/dev.ps1) runs:
+1. `python -m alembic upgrade head` (using `.venv\Scripts\python.exe` if present).
+2. `python -m scripts.bootstrap` (loads `data/synthetic` if database is empty).
+3. Starts FastAPI on `http://127.0.0.1:8000`, `docs-site` on `http://127.0.0.1:5174/DecisionPilotAI/`, and Vite `frontend` on `http://127.0.0.1:5173`.
+
+On macOS / Linux:
+```bash
+npm run dev:sh   # runs scripts/dev.sh (FastAPI :8000 + Vite frontend :5173)
 ```
 
-### 2.3 Option C: Manual Multi-Terminal Launch
+### 2.2 Option B: Manual Multi-Terminal Launch
 
-**Terminal 1 — Backend API:**
 ```powershell
-# Activate Python virtual environment
+# Terminal 1 — Backend API
 .\.venv\Scripts\Activate.ps1
-
-# Ensure database schema is at head
 python -m alembic upgrade head
-
-# Populate or verify bootstrap seed data
 python -m scripts.bootstrap
-
-# Start FastAPI Uvicorn ASGI server
 python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
-```
 
-**Terminal 2 — Frontend Dev Server:**
-```powershell
-cd frontend
-npm run dev -- --host 127.0.0.1 --port 5173
-```
+# Terminal 2 — Frontend Dev Server
+npm --prefix frontend run dev -- --host 127.0.0.1 --port 5173
 
----
-
-## 3. Database Administration & Pipeline Commands
-
-All database management and data pipeline routines are packaged as standalone Python modules:
-
-```powershell
-# 1. Generate fresh 24-month synthetic retail dataset (50,000 rows)
-python -m scripts.generate --rows 50000 --months 24
-
-# 2. Validate data integrity across all 6 tables
-python -m scripts.pipeline validate
-
-# 3. Export versioned snapshot bundle to ZIP
-python -m scripts.pipeline export --out data/snapshots/dp_seed.zip
-
-# 4. Run automated test suite
-python -m pytest tests/
+# Terminal 3 — Documentation Portal (Optional)
+npm --prefix docs-site run dev
 ```
 
 ---
 
-## 4. Production Docker Containerization
+## 3. Data Pipeline, Model Training & Verification Commands
 
-To run the entire system inside isolated production containers:
+All operational CLI scripts accept exact flags defined in `scripts/`:
 
-```powershell
-# Build and start all services
+```bash
+# 1. Regenerate 24-month synthetic snapshot (50,000 transactions, seed 42)
+python -m scripts.generate --months 24 --transactions 50000 --output data/synthetic
+
+# 2. Validate snapshot integrity without mutating database
+python -m scripts.pipeline validate data/synthetic --report artifacts/data_quality.json
+
+# 3. Load verified snapshot into active DATABASE_URL (only when DB empty or matching kind/ID)
+python -m scripts.pipeline load data/synthetic
+
+# 4. Retrain forecasting + anomaly bundle (artifacts/<dataset_id>.joblib)
+python -m scripts.train --out artifacts
+
+# 5. Regenerate MODEL_EVALUATION.md, CSV reports & 10 evaluation figures
+python -m scripts.report
+
+# 6. Run tests & builds
+python -m pytest tests/test_decisionpilot.py -v
+npm --prefix frontend test
+npm --prefix frontend run build
+npm --prefix docs-site run build
+```
+
+---
+
+## 4. Docker Compose Production Topology ([`docker-compose.yml`](../docker-compose.yml))
+
+```bash
+cp .env.example .env
 docker compose up -d --build
-
-# Verify running containers
 docker compose ps
 ```
 
-### Container Services Topology
-- `web`: Nginx web server serving optimized Vite frontend bundle on port `80`.
-- `api`: FastAPI ASGI application container running on port `8000`.
-- `db`: PostgreSQL 16 container managing relational storage on port `5432`.
+Defined Compose services:
+- `postgres`: `postgres:16` database with `pg_isready` health check and persistent volume `decisionpilot_db`.
+- `backend`: Built from root [`Dockerfile`](../Dockerfile) (`python:3.12-slim`, non-root user `decisionpilot`), sets `ROOT_PATH=/api`, runs `scripts/start_backend.sh` (`alembic upgrade head`, `scripts.bootstrap`, Uvicorn `:8000`).
+- `frontend`: Multi-stage Node 22 build served by Nginx (`127.0.0.1:${WEB_PORT:-8080}:80`), proxying `/api/` to `http://backend:8000/` (`http://localhost:8080/api/health`, `http://localhost:8080/api/docs`).
+
+*(For multi-user or exposed deployments, set `APP_ENV=production` and configure `WORKSPACE_ACCESS_TOKENS` in `.env` as documented in [`IMPROVEMENTS.md`](./IMPROVEMENTS.md)).*
 
 ---
 
-## 5. Automated CI/CD Pipeline
+## 5. GitHub Actions CI & Pages Deployment
 
-The GitHub Actions workflow at [`.github/workflows/ci.yml`](file:///g:/GITHUB/DecisionPilotAI/.github/workflows/ci.yml) executes on every push to `main` and pull request:
-1. **Frontend Lint & Build:** Verifies TypeScript typing (`tsc --noEmit`) and compiles Vite production chunks (`vite build`).
-2. **Backend Tests:** Executes Alembic migrations, loads synthetic dataset, and executes `pytest` integration test suites.
-3. **Pipeline Integrity:** Asserts zero unhandled exceptions across `validate` and `generate` scripts.
+- **[`.github/workflows/ci.yml`](../.github/workflows/ci.yml):** Runs on push/PR to `main`, `master`, `develop`:
+  - `frontend-check` (Node 22): `npm ci`, `npm run build`, `npm test`, `npm audit --audit-level=high`.
+  - `docs-check` (Node 22): `npm ci`, `npm run build` in `docs-site/`.
+  - `backend-check` (Python 3.12, matrix `sqlite` + `postgresql:16`): `alembic upgrade head`, `scripts.bootstrap`, `pytest -q`, `scripts.pipeline validate`.
+  - `browser-workflow` (Python 3.12 + Node 22): Playwright Chromium E2E workflow (`npm run test:e2e`).
+  - `docker-build-check`: Validates `docker build` of the backend image.
+- **[`.github/workflows/deploy-pages.yml`](../.github/workflows/deploy-pages.yml):** On push to `main`, builds `docs-site` at `/` and `frontend` with `--base=/DecisionPilotAI/app/` into `docs-site/dist/app/`, injects root `404.html` SPA redirect handling, and publishes to GitHub Pages (requires **Settings → Pages → Source: GitHub Actions**).
 
 ---
 
-## 6. Troubleshooting & FAQ
+## 6. Troubleshooting
 
-### Issue 1: Port `8000` or `5173` is already in use
-**Solution:** Check and terminate conflicting processes:
-```powershell
-# Find process using port 8000
-Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue | Select-Object OwningProcess
-
-# Terminate process by ID
-Stop-Process -Id <PID> -Force
-```
-
-### Issue 2: Matplotlib temporary cache warning on startup
-**Symptom:** `Matplotlib created a temporary cache directory at ... because there was an issue with the default path.`  
-**Explanation:** On restricted or sandboxed environments, Matplotlib cannot write to user home directory.  
-**Fix:** Set the environment variable:
-```powershell
-$env:MPLCONFIGDIR = "$pwd\artifacts"
-```
-
-### Issue 3: Vite Dev Server Proxy fails to connect to Backend
-**Symptom:** Red error banner on frontend: *Unable to connect to service health.*  
-**Verification:**
-1. Ensure the FastAPI backend is running: browse to `http://127.0.0.1:8000/health`.
-2. Verify `frontend/vite.config.ts` has the `/api` proxy configured to `http://127.0.0.1:8000` with path rewrite `path.replace(/^\/api/, '')`.
-
+1. **Port `8000` or `5173` in use (Windows):**
+   `Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue | Select-Object OwningProcess`
+2. **Matplotlib cache permissions on restricted environments:**
+   `$env:MPLCONFIGDIR = "$pwd\artifacts"`
+3. **Frontend shows static offline banner:**
+   Confirm `http://127.0.0.1:8000/health` returns `{"status":"ok",...}` and verify `frontend/vite.config.ts` proxies `/api` to `http://127.0.0.1:8000`.
+4. **PowerShell App Control blocks `.venv/Scripts/pytest.exe` on Windows:**
+   Always run via `.\.venv\Scripts\python.exe -m pytest` (matching CI's `python -m pytest`).

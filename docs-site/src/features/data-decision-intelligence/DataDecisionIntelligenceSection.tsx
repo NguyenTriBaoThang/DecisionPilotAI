@@ -18,7 +18,7 @@ export function DataDecisionIntelligenceSection() {
       subtitle: 'Natural Language Analytics',
       icon: MessageSquareText,
       color: 'var(--cyan)',
-      badge: 'Read-Only SQL AST',
+      badge: 'Typed Intent Router',
     },
     {
       id: 'analyze' as const,
@@ -36,7 +36,7 @@ export function DataDecisionIntelligenceSection() {
       subtitle: 'AI Demand Forecasting',
       icon: TrendingUp,
       color: 'var(--indigo)',
-      badge: 'LightGBM 90% Bounds',
+      badge: 'LightGBM & Baselines',
     },
     {
       id: 'simulate' as const,
@@ -45,7 +45,7 @@ export function DataDecisionIntelligenceSection() {
       subtitle: 'Scenario Simulation Sandbox',
       icon: Sliders,
       color: '#A78BFA',
-      badge: 'Elasticity & Saturation',
+      badge: 'Elasticity & Power Curve',
     },
   ]
 

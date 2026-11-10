@@ -2,41 +2,57 @@ import { CodeBlock } from '../components/CodeBlock'
 import { ShieldCheck, CheckSquare, Terminal, GitPullRequest } from 'lucide-react'
 
 export function Section13Testing() {
-  const pytestCli = `# Run all backend, pipeline, and AI service unit tests
-pytest -v --cov=backend --cov=ai_service --cov=scripts
+  const pytestCli = `# Run all 14 backend, AI service, and pipeline integration tests
+python -m pytest tests/test_decisionpilot.py -v
 
-# Run specific data validation and foreign key integrity test suite
-pytest tests/test_pipeline.py -v
+# Validate synthetic data integrity
+python -m scripts.pipeline validate
 
-# Run API endpoint access control and schema regression tests
-pytest tests/test_api.py -v`
+# Run frontend unit regression tests and production build
+npm --prefix frontend test
+npm --prefix frontend run build`
 
-  const ciYaml = `# .github/workflows/ci.yml snippet
-name: CI / Test Automation
+  const ciYaml = `# .github/workflows/ci.yml
+name: DecisionPilot AI CI Pipeline
 
 on:
   push:
-    branches: [main]
+    branches: [ main, master, develop ]
   pull_request:
-    branches: [main]
+    branches: [ main, master, develop ]
 
 jobs:
-  test-backend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: '3.11' }
-      - run: pip install -r requirements.txt
-      - run: pytest -v tests/
-
-  test-frontend:
+  frontend-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '20' }
-      - run: cd frontend && npm ci && npm run build`
+        with: { node-version: 22, cache: 'npm', cache-dependency-path: 'frontend/package-lock.json' }
+      - run: npm ci && npm run build && npm test && npm audit --audit-level=high
+        working-directory: frontend
+
+  docs-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: 'npm', cache-dependency-path: 'docs-site/package-lock.json' }
+      - run: npm ci && npm run build
+        working-directory: docs-site
+
+  backend-check: # matrix: sqlite & postgresql 16
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: python -m alembic upgrade head && python -m scripts.bootstrap
+      - run: python -m pytest -q && python -m scripts.pipeline validate
+
+  browser-workflow:
+    runs-on: ubuntu-latest # Playwright E2E against live FastAPI + Chromium
+
+  docker-build-check:
+    runs-on: ubuntu-latest # Validates Docker image build`
 
   return (
     <section id="sec-testing-qa">
@@ -76,7 +92,7 @@ jobs:
             3. Automated CI Pipelines
           </div>
           <p className="card-desc">
-            GitHub Actions runs pytest across Python 3.10-3.12 and typechecks TypeScript frontend code on every push and pull request.
+            GitHub Actions runs pytest (Python 3.12) against SQLite &amp; PostgreSQL 16, validates frontend &amp; docs builds (Node 22), runs Playwright E2E, and verifies Docker builds.
           </p>
         </div>
       </div>

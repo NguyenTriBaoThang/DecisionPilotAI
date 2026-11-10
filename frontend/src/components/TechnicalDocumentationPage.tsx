@@ -137,7 +137,7 @@ export function TechnicalDocumentationPage() {
                 <span>Zero-Hallucination AI Grounding Policy</span>
               </h4>
               <p className="text-xs text-slate-300 leading-relaxed">
-                DecisionPilot AI strictly decouples Language Models from mathematical computation. The LLM only classifies executive intent and generates constrained SQL against an explicit 6-table allowlist. Every numerical figure displayed on screen originates deterministically from the database or LightGBM model output, complete with verifiable SQL execution traces.
+                DecisionPilot AI strictly decouples Language Models from mathematical computation. The LLM or deterministic local rule parser only classifies executive questions into a strict Pydantic Intent schema validated against allowlisted filters, while parameterized SQLAlchemy Core queries run on read-only database sessions. Every numerical figure displayed on screen originates deterministically from the database, statistical anomaly rules, or forecast artifacts.
               </p>
             </div>
           </div>
@@ -181,21 +181,21 @@ export function TechnicalDocumentationPage() {
                     <td className="py-2 px-3 text-indigo-300 font-bold">customers</td>
                     <td className="py-2 px-3">customer_id</td>
                     <td className="py-2 px-3">—</td>
-                    <td className="py-2 px-3 text-emerald-400 font-bold">5,000</td>
-                    <td className="py-2 px-3 font-sans">Segments (New, Returning, High-Value, Corporate), LTV, region</td>
+                    <td className="py-2 px-3 text-emerald-400 font-bold">10,000</td>
+                    <td className="py-2 px-3 font-sans">Segments (Returning, Individual, Corporate, Price-sensitive), LTV, region</td>
                   </tr>
                   <tr>
                     <td className="py-2 px-3 text-indigo-300 font-bold">marketing_campaigns</td>
-                    <td className="py-2 px-3">campaign_id</td>
-                    <td className="py-2 px-3">—</td>
-                    <td className="py-2 px-3 text-emerald-400 font-bold">180</td>
-                    <td className="py-2 px-3 font-sans">Channels (Meta Ads, Google, TikTok), ad spend, impressions, ROAS</td>
+                    <td className="py-2 px-3">(campaign_id, date)</td>
+                    <td className="py-2 px-3">date</td>
+                    <td className="py-2 px-3 text-emerald-400 font-bold">2,920</td>
+                    <td className="py-2 px-3 font-sans">Channels (Facebook Ads, Google Ads, TikTok Ads, Email), ad spend, impressions, ROAS</td>
                   </tr>
                   <tr>
                     <td className="py-2 px-3 text-indigo-300 font-bold">inventory_daily</td>
-                    <td className="py-2 px-3">id</td>
-                    <td className="py-2 px-3">product_id</td>
-                    <td className="py-2 px-3 text-emerald-400 font-bold">36,500</td>
+                    <td className="py-2 px-3">(date, product_id)</td>
+                    <td className="py-2 px-3">product_id, date</td>
+                    <td className="py-2 px-3 text-emerald-400 font-bold">24,820</td>
                     <td className="py-2 px-3 font-sans">Daily opening/closing stock, inbound deliveries, stockout flags</td>
                   </tr>
                   <tr>
@@ -215,28 +215,30 @@ export function TechnicalDocumentationPage() {
           <div className="space-y-6">
             <SectionTitle
               title="3. Machine Learning & Microeconomic Formulation"
-              detail="Temporal feature engineering, LightGBM demand forecasting, and non-linear simulation"
-              aside={<Pill tone="warning">WAPE: 11.2% (vs 29.6% Naive)</Pill>}
+              detail="17 point-in-time temporal features, LightGBM vs baseline selection, and counterfactual simulation"
+              aside={<Pill tone="info">Bundle dp-1.1 · 24.14% Revenue WAPE</Pill>}
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/60 space-y-2 text-xs">
-                <strong className="text-indigo-300 block font-bold text-sm">LightGBM Demand Regressor</strong>
+                <strong className="text-indigo-300 block font-bold text-sm">LightGBM & Baseline Selector</strong>
                 <p className="text-slate-300 leading-relaxed">
-                  Trained across 14 temporal features: lag 1, 7, 14, 28 days; 7d/14d/28d rolling mean and standard deviation; growth momentum; and calendar encodings. Chronological train/val/test splits (70/15/15) prevent future data leakage.
+                  Trained across 17 point-in-time features: lag 1, 7, 14, 28 days; 7d/14d/28d rolling mean and standard deviation; 7-day growth momentum; weekday, month, quarter, weekend, and holiday encodings; and series scale. Chronological train/val/test splits (70/15/15) prevent leakage; LightGBM is selected only when validation MAE beats baselines by &gt;2%.
                 </p>
                 <div className="font-mono text-[11px] bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-emerald-400">
-                  WAPE: 11.24% · MAE: 14.82 units/day · RMSE: 21.05
+                  All Revenue (Moving Avg, 30d): WAPE 24.14% · MAE ₫34.58M · Coverage 83.81%
+                  <br />
+                  P001 Demand (LightGBM, 30d): WAPE 41.87% · MAE 2.68 units/day · Coverage 92.86%
                 </div>
               </div>
 
               <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/60 space-y-2 text-xs">
                 <strong className="text-purple-300 block font-bold text-sm">Microeconomic What-If Engine</strong>
                 <p className="text-slate-300 leading-relaxed">
-                  Unlike static calculators, models consumer price elasticity (e in [-5, 0]) with warehouse inventory limits and diminishing marginal returns on ad spend:
+                  Unlike static calculators, models consumer price elasticity (e in [-5, 0]) with warehouse inventory caps and power-law diminishing marginal returns on ad spend:
                 </p>
                 <div className="font-mono text-[11px] bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-cyan-300">
-                  Q_new = min(Q_capacity, Q_base * (1 + e * delta_P / P_0))
+                  Q_new = min(Q_stock, Q_base * max(0, 1 + e * (P_new / P_0 - 1)))
                   <br />
                   R_marketing = R_base * (1 + delta_Spend / Spend_base)^alpha
                 </div>
@@ -273,21 +275,21 @@ export function TechnicalDocumentationPage() {
                   <span className="text-indigo-400 font-bold mr-2">POST</span>
                   <span className="text-white">/query</span>
                 </div>
-                <span className="text-slate-400 text-[11px] font-sans">Natural language inquiry with constrained SQL drilldown and trace</span>
+                <span className="text-slate-400 text-[11px] font-sans">Natural language inquiry routed via typed intent schema and parameterized SQLAlchemy drilldowns</span>
               </div>
               <div className="p-3 rounded-xl border border-slate-800 bg-slate-900/50 flex items-center justify-between">
                 <div>
                   <span className="text-emerald-400 font-bold mr-2">GET</span>
                   <span className="text-white">/anomalies</span>
                 </div>
-                <span className="text-slate-400 text-[11px] font-sans">Ranked business anomalies detected by Isolation Forest with severity</span>
+                <span className="text-slate-400 text-[11px] font-sans">Ranked business anomalies detected by hybrid Isolation Forest + rolling Z-score/IQR with severity</span>
               </div>
               <div className="p-3 rounded-xl border border-slate-800 bg-slate-900/50 flex items-center justify-between">
                 <div>
                   <span className="text-indigo-400 font-bold mr-2">POST</span>
                   <span className="text-white">/forecast</span>
                 </div>
-                <span className="text-slate-400 text-[11px] font-sans">LightGBM daily point & 90% confidence interval projections</span>
+                <span className="text-slate-400 text-[11px] font-sans">7/30-day point predictions and empirical validation-residual intervals (LightGBM or baseline)</span>
               </div>
               <div className="p-3 rounded-xl border border-slate-800 bg-slate-900/50 flex items-center justify-between">
                 <div>
@@ -301,7 +303,7 @@ export function TechnicalDocumentationPage() {
                   <span className="text-indigo-400 font-bold mr-2">POST</span>
                   <span className="text-white">/recommendations/feedback</span>
                 </div>
-                <span className="text-slate-400 text-[11px] font-sans">Human-in-the-loop executive sign-off (Approve / Reject) with audit log</span>
+                <span className="text-slate-400 text-[11px] font-sans">Human-in-the-loop executive sign-off (Accept / Reject) with audit log</span>
               </div>
             </div>
           </div>

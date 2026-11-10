@@ -387,9 +387,19 @@ function WorkspaceAccess() {
 }
 
 const appBasename =
-  typeof window !== 'undefined' && window.location.pathname.startsWith('/DecisionPilotAI')
+  typeof window !== 'undefined' && window.location.pathname.startsWith('/DecisionPilotAI/app')
+    ? '/DecisionPilotAI/app'
+    : typeof window !== 'undefined' && window.location.pathname.startsWith('/DecisionPilotAI')
     ? '/DecisionPilotAI'
     : undefined
+
+if (typeof window !== 'undefined') {
+  const spaRedirect = sessionStorage.getItem('dp-spa-redirect')
+  if (spaRedirect && spaRedirect.startsWith('/DecisionPilotAI/app')) {
+    sessionStorage.removeItem('dp-spa-redirect')
+    window.history.replaceState(null, '', spaRedirect)
+  }
+}
 
 function Main() {
   return (

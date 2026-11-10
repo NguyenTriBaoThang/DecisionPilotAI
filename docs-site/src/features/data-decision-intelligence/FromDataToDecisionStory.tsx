@@ -14,13 +14,13 @@ export function FromDataToDecisionStory() {
       color: 'var(--cyan)',
       headline: 'The Executive Query',
       narrative:
-        'The business manager logs in and types: "Why did our HCMC revenue fall by 24% in the last two weeks of September?" DecisionPilot AI routes the intent, parses parameters, and compiles an audited read-only SQL query with zero prompt hallucination in 1.43 seconds.',
+        'The business operator logs in and asks: "Why did our HCMC revenue drop in September?" DecisionPilot AI maps the question to a strict Pydantic Intent (openAI, Gemini, or local bilingual rules), enforces allowlist guards, and executes parameterized SQLAlchemy Core queries on a read-only database session with zero mathematical hallucination.',
       kpis: [
-        { label: 'Query Latency', value: '1,432 ms' },
-        { label: 'AST Safety Pass', value: '100% Read-Only' },
-        { label: 'Data Sources', value: 'sales_transactions, products' },
+        { label: 'Median Benchmark Latency', value: '1,432.2 ms' },
+        { label: 'Query Safety Architecture', value: 'Typed Intent + Read-Only' },
+        { label: 'Grounded Sources', value: 'sales_transactions, products' },
       ],
-      quote: '"No manual Excel extraction or pivot tables required — immediate SQL execution."',
+      quote: '"No manual Excel extraction or pivot tables required — immediate parameterized execution."',
     },
     {
       id: 'understand',
@@ -31,13 +31,13 @@ export function FromDataToDecisionStory() {
       color: '#F87171',
       headline: 'Root Cause Decomposition',
       narrative:
-        'Instead of generic totals, the Isolation Forest and rolling 3-sigma z-score engine isolates two simultaneous root causes: (1) SKU P003 (FocusCam Pro) ran completely out of stock in HCMC (-62M ₫ impact), and (2) Facebook Ad spend scaled by 1.85x while conversion rate dropped from 25% to 5.5% (ROAS fell from 4.12x to 1.25x).',
+        'Using a 56-day trailing baseline shifted by 7 days, hybrid Isolation Forest + IQR + robust Z-score detectors and stockout rules isolate the co-occurring anomalies in September: (1) HCMC market traffic contracted to 0.59x with returning customer share dropping from 44% to 20%, (2) Facebook Ads spend scaled 1.85x while attributed order probability dropped from 25% to 5.5%, and (3) SmartDesk Mini (P001) flagged late-month stockout risk.',
       kpis: [
-        { label: 'Revenue Deviation', value: '-41.0% (z = -3.84)' },
-        { label: 'P003 Warehouse Stock', value: '0 units (Critical)' },
+        { label: 'HCMC Revenue Shock', value: '-41.0% (z = -3.84)' },
+        { label: 'P001 Late-Sept Alert', value: 'stockout_risk Flagged' },
         { label: 'Facebook ROAS Drop', value: '4.12x &rarr; 1.25x' },
       ],
-      quote: '"Reconciled 100% of the observed variance into specific product and ad channel drivers."',
+      quote: '"Reconciles observed variances across product, region, channel, and segment contributors."',
     },
     {
       id: 'predict',
@@ -48,13 +48,13 @@ export function FromDataToDecisionStory() {
       color: 'var(--indigo)',
       headline: 'The Baseline Trajectory Without Action',
       narrative:
-        'The LightGBM forecasting model generates a 14-day projection factoring in day-of-week seasonality, rolling moving averages, and current inventory deficits. The forecast reveals October gross revenue will contract to 1,150,000,000 ₫ (underperforming target by -20.7%) if ad bleed and stockouts persist.',
+        'The forecasting router evaluates Moving Average, Seasonal Naive, and 17-feature LightGBM models over a 70/15/15 chronological split across 7-day and 30-day horizons. Moving Average wins for total business revenue (24.14% 30-day test WAPE) while LightGBM clears the >2% validation gate for SKU P001 demand (41.87% WAPE, 92.86% empirical 90%-interval coverage).',
       kpis: [
-        { label: 'Baseline Oct Forecast', value: '1.15B ₫ (-20.7%)' },
-        { label: 'Holdout WAPE', value: '11.24% Aggregated' },
-        { label: '90% Interval Coverage', value: '92.86% (Calibrated)' },
+        { label: 'All-Revenue 30d Test WAPE', value: '24.14% (Moving Avg)' },
+        { label: 'SKU P001 30d Test WAPE', value: '41.87% (LightGBM)' },
+        { label: 'SKU P001 90% Coverage', value: '92.86% (Empirical)' },
       ],
-      quote: '"Quantifies the cost of inaction before the month begins."',
+      quote: '"Selects LightGBM only where validation proves >2% MAE lift over naive baselines."',
     },
     {
       id: 'simulate',
@@ -65,30 +65,30 @@ export function FromDataToDecisionStory() {
       color: '#A78BFA',
       headline: 'Stress-Testing Strategy Alternatives',
       narrative:
-        'The executive compares two strategies in the simulation engine: Scenario B proposes an aggressive 15% flash sale across all products; the simulator flags this as a "Margin Trap" (destroys 22M ₫ gross profit, triggers a 64.5% warehouse stockout risk). Conversely, Scenario A tests a calibrated 5% discount on elastic SKU P001 and reallocates 15M ₫ ad budget to Shopee Mall.',
+        'Instead of blindly discounting during a slump, the operator runs POST /simulate in ai_service/scenario.py. For SmartDesk Mini (P001, list 2,490,000 ₫, unit cost 1,650,000 ₫, elasticity -1.1), linear % elasticity reveals that a 15% promo destroys -53.2M ₫ in gross profit (-35.2%) and elevates depletion risk. Holding 0% discount protects 151.2M ₫ profit, while capping overspent Facebook Ads and shifting spend to Google Ads improves contribution profit.',
       kpis: [
-        { label: 'Scenario A Profit Delta', value: '+4.2M ₫ (+2.5%)' },
-        { label: 'Scenario B Profit Delta', value: '-22.0M ₫ (-13.1%)' },
-        { label: 'Scenario B Stockout Risk', value: '64.5% (REJECTED)' },
+        { label: 'Hold Price (0% Disc) Profit', value: '151.2M ₫ (Optimal Profit)' },
+        { label: '5% Disc Profit vs Rev', value: '-15.3M ₫ (+0.3% Rev)' },
+        { label: '15% Disc Profit Impact', value: '-53.2M ₫ (REJECTED)' },
       ],
-      quote: '"Exposed hidden margin collapse and stockout vulnerability prior to commitment."',
+      quote: '"Exposed hidden margin collapse and stock depletion trade-offs prior to capital commitment."',
     },
     {
       id: 'decide',
       number: '05',
       title: 'DECIDE',
-      label: 'Actionable Execution & Outcome',
+      label: 'Actionable Execution & Audit',
       icon: CheckCircle2,
       color: 'var(--green)',
-      headline: 'Confidence in Executive Decision Making',
+      headline: 'Human-in-the-Loop Decision Execution',
       narrative:
-        'The manager greenlights Scenario A with full executive consensus. Three automated actions are executed: (1) 5% promo applied to SKU P001, (2) 15M ₫ ad spend reallocated to Shopee Mall, and (3) P003 safety buffer increased to 120 units with an expedited supplier PO. Result: October revenue achieves 1,467,400,000 ₫ with healthy 36.8% margin.',
+        'Following the no-autonomous-write design constraint, the operator explicitly reviews sensitivity bounds and logs Accepted / Rejected decisions via POST /recommendations/feedback or POST /scenarios/feedback into the immutable decision_audit table: preserving SmartDesk Mini pricing, capping saturated Facebook Ads spend, and scheduling supplier replenishment for lead-time safety stock.',
       kpis: [
-        { label: 'Realized Revenue', value: '1,467,400,000 ₫' },
-        { label: 'Blended Ad ROAS', value: '3.85x Rebound' },
-        { label: 'P003 Stockout Resolved', value: '100% In Stock' },
+        { label: 'Execution Boundary', value: 'Human Approval Required' },
+        { label: 'Audit Record Status', value: 'Accepted / Rejected' },
+        { label: 'Marketing Curve Model', value: 'Power Law (ratio^0.65)' },
       ],
-      quote: '"Closed the loop from natural language question to verified business impact."',
+      quote: '"Closed the loop from natural language question to auditable, sensitivity-checked decisions."',
     },
   ]
 

@@ -6,50 +6,47 @@ import { Sliders, Sparkles, TrendingUp, AlertTriangle, ShieldCheck, Cpu, CheckCi
 export function TabScenarioSimulation() {
   const [subTab, setSubTab] = useState<'pricing' | 'marketing' | 'inventory'>('pricing')
 
-  // Sub-tab A: Pricing Simulation State
+  // Sub-tab A: Pricing Simulation State (P001 SmartDesk Mini catalog parameters from scripts/generate.py)
   const [discountPct, setDiscountPct] = useState<number>(5) // 5% default
-  const basePrice = 1_000_000
-  const baseUnits = 420
-  const unitCOGS = 600_000
-  const elasticity = -1.42 // From repository artifacts/scenario_backtest.json for P001
+  const basePrice = 2_490_000
+  const baseUnits = 180
+  const unitCOGS = 1_650_000
+  const elasticity = -1.1 // Catalog price elasticity for P001
 
-  // Dynamic pricing calculation
+  // Dynamic pricing calculation matching ai_service/scenario.py:
+  // demand_at_price = base_demand * max(0, 1 + elasticity * (new_price / base_price - 1))
   const discountRate = discountPct / 100
-  const effectivePrice = basePrice * (1 - discountRate)
-  // Elasticity demand multiplier: (1 - d)^ε
-  const demandMultiplier = Math.pow(1 - discountRate, elasticity)
+  const effectivePrice = Math.round(basePrice * (1 - discountRate))
+  const demandMultiplier = Math.max(0, 1 + elasticity * (-discountRate))
   const projectedUnits = Math.round(baseUnits * demandMultiplier)
   const projectedRevenue = projectedUnits * effectivePrice
   const projectedCOGS = projectedUnits * unitCOGS
   const projectedGrossProfit = projectedRevenue - projectedCOGS
-  const projectedMargin = (projectedGrossProfit / projectedRevenue) * 100
+  const projectedMargin = projectedRevenue > 0 ? (projectedGrossProfit / projectedRevenue) * 100 : 0
 
-  const baselineProfit = baseUnits * (basePrice - unitCOGS) // 168,000,000
+  const baselineProfit = baseUnits * (basePrice - unitCOGS) // 151,200,000
+  const baselineMarginPct = ((basePrice - unitCOGS) / basePrice) * 100 // 33.7%
   const profitDelta = projectedGrossProfit - baselineProfit
   const profitDeltaPct = (profitDelta / baselineProfit) * 100
 
-  // Estimated warehouse stockout risk based on demand surge
-  const stockoutRisk = Math.min(95, Math.max(4, Math.round(4 + Math.pow(discountPct / 2.5, 2))))
+  // Estimated warehouse depletion strain vs stock runway
+  const stockoutRisk = Math.min(95, Math.max(4, Math.round(4 + Math.pow(discountPct / 2.2, 2))))
 
-  // Sub-tab B: Marketing Budget State
+  // Sub-tab B: Marketing Budget State matching ai_service/scenario.py:
+  // budget_response(ratio, exponent) = ratio ** response_exponent (default 0.65)
   const [spendMultiplier, setSpendMultiplier] = useState<number>(1.2) // 1.2x
   const baseFbSpend = 26_000_000
+  const baseAttributedRevenue = 107_120_000 // Baseline 4.12x ROAS reference
+  const responseExponent = 0.65
   const currentFbSpend = baseFbSpend * spendMultiplier
-  // Hill function: Rev = Vmax * S^n / (K^n + S^n)
-  // Calibrated so at 1.0x spend (26M), Rev = 107.1M (ROAS = 4.12)
-  const vMax = 180_000_000
-  const kHalf = 22_000_000
-  const hillN = 1.6
-  const spendPow = Math.pow(currentFbSpend, hillN)
-  const kPow = Math.pow(kHalf, hillN)
-  const projectedAdRevenue = (vMax * spendPow) / (kPow + spendPow)
+  const projectedAdRevenue = baseAttributedRevenue * Math.pow(spendMultiplier, responseExponent)
   const effectiveROAS = projectedAdRevenue / currentFbSpend
 
-  // Sub-tab C: Inventory Planning State
+  // Sub-tab C: Inventory Planning State (P001 lead_time_days = 14, reorder_point = 32)
   const [leadTimeDays, setLeadTimeDays] = useState<number>(14)
-  const [safetyBufferUnits, setSafetyBufferUnits] = useState<number>(120)
-  const dailyBurnRate = 18 // units per day
-  const inventoryOnHand = 310
+  const [safetyBufferUnits, setSafetyBufferUnits] = useState<number>(32)
+  const dailyBurnRate = 6 // ~180 units / 30 days
+  const inventoryOnHand = 90
   const daysCover = Math.round(inventoryOnHand / dailyBurnRate)
   const requiredStock = dailyBurnRate * leadTimeDays + safetyBufferUnits
   const reorderRecommendation = Math.max(0, requiredStock - inventoryOnHand)
@@ -76,7 +73,7 @@ export function TabScenarioSimulation() {
           &ldquo;Explore strategies, evaluate trade-offs, and make evidence-based decisions.&rdquo;
         </p>
         <p style={{ color: '#CBD5E1', fontSize: '0.95rem', maxWidth: '850px', lineHeight: 1.6 }}>
-          Executive leaders frequently make irreversible pricing, marketing, and inventory commitments relying on gut instinct, only to trigger margin collapse or warehouse stockouts. DecisionPilot AI provides a mathematical simulation sandbox combining empirical price elasticity, Hill saturation curves, and lead-time inventory models to stress-test scenarios before capital is committed.
+          Executive leaders frequently make irreversible pricing, marketing, and inventory commitments relying on gut instinct, only to trigger margin collapse or warehouse stockouts. DecisionPilot AI provides a deterministic simulation sandbox combining linear percentage price elasticity, power-law marketing diminishing returns (<code>ratio^0.65</code>), and daily stock-balance replenishment modeling with sensitivity sweeps before capital is committed.
         </p>
       </div>
 
@@ -149,18 +146,18 @@ export function TabScenarioSimulation() {
           <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: '12px', padding: '24px' }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '20px' }}>
               <div>
-                <span className="badge badge-cyan" style={{ marginBottom: '6px' }}>LOG-LOG ELASTICITY MODEL</span>
+                <span className="badge badge-cyan" style={{ marginBottom: '6px' }}>LINEAR % ELASTICITY MODEL</span>
                 <h4 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#FFFFFF', margin: '4px 0 0 0' }}>
                   SKU P001 (SmartDesk Mini) Price Elasticity Simulator
                 </h4>
                 <p style={{ fontSize: '0.82rem', color: 'var(--muted)', margin: '4px 0 0 0' }}>
-                  Empirical elasticity coefficient &epsilon; = -1.42 (elastic demand). Baseline price: 1,000,000 ₫ &bull; Unit COGS: 600,000 ₫.
+                  Catalog elasticity coefficient &epsilon; = -1.10 &bull; List price: 2,490,000 ₫ &bull; Unit COGS: 1,650,000 ₫.
                 </p>
               </div>
 
               <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', borderRadius: '8px', padding: '8px 14px', textAlign: 'right' }}>
-                <div style={{ fontSize: '0.72rem', color: '#94A3B8', fontFamily: 'var(--mono)' }}>OPTIMAL RANGE</div>
-                <div style={{ fontSize: '0.9rem', color: 'var(--green)', fontWeight: 700 }}>4% &ndash; 6% Discount</div>
+                <div style={{ fontSize: '0.72rem', color: '#94A3B8', fontFamily: 'var(--mono)' }}>PROFIT OBJECTIVE</div>
+                <div style={{ fontSize: '0.9rem', color: 'var(--green)', fontWeight: 700 }}>0% (Profit) vs 5% (+Rev)</div>
               </div>
             </div>
 
@@ -184,9 +181,9 @@ export function TabScenarioSimulation() {
                 style={{ width: '100%', accentColor: 'var(--cyan)', cursor: 'pointer' }}
               />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: '#64748B', marginTop: '6px' }}>
-                <span>0% (Baseline)</span>
-                <span>5% (AI Optimal Point)</span>
-                <span>10%</span>
+                <span>0% (Max Profit)</span>
+                <span>5% (Max Revenue)</span>
+                <span>10% (Margin Erosion)</span>
                 <span>15% (Margin Trap)</span>
                 <span>20% (Severe Loss)</span>
               </div>
@@ -209,8 +206,8 @@ export function TabScenarioSimulation() {
                 <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#FFFFFF', marginTop: '4px' }}>
                   {formatVND(projectedRevenue)}
                 </div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--cyan)', fontWeight: 600 }}>
-                  +{((projectedRevenue - basePrice * baseUnits) / (basePrice * baseUnits) * 100).toFixed(1)}% delta
+                <span style={{ fontSize: '0.75rem', color: projectedRevenue >= basePrice * baseUnits ? 'var(--cyan)' : '#F87171', fontWeight: 600 }}>
+                  {projectedRevenue >= basePrice * baseUnits ? '+' : ''}{((projectedRevenue - basePrice * baseUnits) / (basePrice * baseUnits) * 100).toFixed(1)}% delta
                 </span>
               </div>
 
@@ -226,11 +223,11 @@ export function TabScenarioSimulation() {
 
               <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--line)', borderRadius: '8px', padding: '14px' }}>
                 <span style={{ fontSize: '0.72rem', color: '#94A3B8', textTransform: 'uppercase', fontFamily: 'var(--mono)' }}>Gross Margin %</span>
-                <div style={{ fontSize: '1.4rem', fontWeight: 800, color: projectedMargin >= 35 ? '#FFFFFF' : '#F87171', marginTop: '4px' }}>
+                <div style={{ fontSize: '1.4rem', fontWeight: 800, color: projectedMargin >= 30 ? '#FFFFFF' : '#F87171', marginTop: '4px' }}>
                   {projectedMargin.toFixed(1)}%
                 </div>
                 <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>
-                  Baseline: 40.0%
+                  Baseline: {baselineMarginPct.toFixed(1)}%
                 </span>
               </div>
 
@@ -248,8 +245,8 @@ export function TabScenarioSimulation() {
             {/* AI Decision Engine Callout */}
             <div
               style={{
-                background: profitDelta >= 0 && stockoutRisk < 25 ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
-                border: `1px solid ${profitDelta >= 0 && stockoutRisk < 25 ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                background: discountPct === 0 ? 'rgba(16, 185, 129, 0.08)' : projectedRevenue >= basePrice * baseUnits && stockoutRisk < 25 ? 'rgba(245, 158, 11, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                border: `1px solid ${discountPct === 0 ? 'rgba(16, 185, 129, 0.3)' : projectedRevenue >= basePrice * baseUnits && stockoutRisk < 25 ? 'rgba(245, 158, 11, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
                 borderRadius: '8px',
                 padding: '14px 18px',
                 display: 'flex',
@@ -257,21 +254,25 @@ export function TabScenarioSimulation() {
                 gap: '12px',
               }}
             >
-              {profitDelta >= 0 && stockoutRisk < 25 ? (
+              {discountPct === 0 ? (
                 <CheckCircle2 size={20} color="var(--green)" style={{ flexShrink: 0, marginTop: '2px' }} />
               ) : (
-                <AlertTriangle size={20} color="#F87171" style={{ flexShrink: 0, marginTop: '2px' }} />
+                <AlertTriangle size={20} color={projectedRevenue >= basePrice * baseUnits && stockoutRisk < 25 ? '#FBBF24' : '#F87171'} style={{ flexShrink: 0, marginTop: '2px' }} />
               )}
               <div style={{ fontSize: '0.84rem', lineHeight: 1.5 }}>
-                <strong style={{ color: profitDelta >= 0 && stockoutRisk < 25 ? 'var(--green)' : '#F87171' }}>
-                  {profitDelta >= 0 && stockoutRisk < 25
-                    ? 'AI ENGINE VERDICT: RECOMMENDED PROMOTION'
-                    : 'AI ENGINE VERDICT: HIGH-RISK DECISION (VOLUME TRAP)'}
+                <strong style={{ color: discountPct === 0 ? 'var(--green)' : projectedRevenue >= basePrice * baseUnits && stockoutRisk < 25 ? '#FBBF24' : '#F87171' }}>
+                  {discountPct === 0
+                    ? 'AI ENGINE VERDICT: HOLD PRICE FOR MAX GROSS PROFIT'
+                    : projectedRevenue >= basePrice * baseUnits && stockoutRisk < 25
+                      ? 'AI ENGINE VERDICT: TOP-LINE TRADE-OFF (PROFIT COMPRESSION)'
+                      : 'AI ENGINE VERDICT: HIGH-RISK DECISION (MARGIN TRAP)'}
                 </strong>
                 <p style={{ margin: '4px 0 0 0', color: '#CBD5E1' }}>
-                  {profitDelta >= 0 && stockoutRisk < 25
-                    ? `At a ${discountPct}% discount, unit demand expansion (+${Math.round((projectedUnits - baseUnits) / baseUnits * 100)}%) outweighs the per-unit price reduction, generating +${formatVND(profitDelta)} in net incremental gross profit while keeping inventory stockout risk safe at ${stockoutRisk}%.`
-                    : `At a ${discountPct}% discount, although unit volume surges to ${projectedUnits} units, cumulative COGS and price erosion destroy ${formatVND(Math.abs(profitDelta))} in gross profit. Furthermore, rapid stock depletion pushes warehouse stockout probability to ${stockoutRisk}%.`}
+                  {discountPct === 0
+                    ? `With SmartDesk Mini (P001) catalog elasticity ε = -1.1 and 33.7% baseline gross margin, holding full list price yields ${formatVND(baselineProfit)} gross profit with low stockout strain (${stockoutRisk}%).`
+                    : projectedRevenue >= basePrice * baseUnits && stockoutRisk < 25
+                      ? `At a ${discountPct}% discount, unit demand rises to ${projectedUnits} units and revenue edges to ${formatVND(projectedRevenue)}, but margin erosion reduces gross profit by ${formatVND(Math.abs(profitDelta))} (${profitDeltaPct.toFixed(1)}%). Only approve if your objective prioritizes top-line volume over margin.`
+                      : `At a ${discountPct}% discount, although unit demand surges to ${projectedUnits} units, cumulative COGS and price compression destroy ${formatVND(Math.abs(profitDelta))} in gross profit while pushing warehouse depletion strain to ${stockoutRisk}%.`}
                 </p>
               </div>
             </div>
@@ -283,12 +284,12 @@ export function TabScenarioSimulation() {
       {subTab === 'marketing' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: '12px', padding: '24px' }}>
-            <span className="badge badge-indigo" style={{ marginBottom: '6px' }}>HILL FUNCTION SATURATION</span>
+            <span className="badge badge-indigo" style={{ marginBottom: '6px' }}>POWER RESPONSE CURVE (ratio ^ 0.65)</span>
             <h4 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#FFFFFF', margin: '4px 0 0 0' }}>
-              Advertising Spend Saturation Curve (Diminishing ROAS)
+              Advertising Spend Diminishing-Returns Curve (ratio<sup>0.65</sup>)
             </h4>
             <p style={{ fontSize: '0.82rem', color: 'var(--muted)', margin: '4px 0 20px 0' }}>
-              Models customer acquisition fatigue: incremental spend yields progressively smaller sales lift once core audience reaches saturation.
+              Models diminishing marginal returns using <code>budget_response(ratio, exponent) = ratio ** 0.65</code> from <code>ai_service/scenario.py</code>: incremental spend yields sub-linear sales lift.
             </p>
 
             {/* Slider Control */}
@@ -359,7 +360,7 @@ export function TabScenarioSimulation() {
             </div>
 
             <p style={{ fontSize: '0.82rem', color: '#CBD5E1', lineHeight: 1.5, margin: 0 }}>
-              &bull; <strong>SME Strategic Insight:</strong> Scaling ad budget beyond 1.5x on a single platform triggers steep audience fatigue. DecisionPilot AI recommends reallocating surplus ad budget to Shopee Mall search ads and retargeting high-intent basket abandoners.
+              &bull; <strong>SME Strategic Insight:</strong> Because revenue scales by <code>ratio^0.65</code>, scaling spend 2.0x only produces 1.57x attributed revenue, reducing marginal ROAS. Compare Facebook Ads against Google Ads, TikTok Ads, or Email via <code>POST /simulate</code> before reallocating budget (note: 7-day Facebook replay had 33.00% WAPE vs 25.44% baseline during shock windows).
             </p>
           </div>
         </div>
@@ -406,15 +407,15 @@ export function TabScenarioSimulation() {
                 </div>
                 <input
                   type="range"
-                  min="50"
-                  max="250"
-                  step="10"
+                  min="20"
+                  max="120"
+                  step="4"
                   value={safetyBufferUnits}
                   onChange={(e) => setSafetyBufferUnits(Number(e.target.value))}
                   style={{ width: '100%', accentColor: 'var(--indigo)', cursor: 'pointer' }}
                 />
                 <span style={{ fontSize: '0.72rem', color: '#64748B', display: 'block', marginTop: '4px' }}>
-                  Recommended threshold: 100 &ndash; 150 units buffer
+                  P001 catalog reorder point: 32 units &bull; Higher buffer protects against customs delays
                 </span>
               </div>
             </div>
@@ -472,9 +473,9 @@ export function TabScenarioSimulation() {
             <thead>
               <tr style={{ borderBottom: '1px solid var(--line)', textAlign: 'left', color: '#94A3B8' }}>
                 <th style={{ padding: '10px 12px' }}>Decision Variable / Metric</th>
-                <th style={{ padding: '10px 12px' }}>Baseline (Status Quo)</th>
-                <th style={{ padding: '10px 12px', color: 'var(--green)' }}>Scenario A (AI Recommended)</th>
-                <th style={{ padding: '10px 12px', color: '#F87171' }}>Scenario B (Aggressive Promo)</th>
+                <th style={{ padding: '10px 12px' }}>Baseline (0% Disc / Profit Winner)</th>
+                <th style={{ padding: '10px 12px', color: '#FBBF24' }}>Scenario A (-5% Disc / +Rev)</th>
+                <th style={{ padding: '10px 12px', color: '#F87171' }}>Scenario B (-15% Aggressive)</th>
                 <th style={{ padding: '10px 12px' }}>Delta (A vs B)</th>
               </tr>
             </thead>
@@ -510,12 +511,12 @@ export function TabScenarioSimulation() {
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.82rem' }}>
             <a
-              href="https://github.com/NguyenTriBaoThang/DecisionPilotAI/blob/main/ai_service/simulation.py"
+              href="https://github.com/NguyenTriBaoThang/DecisionPilotAI/blob/main/ai_service/scenario.py"
               target="_blank"
               rel="noreferrer"
               style={{ color: 'var(--indigo)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
             >
-              <Cpu size={14} /> <code>ai_service/simulation.py</code> &rarr;
+              <Cpu size={14} /> <code>ai_service/scenario.py</code> &rarr;
             </a>
             <a
               href="https://github.com/NguyenTriBaoThang/DecisionPilotAI/blob/main/artifacts/scenario_backtest.json"
@@ -534,19 +535,22 @@ export function TabScenarioSimulation() {
           </span>
           <div style={{ marginBottom: '8px' }}>
             <code style={{ fontSize: '0.82rem', color: '#38BDF8', background: 'rgba(0,0,0,0.3)', padding: '4px 8px', borderRadius: '4px' }}>
-              POST /api/scenarios/run
+              POST /simulate
             </code>
           </div>
           <p style={{ fontSize: '0.8rem', color: '#94A3B8', margin: '6px 0 10px 0' }}>
-            Executes parameter overrides for price discounts, marketing budget adjustments, and replenishment delays. Returns projected P&amp;L delta and risk scores.
+            Discriminated union <code>ScenarioRequest</code> (<code>price | marketing | inventory</code>) with explicit <code>objective</code> (<code>profit | revenue | stockout | balanced</code>) and 7d/30d horizon. Returns baseline, alternatives, sensitivity sweeps, and explicit assumptions.
           </p>
           <CodeBlock
-            code={`// Scenario Request Payload
+            code={`// Scenario Request Payload (PriceRequest)
 {
-  "scenario_name": "Scenario A - Targeted 5% Promo",
-  "product_discounts": { "P001": 0.05 },
-  "ad_spend_multiplier": 1.2,
-  "reallocate_budget": { "from": "facebook", "to": "shopee", "amount": 10000000 }
+  "type": "price",
+  "objective": "profit",
+  "horizon": 30,
+  "parameters": {
+    "product": "P001",
+    "discounts": [0, 0.05, 0.15]
+  }
 }`}
             label="json"
           />

@@ -16,12 +16,12 @@ export function Section08Benchmarks() {
       {/* Topline highlights */}
       <div className="grid-3" style={{ marginBottom: '24px' }}>
         <div className="stat-box">
-          <div className="stat-value">11.24%</div>
-          <div className="stat-label">Aggregated Forecast WAPE</div>
+          <div className="stat-value">24.14%</div>
+          <div className="stat-label">All-Revenue 30d Test WAPE</div>
         </div>
         <div className="stat-box">
           <div className="stat-value">100.0%</div>
-          <div className="stat-label">Copilot Grounding Consistency</div>
+          <div className="stat-label">Copilot Grounding (46/46)</div>
         </div>
         <div className="stat-box">
           <div className="stat-value">1,432 ms</div>
@@ -67,7 +67,7 @@ export function Section08Benchmarks() {
 
       <h3>2. Labeled Anomaly Detection Benchmark (Ground Truth Injections)</h3>
       <p>
-        Evaluated against 8 injected realistic business anomalies (sudden Facebook ad spend surge, demand dips, stockouts):
+        Evaluated against labeled injection windows in synthetic history (revenue contractions, Facebook spend/ROAS/conversion shocks, stockout windows, and promotional margin compression):
       </p>
 
       <div className="table-wrap">

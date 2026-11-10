@@ -1,71 +1,50 @@
 # DecisionPilot AI — Data Quality & Integrity Audit
 
 **Document ID:** AUD-03-DATA-INTEGRITY  
-**Audit Date:** November 8, 2026  
-**Auditor:** Staff Data Engineer & Analytics Auditor  
-**Primary Dataset:** `data/synthetic/` (ID: `f32e87e3a5744333ff98d3bf`)  
+**Audit Date:** November 10, 2026  
+**Primary Dataset:** `data/synthetic/` (`dataset_id: f32e87e3a5744333ff98d3bf`)
 
 ---
 
 ## 1. Dataset Dimensions & Ground Truth
 
-The synthetic dataset represents a realistic Vietnamese retail SME operating across Hanoi, Ho Chi Minh City, and Da Nang over a continuous 730-day window (2024-10-01 to 2026-09-30).
+Generated deterministically by [`scripts/generate.py`](../../scripts/generate.py) (`seed=42`, currency `VND`, timezone `Asia/Ho_Chi_Minh`) across **730 contiguous days** (`2024-10-01` to `2026-09-30`), covering `HCMC`, `Hanoi`, `Da Nang`, and `Can Tho`.
 
-| Table Name | Row Count | Granularity | Key Foreign Keys & Constraints |
-| :--- | :---: | :--- | :--- |
-| `products` | 50 | 1 row per SKU | 35 physical products, 15 digital/services; `cost_price < selling_price` |
-| `customers` | 10,000 | 1 row per customer | Primary key `customer_id`; Lifetime value reconciled against sales |
-| `sales_transactions` | 50,000 | 1 row per checkout item | FK: `product_id`, `customer_id`, `campaign_id`; Strict margin formulas |
-| `marketing_campaigns` | 2,920 | 1 row per channel per day | Channels: Meta Ads, Google Ads, TikTok Shop, Zalo Ads |
-| `inventory_daily` | 24,820 | 1 row per SKU per day | Physical continuity: `opening + received - sold = closing` |
-
----
-
-## 2. Mathematical Reconciliation & Validation Checks
-
-The pipeline validator (`scripts/pipeline.py validate`) executes 7 deterministic checks:
-
-1. **Primary & Foreign Key Referential Integrity:**
-   - Zero orphaned records in `sales_transactions`. All referenced `product_id`, `customer_id`, and `campaign_id` values exist in respective dimensions.
-2. **Calendar Continuity:**
-   - 730 contiguous days with zero gaps. All transactions occur within `[2024-10-01, 2026-09-30]`.
-3. **Financial Formulas:**
-   - `revenue = quantity * unit_price * (1 - discount)`
-   - `cogs = quantity * unit_cost`
-   - `gross_profit = revenue - cogs`
-   - Margin is strictly non-negative across standard operations.
-4. **Physical Inventory Continuity:**
-   - For all 35 physical SKUs across 730 days: `closing_stock(t) = opening_stock(t) + received_qty(t) - sold_qty(t)`
-   - `opening_stock(t) == closing_stock(t-1)` (Zero lost inventory).
-5. **Marketing Attribution & Funnel Hierarchy:**
-   - Funnel condition: `impressions >= clicks >= leads >= orders >= 0`
-   - Direct attribution: `campaign.attributed_revenue == sum(transaction.revenue for transaction in campaign)`.
-6. **Customer Reconciliation:**
-   - `customer.lifetime_value == sum(sales.revenue for sales in customer)`
-   - `customer.last_purchase_date == max(sales.date for sales in customer)`
-   - `customer.is_returning == (transaction_count > 1)`.
-7. **Deterministic Cryptographic Digest:**
-   - SHA-256 dataset digest across normalized tables evaluates to `f32e87e3a5744333ff98d3bf`.
+| Table Name | Row Count | Granularity & Constraints |
+| :--- | :---: | :--- |
+| `calendar_events` | **730** | Contiguous business calendar with Vietnam holidays (`1/1`, `4/30`, `5/1`, `9/2`, `12/25`) & double-day/late promo flags |
+| `products` | **50** | **34** physical SKUs (`is_physical=true`, lead times `7–14d`, non-null stock/reorder) + **16** digital/service SKUs (`NULL` stock fields) |
+| `customers` | **10,000** | 4 segments (`Returning`, `Individual`, `Corporate`, `Price-sensitive`) across 4 regions |
+| `marketing_campaigns` | **2,920** | Daily funnel rows (`impressions >= clicks >= leads >= orders`) across `Facebook Ads`, `Google Ads`, `TikTok Ads`, `Email` |
+| `sales_transactions` | **50,000** | Channels `Online`, `Retail`, `B2B`; enforces `total_cost = quantity * unit_cost`, `gross_profit = revenue - total_cost` |
+| `inventory_daily` | **24,820** | 34 physical SKUs $\times$ 730 days; enforces `opening_stock + received_qty - sold_qty = closing_stock` |
 
 ---
 
-## 3. Injected Business Anomalies & Empirical Ground Truth
+## 2. Deterministic Validation Checks (`scripts/pipeline.py validate`)
 
-To test machine learning detection and causal simulation capabilities, four real-world business shocks were realistically synthesized:
+1. **Primary & Foreign Key Integrity:** Zero orphaned customer, product, calendar, or composite `(campaign_id, date)` links.
+2. **Contiguous Business Calendar:** Zero gaps or inconsistent weekday/month/quarter/weekend flags across 730 days.
+3. **Accounting Formulas:** `revenue = round(quantity * unit_price * (1 - discount_pct))`, `total_cost = quantity * unit_cost`, `gross_profit = revenue - total_cost`.
+4. **Physical Warehouse Conservation:** Across all 34 physical SKUs, opening balances equal prior day closing balances and `stockout_flag = (closing_stock == 0)`.
+5. **Campaign Funnel & Attribution:** Strictly monotonic funnel stages and exact reconciliation of `attributed_revenue` and `orders` with `sales_transactions`.
+6. **Customer Cohort Reconciliation:** Lifetime value, `last_purchase_date`, `signup_date`, and `is_returning` match observed transaction histories.
+7. **Deterministic SHA-256 Digest:** Canonical serialized digest produces `f32e87e3a5744333ff98d3bf`.
 
-1. **September 2026 Macro Revenue Shock:**
-   - Store traffic multiplier contracted by 0.59x in September 2026, causing a visible revenue drop.
-2. **Facebook Ad Spend & Saturation Spike:**
-   - Budget increased 1.85x on Facebook Ads while click-through rate dropped 40%, collapsing ROAS from 3.8x to 2.2x.
-3. **Critical SKU Stockout (FocusCam Pro - SKU P003):**
-   - 37 consecutive stockout days in early 2026, creating unfulfilled latent demand and testing lost-sales recovery algorithms.
-4. **Promotional Margin Compression:**
-   - Deep discount campaigns in Q2 2026 expanded sales volume by 28% but compressed gross margins from 43% to 32%.
+---
+
+## 3. Synthesized Evaluation Shocks (`injected_events` in Snapshot Manifest)
+
+To evaluate anomaly detection and replay behavior, `scripts/generate.py` injects dated regime shifts (used strictly for evaluation scoring, never leaked as training features):
+
+1. **July 2026 Early Demand Shock (`early_shock`, 6 days starting `end - 70d`):** Demand traffic scaled `0.75x`.
+2. **FocusCam Pro (`P003`) Supply Interruption (`interruption` to `restore_supply - 1d`):** Replenishment paused `10` days before `early_shock` through `early_shock + 27d` (`stockout_event`).
+3. **September 2026 Macro Demand & Mix Shift (`shock_start`, last 28 days):** Store traffic `0.59x`, HCMC `P002`/`P003` SKU weights `0.26x`, returning customer share `44% -> 20%`.
+4. **September 2026 Facebook Ads Efficiency Drop (last 28 days):** Facebook spend `1.85x`, online attribution share drops `25% -> 5.5%`, plus `+24` non-converting leads/day.
+5. **Late Replenishment & Margin Events (`end - 11d..end` & `end - 3d..end`):** SmartDesk Mini (`P001`) replenishment paused for 12 days (`stockout_risk`) and final 4 promotional days apply extra discounting (`margin`).
 
 ---
 
 ## 4. Data Quality Verdict
 
-**Status:** **100% PASS**  
-The dataset satisfies all audit requirements for consistency, physical law adherence, and financial precision.
-
+**Status:** **PASS (`100%` structural & mathematical validation checks satisfied).**

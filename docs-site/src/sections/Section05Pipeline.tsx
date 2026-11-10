@@ -21,30 +21,33 @@ export function Section05Pipeline() {
     {
       step: '04',
       title: 'Calendar Alignment & Vietnamese Holiday Synchronization',
-      desc: 'Maps every date to the official fiscal calendar, tagging Tết Nguyên Đán, National Day (2/9), and e-commerce mega-sales (11.11, 12.12).',
+      desc: 'Maps every date to the official calendar table, flagging New Year (1/1), Reunification Day (4/30), Labour Day (5/1), National Day (9/2), Year-end (12/25), and double-day promotion dates (6.6–12.12).',
     },
     {
       step: '05',
       title: 'Multi-Channel Marketing Attribution Reconciliation',
-      desc: 'Aligns ad spend from Facebook Ads, Google Ads, and TikTok Shop with downstream sales attribution, computing daily ROAS.',
+      desc: 'Aligns ad spend across Facebook Ads, Google Ads, TikTok Ads, and Email with attributed orders and revenue, enforcing funnel monotonicity (impressions >= clicks >= leads >= orders).',
     },
     {
       step: '06',
       title: 'Warehouse Inventory Continuity & Stockout Audit',
-      desc: 'Enforces mathematical identity: Closing Stock = Opening Stock + Received Stock - Shipped Units. Flags negative inventory or unaccounted shrinkage.',
+      desc: 'Enforces DB constraint and validator checks: Closing Stock = Opening Stock + Received Qty - Sold Qty, with stockout_flag matching zero balance.',
     },
     {
       step: '07',
       title: 'Cryptographic Snapshot Hashing & Artifact Export',
-      desc: 'Computes SHA-256 fingerprint of the complete relational dataset, producing immutable artifacts (daily_features.csv.gz, data_quality.json).',
+      desc: 'Computes the deterministic 24-character SHA-256 dataset_id hash and exports artifacts/data_quality.json (with training script exporting feature .csv.gz files).',
     },
   ]
 
-  const pipelineCli = `# Execute end-to-end data processing and validation pipeline
-python -m scripts.pipeline --dataset-dir data/raw --output-dir artifacts
+  const pipelineCli = `# Validate synthetic snapshot directory and emit data_quality.json
+python -m scripts.pipeline validate data/synthetic --report artifacts/data_quality.json
 
-# Run relational integrity verification tests
-pytest tests/test_pipeline.py -v`
+# Load validated snapshot atomically into database
+python -m scripts.pipeline load data/synthetic
+
+# Run relational integrity and end-to-end verification tests
+python -m pytest tests/test_decisionpilot.py -v`
 
   return (
     <section id="sec-etl-pipeline">

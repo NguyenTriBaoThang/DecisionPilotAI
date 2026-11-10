@@ -1,101 +1,63 @@
-# DecisionPilot AI — Research & Innovation Proposal
+# DecisionPilot AI — Research & Innovation Overview
 
 > **Competition Track:** AI for Business Innovation 2026 — LIKELION & K-TECH College  
-> **Academic Title:** AI-Powered Business Data Analysis, Forecasting and Decision Support System for SMEs  
+> **Project Title:** AI-Powered Business Data Analysis, Forecasting and Decision Support System for SMEs  
 > **Author & Project Lead:** Nguyễn Trí Bảo Thắng  
-> **Domain:** Applied Artificial Intelligence, Decision Intelligence, Microeconomic Simulation
+> **Domain:** Applied Artificial Intelligence, Decision Intelligence, Econometric Decision Support
 
 ---
 
 ## 1. Abstract
 
-Small and Medium Enterprises (SMEs) represent over $97\%$ of registered businesses in Vietnam and South Korea, contributing significantly to employment and GDP. Despite the widespread adoption of digital point-of-sale (POS) systems and e-commerce platforms, SMEs face a severe **Decision Bottleneck**: they possess abundant operational data but lack the dedicated data science personnel required to detect statistical anomalies, model time-series demand, or simulate non-linear What-If business scenarios. Consequently, high-stakes decisions regarding pricing, advertising budgets, and supplier purchase orders continue to be made through subjective intuition or delayed spreadsheet assembly.
+Small and Medium Enterprises (SMEs) represent the majority of businesses in Vietnam and across regional markets, yet routinely operate inside a **Decision Bottleneck**: operational transactions, marketing spend, and warehouse balances accumulate daily without unified diagnostic analytics, statistically controlled anomaly monitoring, demand forecasting, or pre-execution scenario evaluation.
 
-This project introduces **DecisionPilot AI**, an end-to-end Decision Intelligence platform that bridges raw transaction records and executive action. By combining constrained natural language SQL parsing, Isolation Forest multi-variate anomaly detection, gradient-boosted LightGBM demand forecasting, and a calibrated microeconomic simulation engine within an interactive Three.js 3D WebGL control environment, DecisionPilot AI establishes a closed-loop decision chain: **Ask → Detect → Explain → Forecast → Simulate → Recommend → Human Decision**. Empirical evaluation across a 50,000-transaction, 24-month benchmark dataset demonstrates an $18.4\%$ reduction in forecast error (WAPE = $11.2\%$) over moving average baselines, a $92.4\%$ anomaly detection precision, and a $95\%$ reduction in weekly managerial reporting turnaround time, all running on low-cost commodity CPU infrastructure.
-
----
-
-## 2. Problem Background & Literature Review
-
-### 2.1 The Limits of Descriptive Dashboards and Unconstrained LLMs
-Modern enterprise analytics platforms (e.g., Tableau, PowerBI) remain fundamentally **descriptive**—they illustrate historical trends (*"What happened?"*) but fail to deliver causal explanations (*"Why did it happen?"*) or prescriptive guidance (*"What should we do?"*). 
-
-Conversely, the recent influx of generative Large Language Model (LLM) chatbots introduces critical vulnerabilities when applied to corporate finance:
-1. **Numerical Hallucination:** LLMs inherently operate on probabilistic token prediction rather than deterministic arithmetic, frequently inventing believable but factually incorrect revenue totals.
-2. **Lack of Economic Grounding:** Standard language models cannot evaluate microeconomic trade-offs, such as price elasticity of demand ($\epsilon$), diminishing marginal returns on ad spend, or warehouse lead-time capacity constraints.
-3. **Absence of Governance:** Unbounded chatbots offer advice without explicit mathematical assumptions, confidence intervals, or immutable audit trails.
-
-### 2.2 Theoretical Foundation: Decision Intelligence Framework
-DecisionPilot AI builds upon Dr. Lorien Pratt's **Decision Intelligence (DI)** paradigm and Herbert Simon's classical three-stage model of decision-making:
-- **Intelligence (Phase 1):** Continuous anomaly detection and automated KPI aggregation scan the internal and external environment for operational risks.
-- **Design (Phase 2):** LightGBM time-series forecasting and the microeconomic What-If simulator formulate and evaluate alternative courses of action.
-- **Choice (Phase 3):** Grounded AI recommendations present ranked options with quantified trade-offs to the human executive for authoritative sign-off.
+**DecisionPilot AI** implements a closed-loop decision intelligence architecture spanning six relational workspaces and a constrained natural-language copilot: **Ask → Understand → Predict → Simulate → Decide**. Across our reproducible 24-month, 50,000-transaction synthetic enterprise benchmark (`dataset_id: f32e87e3a5744333ff98d3bf`, model bundle `dp-1.1`), the system achieves **46/46 (100%)** execution and numerical accuracy on bilingual VI/EN query benchmarks (`1,432.2 ms` median latency), **100.00% precision / 90.20% F1** on anomalous Facebook spend detection (`0.00%` FPR), **21.84% (7d) / 24.14% (30d) aggregate revenue WAPE** under a strict `>2%` baseline-gating protocol with **92.86% calibrated 90%-interval coverage** on flagship SKU `P001` (`SmartDesk Mini`), and **23.99% WAPE** on 7-day conditional scenario replay—executing entirely on CPU hardware without requiring cloud GPUs.
 
 ---
 
-## 3. System Methodology & Implementation Architecture
+## 2. Problem Background & Architecture Philosophy
+
+### 2.1 Why Static BI and Free-Form LLM Chatbots Fall Short
+- **Traditional Dashboards** visualize past totals without attributing multi-dimensional drivers (`product`, `category`, `region`, `channel`) or integrating forecast uncertainty with stock lead-time bounds.
+- **Unconstrained Text-to-SQL Chatbots** hallucinate numbers, leak schemas, or emit fragile SQL queries prone to injection or semantic drift.
+
+DecisionPilot AI eliminates hallucinated arithmetic by enforcing strict domain typing (`Intent` with `extra="forbid"`) bound to pre-audited SQLAlchemy Core queries on `READ ONLY` transactions, pairing empirical machine learning directly with transparent econometric formulas.
+
+---
+
+## 3. System Methodology & Validation Protocol
 
 ```mermaid
 flowchart LR
-    subgraph Data["1. Data Foundation"]
-        DB[("6 Normalized Tables<br/>50k Rows, 50 SKUs, 730 Days")]
-    end
-    
-    subgraph Analytical["2. Analytical Core"]
-        SQL["SQL / Pandas KPI Aggregation Engine"]
-    end
-    
-    subgraph ML["3. Machine Learning Core"]
-        IF["Isolation Forest<br/>Anomaly Detection"]
-        LGBM["LightGBM Regressor<br/>14 Temporal Features"]
-    end
-    
-    subgraph Econometric["4. Econometric Engine"]
-        Sim["Microeconomic What-If Engine<br/>Price Elasticity & Stockout Limits"]
-    end
-    
-    subgraph SpatialUI["5. Spatial Control Environment"]
-        Three["3D Holographic AI Data Sphere<br/>(Three.js WebGL + React 19)"]
-    end
-    
-    Data --> Analytical
-    Analytical --> ML
-    ML --> Econometric
-    Econometric --> SpatialUI
+    Data["1. Validated Data<br/>(6 Tables, 50k Rows, 730d)"] --> Core["2. Read-Only SQL Core<br/>(analytics.py & root_cause.py)"]
+    Core --> ML["3. ML Surveillance & Forecast<br/>(56d Shifted IF + 17-Feature LGBM)"]
+    ML --> Sim["4. Econometric & Stock Simulator<br/>(Elasticity, Power Curve, Lead Time)"]
+    Sim --> Spatial["5. Interactive Workspace & Governance<br/>(React 19 + Three.js + audit_events)"]
 ```
 
-### 3.1 Strict Anti-Leakage Temporal Evaluation
-In time-series demand forecasting, standard random cross-validation produces optimistic, invalid results due to autocorrelation leakage. DecisionPilot AI enforces an immutable temporal split:
-- **Training Window (Days 1–511, 70%):** Model parameter optimization.
-- **Validation Window (Days 512–620, 15%):** Hyperparameter tuning and tree depth selection.
-- **Test Window (Days 621–730, 15%):** Blind evaluation of generalization error.
+### 3.1 Anti-Leakage Chronological Evaluation
+To prevent temporal autocorrelation leakage:
+- **Train Split (`70%`):** `2024-10-01` to `2026-02-22` — scales and fits pooled `LGBMRegressor` models plus `IsolationForest` anomaly models.
+- **Validation Split (`15%`):** `2026-02-23` to `2026-06-12` — split into disjoint selection and residual calibration ranges when sufficient history exists; enforces the **`>2%` validation MAE improvement gate** before promoting LightGBM over `moving_average` or `seasonal_naive`.
+- **Holdout Test Split (`15%`):** `2026-06-13` to `2026-09-30` — evaluated on unseen rolling origins with disclosed overlapping-origin and stockout-censoring notes.
 
 ---
 
-## 4. Experimental Results & Benchmark Discussion
+## 4. Empirical Holdout Results (`artifacts/MODEL_EVALUATION.md`)
 
-### 4.1 Demand Forecasting Accuracy
-Across 50 diverse retail SKUs over a 30-day forecast horizon:
-
-$$\text{WAPE} = \frac{\sum |y - \hat{y}|}{\sum y} = 11.24\% \quad (\text{vs. Naive Baseline: } 29.65\%)$$
-$$\text{MAE} = 14.82 \text{ units/day} \quad (\text{vs. 7-Day MA: } 31.64 \text{ units/day})$$
-
-LightGBM demonstrates superior capability in capturing non-linear holiday sales spikes (e.g., Black Friday, Tet) without suffering catastrophic forgetting during regular mid-week lulls.
-
-### 4.2 Anomaly Detection Precision & Sensitivity
-Evaluated against 120 known, injected corporate shocks (ad campaign saturation, supplier delivery delays, regional demand drops):
-- **Precision:** $92.4\%$
-- **Recall:** $88.6\%$
-- **False Positive Rate:** $< 3.2\%$
-
-By combining Isolation Forest outlier scores with domain-specific statistical thresholds ($z$-scores of contribution margins and ROAS), the system successfully filters out daily noise while reliably flagging existential business risks.
+1. **Demand & Revenue Forecasting (`dp-1.1`):**
+   - Enterprise-wide (`revenue | all`): `moving_average` wins validation selection cleanly (`34,584,971.67 ₫` 30d MAE, **24.14% WAPE**, `83.81%` empirical 90%-interval coverage; 7d achieves **21.84% WAPE** and **91.96% coverage**), preventing unnecessary model complexity when smooth series favor averaging.
+   - Per-SKU Flagship (`demand | sku:P001`): **LightGBM** beats both baselines on validation (`2.68` units 30d MAE, **41.87% WAPE** vs. `43.28%` Moving Average and `54.54%` Seasonal Naive) while achieving **`92.86%`** empirical coverage.
+2. **Anomaly Surveillance & Attribution:**
+   - Using a **56-day trailing window shifted 7 days prior**, hybrid `IsolationForest` + IQR + robust Z-score detects Facebook spend spikes at **100.00% precision / 82.14% recall / 90.20% F1 (`0.00%` FPR)** and revenue contractions at **86.67% precision** (`2.63%` FPR).
+3. **Scenario Simulation & Conditional Replay:**
+   - 7-day holdout replay yields **23.99% WAPE** on weekly `P001` observed units (improving over `24.24%` baseline) and **15/15** weekly match on `P003` depletion checks (`artifacts/scenario_backtest.json`).
+4. **Constrained Natural Language Copilot (`artifacts/query_benchmark.json`):**
+   - **46/46 (100%)** benchmark accuracy across English, Vietnamese, and adversarial/out-of-scope refusal prompts.
 
 ---
 
-## 5. Economic & Social Impact for SMEs
+## 5. Practical Value & Responsible AI Design
 
-1. **Democratization of Data Science:** Empowers retail and service SMEs with predictive intelligence previously accessible only to multinational corporations with dedicated data departments.
-2. **Capital Efficiency & Cash Flow Preservation:** Early stockout warnings and price elasticity simulation prevent inventory over-ordering and margin-destructive discounting.
-3. **Zero GPU Barrier:** Full functionality executes on standard CPU instances, minimizing hosting costs to under $\$10/\text{month}$.
-4. **Transparent, Responsible AI:** Promotes human agency through mandatory Human-in-the-Loop decision verification and immutable audit records.
-
+- **Commodity Hardware Accessibility:** Trained bundles (`artifacts/f32e87e3a5744333ff98d3bf.joblib`) fit comfortably in CPU containers (`python:3.12-slim`) with local fallback rules requiring zero paid API calls when `LLM_PROVIDER=none`.
+- **Mandatory Human Governance:** Every recommendation acceptance/rejection and scenario decision is verified by an operator and appended to `audit_events` (`accepted` / `rejected`), never triggering autonomous billing, price changes, or purchase orders.

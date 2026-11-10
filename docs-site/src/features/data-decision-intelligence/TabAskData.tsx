@@ -7,12 +7,12 @@ export function TabAskData() {
   const [selectedQuery, setSelectedQuery] = useState<QuerySample>(SAMPLE_QUERIES[0])
 
   const pipelineSteps = [
-    { step: '01', title: 'User Question Ingestion', desc: 'Natural language input via web or voice in Vietnamese or English.' },
-    { step: '02', title: 'Intent Recognition & Routing', desc: 'Classifies domain intent (KPI summary, diagnostics, leaderboard, or regional).' },
-    { step: '03', title: 'Safe Read-Only SQL Synthesis', desc: 'Synthesizes parameterized SQL strictly bounded to verified business tables.' },
-    { step: '04', title: 'AST Validation Sandbox', desc: 'Rejects DROP, ALTER, UPDATE, or unbounded multi-statement injections.' },
-    { step: '05', title: 'Deterministic DB Execution', desc: 'PostgreSQL / SQLite calculates aggregates with zero mathematical hallucination.' },
-    { step: '06', title: 'Grounded Narrative & Visuals', desc: 'Generates evidence-backed prose and auto-renders interactive charts.' },
+    { step: '01', title: 'User Question Ingestion', desc: 'Natural language input via web UI in Vietnamese (diacritic-folded) or English.' },
+    { step: '02', title: 'Typed Intent Extraction', desc: 'OpenAI, Gemini, or deterministic regex rules map text to a strict Pydantic Intent.' },
+    { step: '03', title: 'Allowlist & Injection Guard', desc: 'Regex blocker + Pydantic extra="forbid" reject SQL injection and off-domain prompts.' },
+    { step: '04', title: 'Parameterized SQLAlchemy Core', desc: 'Executes allowlisted backend analytics queries rather than LLM-generated raw SQL.' },
+    { step: '05', title: 'Deterministic DB Execution', desc: 'PostgreSQL / SQLite computes exact aggregates over read-only database sessions.' },
+    { step: '06', title: 'Grounded Narrative & Visuals', desc: 'Formats evidence-backed prose, formulas, provenance, and interactive charts.' },
   ]
 
   const maxVal = Math.max(...selectedQuery.chartData.map((d) => d.value))
@@ -36,7 +36,7 @@ export function TabAskData() {
           &ldquo;Turn natural language questions into actionable business reports.&rdquo;
         </p>
         <p style={{ color: '#CBD5E1', fontSize: '0.95rem', maxWidth: '850px', lineHeight: 1.6 }}>
-          Small and medium enterprises often waste days compiling manual Excel spreadsheets and pivot tables just to diagnose a metric change. DecisionPilot AI provides an executive conversational intelligence layer that translates plain business questions into audited, read-only SQL queries and grounded analytical charts in under 1.5 seconds.
+          Small and medium enterprises often waste days compiling manual Excel spreadsheets and pivot tables just to diagnose a metric change. DecisionPilot AI provides an executive conversational intelligence layer that maps plain business questions into strict typed intents, executes parameterized read-only SQLAlchemy Core queries, and returns grounded analytical reports (median local-rules benchmark latency: 1.43 seconds).
         </p>
       </div>
 
@@ -188,10 +188,10 @@ export function TabAskData() {
             </div>
           </div>
 
-          {/* Synthesized SQL & Trace */}
+          {/* Executed Query Reference */}
           <div>
             <span style={{ fontSize: '0.75rem', fontFamily: 'var(--mono)', textTransform: 'uppercase', color: 'var(--indigo)', fontWeight: 700, display: 'block', marginBottom: '6px' }}>
-              Synthesized Read-Only SQL Query (Verified by AST Sandbox)
+              Equivalent Parameterized SQL Query Executed via SQLAlchemy Core
             </span>
             <CodeBlock code={selectedQuery.sql} label="sql" />
           </div>
@@ -206,17 +206,17 @@ export function TabAskData() {
             Zero-Hallucination Grounding Architecture
           </div>
           <p className="card-desc">
-            The core LLM (orchestrated in <code>ai_service/llm_orchestrator.py</code>) is strictly prohibited from generating numerical predictions out of thin air. Instead, the model only outputs parameterized SQL queries. The database engine executes the query over immutable tables, and the resulting dataset is injected back into the context to generate the explanatory narrative.
+            The intent router (orchestrated in <code>ai_service/llm_orchestrator.py</code>) never asks an LLM to generate raw SQL or perform arithmetic. Instead, the model or bilingual rule parser outputs a strict Pydantic <code>Intent</code> object. Parameterized SQLAlchemy Core functions in <code>backend/app/analytics.py</code> compute every metric over a read-only database session before assembling the grounded response.
           </p>
         </div>
 
         <div className="card">
           <div className="card-title">
             <Terminal size={18} className="violet" />
-            AST Query Sanitization &amp; Refusal Protocol
+            Typed Schema Validation &amp; Refusal Protocol
           </div>
           <p className="card-desc">
-            Queries undergo Abstract Syntax Tree (AST) validation before connecting to the read-only database pool. Destructive statements (<code>DROP</code>, <code>DELETE</code>, <code>INSERT</code>, <code>UPDATE</code>, <code>ALTER</code>) are blocked. If a question falls outside active database tables or violates security bounds, the engine triggers an explicit refusal protocol.
+            Requests pass a regex prompt-injection and SQL-keyword guard plus <code>ConfigDict(extra=&quot;forbid&quot;)</code> validation, disallowing unapproved fields or destructive verbs (<code>DROP</code>, <code>DELETE</code>, <code>INSERT</code>, <code>UPDATE</code>, <code>SELECT ... FROM</code>). Unsupported financial topics (tax, net profit, balance sheet) or arbitrary windows trigger an explicit <code>unsupported</code> refusal without DB fabrication.
           </p>
         </div>
       </div>

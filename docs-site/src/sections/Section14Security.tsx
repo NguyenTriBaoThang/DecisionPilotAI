@@ -19,27 +19,27 @@ export function Section14Security() {
             1. Zero-Hallucination Grounding
           </div>
           <p className="card-desc">
-            Large language models are prone to confabulating plausible-sounding numbers. DecisionPilot AI solves this by disallowing the LLM from generating figures directly. The model only synthesizes read-only SQL; the database engine computes the exact metric; the model then formats the verified tabular output into natural Vietnamese or English prose.
+            Large language models are prone to confabulating plausible-sounding numbers. DecisionPilot AI solves this by disallowing raw SQL generation or ad-hoc math in prompts. The model only maps text to a typed Pydantic <code>Intent</code>; backend SQLAlchemy Core computes every metric over a read-only connection before rendering grounded prose.
           </p>
         </div>
 
         <div className="card">
           <div className="card-title">
             <Shield size={18} className="violet" />
-            2. AST SQL Query Sanitization
+            2. Typed Intent &amp; Read-Only Pool Enforcement
           </div>
           <p className="card-desc">
-            Every synthesized SQL statement passes through an Abstract Syntax Tree (AST) validator before touching the connection pool. Multi-statement queries, comments, <code>DROP</code>, <code>UPDATE</code>, <code>INSERT</code>, <code>DELETE</code>, and administrative functions (e.g. <code>pg_sleep</code>, <code>load_file</code>) are blocked instantaneously with validation errors.
+            Every query passes a regex prompt-injection / SQL-keyword blocker and strict Pydantic schema validation (<code>extra=&quot;forbid&quot;</code>) before running parameterized queries via <code>read_connection</code> (PostgreSQL <code>REPEATABLE READ, READ ONLY</code> + 8s statement timeout; SQLite <code>PRAGMA query_only = ON</code>).
           </p>
         </div>
 
         <div className="card">
           <div className="card-title">
             <FileText size={18} className="green" />
-            3. Immutable Audit Ledger
+            3. Append-Only Audit Ledger (audit_events)
           </div>
           <p className="card-desc">
-            Every executive action is appended to the <code>audit</code> database ledger with authenticated actor identity, UTC timestamp, and dataset version hash. This includes every question asked, scenario simulated, and recommendation approved or dismissed, providing complete auditability for corporate governance.
+            Executive decisions, simulation feedback, and dataset imports are appended to the <code>audit_events</code> table with authenticated actor identity, UTC timestamp, and dataset hash lock—protected by DB triggers that block updates or deletions.
           </p>
         </div>
 

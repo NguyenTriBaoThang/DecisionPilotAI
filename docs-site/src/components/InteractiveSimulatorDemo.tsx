@@ -6,21 +6,20 @@ export function InteractiveSimulatorDemo() {
   const [mktMultiplier, setMktMultiplier] = useState(1.2) // 1.2x spend
   const [inventoryBuffer, setInventoryBuffer] = useState(15) // 15 days
 
-  // Baseline SKU: SmartDesk Mini (P001)
-  const baseUnits = 420
-  const basePrice = 1000000 // 1,000,000 VND
-  const baseCogs = 600000 // 600,000 VND
-  const elasticity = -1.42 // Price elasticity of demand
-  const mktElasticity = 0.35 // Marketing spend coefficient
+  // Baseline SKU: SmartDesk Mini (P001) catalog parameters
+  const baseUnits = 180
+  const basePrice = 2490000 // 2,490,000 VND list price
+  const baseCogs = 1650000 // 1,650,000 VND unit cost
+  const elasticity = -1.1 // Catalog price elasticity for P001
+  const mktExponent = 0.65 // Default power diminishing-returns exponent
 
   const simulation = useMemo(() => {
-    // 1. Demand change percentage
-    // Delta Q % = elasticity * (Delta P %) + mktElasticity * ln(multiplier) * 100
-    const priceEffect = (elasticity * priceDelta) / 100
-    const mktEffect = mktElasticity * Math.log(mktMultiplier)
-    const totalDemandMultiplier = 1 + priceEffect + mktEffect
+    // 1. Price effect matches ai_service/scenario.py: max(0, 1 + elasticity * (new_price / base_price - 1))
+    const priceFactor = Math.max(0.1, 1 + elasticity * (priceDelta / 100))
+    // 2. Marketing uplift matches power response: ratio ** response_exponent
+    const mktFactor = Math.pow(mktMultiplier, mktExponent)
 
-    const simulatedUnits = Math.round(baseUnits * Math.max(0.2, totalDemandMultiplier))
+    const simulatedUnits = Math.round(baseUnits * priceFactor * mktFactor)
     const simulatedPrice = Math.round(basePrice * (1 + priceDelta / 100))
     const simulatedRevenue = simulatedUnits * simulatedPrice
     const simulatedCogs = simulatedUnits * baseCogs
@@ -32,11 +31,12 @@ export function InteractiveSimulatorDemo() {
     const revenueDeltaPct = ((simulatedRevenue - baseRevenue) / baseRevenue) * 100
     const profitDeltaPct = ((simulatedGrossProfit - baseProfit) / baseProfit) * 100
 
-    // Stockout risk estimation
-    const stockAvailable = 500
-    const stockoutProb = Math.min(1.0, Math.max(0.01, (simulatedUnits - (stockAvailable - inventoryBuffer * 5)) / 100))
+    // Stockout risk estimation vs available warehouse + safety buffer
+    const stockAvailable = 250
+    const effectiveBuffer = Math.max(20, stockAvailable - Math.max(0, 15 - inventoryBuffer) * 4)
+    const stockoutProb = Math.min(1.0, Math.max(0.01, (simulatedUnits - effectiveBuffer + 20) / 80))
 
-    const isRecommended = profitDeltaPct > 2 && stockoutProb < 0.25
+    const isRecommended = profitDeltaPct > 0 && stockoutProb < 0.25
 
     return {
       simulatedUnits,
@@ -88,7 +88,7 @@ export function InteractiveSimulatorDemo() {
       </div>
 
       <p className="dim" style={{ fontSize: '0.88rem', marginBottom: '20px' }}>
-        Adjust strategic business levers below to observe real-time microeconomic demand shifts calculated using empirical price elasticity (ε = -1.42) and advertising response saturation curves.
+        Adjust strategic business levers below to observe counterfactual demand shifts calculated using SmartDesk Mini (P001) price elasticity (ε = -1.1) and power-law marketing diminishing returns (multiplier^0.65).
       </p>
 
       {/* Sliders Grid */}
@@ -198,7 +198,7 @@ export function InteractiveSimulatorDemo() {
           </div>
           <div className="stat-label">Stockout Risk</div>
           <div className="mono dim" style={{ fontSize: '0.8rem', marginTop: '4px' }}>
-            Lead time: 10 days
+            P001 Lead time: 14 days
           </div>
         </div>
       </div>

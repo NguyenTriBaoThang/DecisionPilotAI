@@ -2,11 +2,11 @@ import { CodeBlock } from '../components/CodeBlock'
 import { Terminal, Monitor, Laptop, Box, CheckCircle } from 'lucide-react'
 
 export function Section11Quickstart() {
-  const windowsBatch = `# Option A: Double click run.bat or run via Windows Command Prompt / PowerShell
+  const windowsBatch = `# Option A: Double click run.bat or execute from PowerShell
 run.bat
 
-# Option B: Run via PowerShell developer launcher
-.\\dev.ps1 -Target dev`
+# Option B: Start full local dev stack via npm / PowerShell
+npm run dev`
 
   const linuxBash = `# 1. Clone repository
 git clone https://github.com/NguyenTriBaoThang/DecisionPilotAI.git
@@ -22,30 +22,37 @@ cd frontend
 npm install
 cd ..
 
-# 4. Ingest baseline dataset & train initial models
-python -m scripts.pipeline --dataset-dir data/raw --output-dir artifacts
-python -m scripts.train --dataset-id f32e87e3a5744333ff98d3bf
+# 4. Run migrations, bootstrap dataset & train models
+python -m alembic upgrade head
+python -m scripts.bootstrap
+python -m scripts.pipeline validate data/synthetic
+python -m scripts.train --out artifacts
 
 # 5. Launch backend (FastAPI) and frontend (Vite)
 uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 &
 cd frontend && npm run dev`
 
-  const dockerCompose = `# Launch full stack (PostgreSQL + FastAPI + Vite Dashboard) via Docker Compose
+  const dockerCompose = `# Launch full stack (PostgreSQL + FastAPI + Nginx/Vite) via Docker Compose
 docker compose up -d --build
 
 # Verify healthy status
 docker compose ps`
 
-  const envFile = `# .env configuration example
-DATABASE_URL=postgresql://decisionpilot:secret@localhost:5432/decisionpilot_db
-# Or SQLite fallback:
-# DATABASE_URL=sqlite:///data/decisionpilot.db
-
-PORT=8000
-ROOT_PATH=/api
-WORKSPACE_ACCESS_TOKEN=dpa_ws_demo_secret_token
+  const envFile = `# .env.example configuration
+POSTGRES_USER=decisionpilot
+POSTGRES_PASSWORD=decisionpilot_local
+POSTGRES_DB=decisionpilot
+LLM_PROVIDER=none
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4.1-mini
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-2.5-flash
 DEMO_ALLOW_IMPORT=false
-IMPORT_TOKEN=secure_import_key_123`
+IMPORT_TOKEN=
+WEB_PORT=8080
+# Set production for shared deployments; startup then requires named access tokens.
+APP_ENV=local
+WORKSPACE_ACCESS_TOKENS={}`
 
   return (
     <section id="sec-quickstart">
@@ -65,8 +72,8 @@ IMPORT_TOKEN=secure_import_key_123`
           <p className="card-desc">Required for FastAPI backend, LightGBM, Scikit-learn, and SQLAlchemy 2.0.</p>
         </div>
         <div className="card">
-          <div className="card-title">Node.js 20+</div>
-          <p className="card-desc">Required for React 19, Vite 6, Tailwind CSS, and Three.js frontend build.</p>
+          <div className="card-title">Node.js 22+</div>
+          <p className="card-desc">Used by CI workflows for React 19, Vite, Tailwind CSS, and Three.js builds (Node 20+ supported locally).</p>
         </div>
         <div className="card">
           <div className="card-title">PostgreSQL / SQLite</div>

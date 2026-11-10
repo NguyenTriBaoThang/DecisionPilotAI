@@ -3,30 +3,29 @@ import { Cpu, LineChart, AlertTriangle, Scale, Brain } from 'lucide-react'
 
 export function Section06AI() {
   const elasticityFormula = `
-// 1. Price Elasticity of Demand (Log-Log Regression)
-ln(Q_t) = alpha + epsilon * ln(P_t) + beta * Weekend_t + gamma * Holiday_t + e_t
+// 1. Price Elasticity of Demand (Linear % Change Relative to 90-Day Realized Price)
+demand(P) = base_demand * max(0, 1 + elasticity * (new_price / base_price - 1))
 
 where:
-  epsilon < 0 is the empirical price elasticity coefficient.
-  If |epsilon| > 1.0 (elastic): Price cut increases total revenue.
-  If |epsilon| < 1.0 (inelastic): Price increase maximizes revenue.
+  elasticity in [-5.0, 0.0] is the SKU catalog or operator-specified coefficient.
+  demand_at_price is evaluated against the weighted 90-day realized price baseline,
+  with physical fulfillment capped at current stock on hand.
 
-// 2. Marketing Hill Response Curve (Diminishing Marginal Returns)
-Attributed_Revenue(Spend) = (V_max * Spend^n) / (K^n + Spend^n)
+// 2. Marketing Power-Law Diminishing Returns Curve (ai_service/scenario.py)
+budget_response(ratio, exponent) = ratio ** response_exponent
 
 where:
-  V_max = Maximum revenue ceiling obtainable from the channel
-  K = Half-saturation spend parameter
-  n = Hill slope factor (typically 1.1 to 1.5)`
+  ratio = 1 + spend_change (e.g., 1.2 for +20% spend)
+  response_exponent defaults to 0.65 (bounded sensitivity sweep in [0.20, 0.95])`
 
   const featureEngineering = `
-// 14 Engineered Chronological Forecasting Features (ai_service/forecasting.py)
+// 17 Engineered Point-in-Time Forecasting Features (ai_service/features.py)
 [
-  "lag_1d", "lag_2d", "lag_7d", "lag_14d", "lag_28d",
-  "rolling_mean_7d", "rolling_std_7d",
-  "rolling_mean_28d", "rolling_std_28d",
-  "day_of_week", "month", "is_weekend",
-  "is_holiday", "is_major_sale_day"
+  "lag_1", "lag_7", "lag_14", "lag_28",
+  "mean_7", "std_7", "mean_14", "std_14",
+  "mean_28", "std_28", "growth_7",
+  "weekday", "month", "quarter", "weekend",
+  "holiday", "scale"
 ]`
 
   return (
@@ -57,7 +56,7 @@ where:
             2. Isolation Forest Hybrids
           </div>
           <p className="card-desc">
-            Unsupervised tree ensemble that isolates multi-dimensional outliers by randomly partitioning feature space. Coupled with 3-sigma rolling Z-score thresholds to detect sudden anomalies.
+            Unsupervised tree ensemble (<code>IsolationForest</code>) paired with IQR bounds and robust Z-scores on a shifted 56-day baseline (+ sustained weekly contraction and physical stockout rules).
           </p>
         </div>
 
@@ -81,7 +80,7 @@ where:
 
       <h3>Microeconomic Equations for Scenario Simulation</h3>
       <p>
-        Rather than relying on ungrounded generative predictions, the simulation engine (<code>ai_service/simulation.py</code>) solves empirical microeconomic equations:
+        Rather than relying on ungrounded generative predictions, the simulation engine (<code>ai_service/scenario.py</code>) solves deterministic counterfactual equations:
       </p>
 
       <CodeBlock code={elasticityFormula.trim()} label="Microeconomic Equations" />

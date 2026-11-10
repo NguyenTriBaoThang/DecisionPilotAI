@@ -333,7 +333,7 @@ export function Ask({
               </button>
             ))}
           </div>
-          <Source>{isVi ? 'Phân tích Xác định · Công cụ Kiểm thực CSDL' : 'Deterministic Analytics · AST Validated Tools'}</Source>
+          <Source>{isVi ? 'Phân tích Xác định · Công cụ Định tuyến Theo Ý định' : 'Deterministic Analytics · Typed Intent Tools'}</Source>
         </Card>
       </div>
 

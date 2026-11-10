@@ -20,11 +20,11 @@ export function Section04Schema() {
       {/* Stats summary bar */}
       <div className="grid-3" style={{ marginBottom: '24px' }}>
         <div className="stat-box">
-          <div className="stat-value">6 Tables</div>
-          <div className="stat-label">Normalized Relational Model</div>
+          <div className="stat-value">6 Core Tables</div>
+          <div className="stat-label">+3 Meta/Audit/Simulation Tables</div>
         </div>
         <div className="stat-box">
-          <div className="stat-value">50,000+</div>
+          <div className="stat-value">50,000</div>
           <div className="stat-label">Sales Transactions Indexed</div>
         </div>
         <div className="stat-box">

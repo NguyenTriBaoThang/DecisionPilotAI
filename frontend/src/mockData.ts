@@ -6,7 +6,6 @@ import type {
   Options,
   QueryResult,
   Recommendation,
-  Row,
   Scenario,
   Session,
 } from './api'
@@ -19,17 +18,18 @@ export const mockSession: Session = {
 }
 
 export const mockDataset: Dataset = {
-  dataset_id: 'dp_seed_20261105',
-  kind: 'retail_sme',
-  start: '2024-11-01',
-  end: '2026-10-31',
-  title: 'Retail & Smart Devices SME (50k Transactions)',
+  dataset_id: 'f32e87e3a5744333ff98d3bf',
+  kind: 'synthetic',
+  start: '2024-10-01',
+  end: '2026-09-30',
+  title: 'Synthetic retail & services demo (50k Transactions)',
   counts: {
-    sales_transactions: 50000,
+    calendar_events: 730,
     products: 50,
-    customers: 5000,
-    marketing_campaigns: 180,
-    inventory_daily: 36500,
+    customers: 10000,
+    marketing_campaigns: 2920,
+    sales_transactions: 50000,
+    inventory_daily: 24820,
   },
 }
 
@@ -42,9 +42,9 @@ export const mockOptions: Options = {
     { product_id: 'P005', product_name: 'CarePlus Support', category: 'Business Service', is_physical: false },
   ],
   regions: ['HCMC', 'Hanoi', 'Da Nang', 'Can Tho'],
-  categories: ['Office Equipment', 'Home/Office', 'Electronics', 'SaaS Service', 'Business Service'],
-  channels: ['Online Store', 'Retail Store', 'TikTok Shop'],
-  marketing_channels: ['Meta Ads', 'Google Search', 'TikTok Shop', 'Email Marketing'],
+  categories: ['Office Equipment', 'Home/Office', 'Electronics', 'SaaS Service', 'Business Service', 'Accessories'],
+  channels: ['Online', 'Retail', 'B2B'],
+  marketing_channels: ['Facebook Ads', 'Google Ads', 'TikTok Ads', 'Email'],
 }
 
 export const mockKPI: KPI = {
@@ -74,16 +74,16 @@ export const mockKPI: KPI = {
     stockout_units: 0.35,
     inventory_availability: -0.028,
   },
-  range: ['2026-10-01', '2026-10-31'],
-  previous_range: ['2026-09-01', '2026-09-30'],
+  range: ['2026-09-01', '2026-09-30'],
+  previous_range: ['2026-08-01', '2026-08-31'],
   trend: [
-    { date: '2026-10-01', revenue: 48200000, profit: 21000000, orders: 62 },
-    { date: '2026-10-05', revenue: 51400000, profit: 22300000, orders: 66 },
-    { date: '2026-10-10', revenue: 44100000, profit: 18900000, orders: 58 },
-    { date: '2026-10-15', revenue: 41200000, profit: 17200000, orders: 52 },
-    { date: '2026-10-20', revenue: 46800000, profit: 20100000, orders: 59 },
-    { date: '2026-10-25', revenue: 49500000, profit: 21600000, orders: 64 },
-    { date: '2026-10-31', revenue: 42300000, profit: 17800000, orders: 54 },
+    { date: '2026-09-01', revenue: 48200000, profit: 21000000, orders: 62 },
+    { date: '2026-09-05', revenue: 51400000, profit: 22300000, orders: 66 },
+    { date: '2026-09-10', revenue: 44100000, profit: 18900000, orders: 58 },
+    { date: '2026-09-15', revenue: 41200000, profit: 17200000, orders: 52 },
+    { date: '2026-09-20', revenue: 46800000, profit: 20100000, orders: 59 },
+    { date: '2026-09-25', revenue: 49500000, profit: 21600000, orders: 64 },
+    { date: '2026-09-30', revenue: 42300000, profit: 17800000, orders: 54 },
   ],
   products: [
     { name: 'SmartDesk Mini', product_name: 'SmartDesk Mini', revenue: 420000000, gross_profit: 189000000, profit: 189000000, units: 480, orders: 480 },
@@ -99,71 +99,71 @@ export const mockKPI: KPI = {
     { name: 'Can Tho', region: 'Can Tho', revenue: 120200000, gross_profit: 53100000, profit: 53100000, orders: 160 },
   ],
   sales_channels: [
-    { name: 'Online Store', channel: 'Online Store', revenue: 780000000, gross_profit: 351000000, profit: 351000000, orders: 980 },
-    { name: 'Retail Store', channel: 'Retail Store', revenue: 450000000, gross_profit: 189000000, profit: 189000000, orders: 570 },
-    { name: 'TikTok Shop', channel: 'TikTok Shop', revenue: 220200000, gross_profit: 85000000, profit: 85000000, orders: 290 },
+    { name: 'Online', channel: 'Online', revenue: 780000000, gross_profit: 351000000, profit: 351000000, orders: 980 },
+    { name: 'Retail', channel: 'Retail', revenue: 450000000, gross_profit: 189000000, profit: 189000000, orders: 570 },
+    { name: 'B2B', channel: 'B2B', revenue: 220200000, gross_profit: 85000000, profit: 85000000, orders: 290 },
   ],
   marketing_channels: [
-    { name: 'Meta Ads', channel: 'Meta Ads', spend: 85000000, revenue: 260000000, roas: 3.05 },
-    { name: 'Google Search', channel: 'Google Search', spend: 62000000, revenue: 285000000, roas: 4.59 },
-    { name: 'TikTok Shop', channel: 'TikTok Shop', spend: 41000000, revenue: 125000000, roas: 3.04 },
-    { name: 'Email Marketing', channel: 'Email Marketing', spend: 12000000, revenue: 84000000, roas: 7.0 },
+    { name: 'Facebook Ads', channel: 'Facebook Ads', spend: 185000000, revenue: 295000000, roas: 1.59 },
+    { name: 'Google Ads', channel: 'Google Ads', spend: 112000000, revenue: 410000000, roas: 3.66 },
+    { name: 'TikTok Ads', channel: 'TikTok Ads', spend: 58000000, revenue: 175000000, roas: 3.02 },
+    { name: 'Email', channel: 'Email', spend: 12000000, revenue: 84000000, roas: 7.0 },
   ],
-  market_scope: 'Retail SME Vietnam (HCMC & Hanoi Branches)',
+  market_scope: 'Retail & Services SME Vietnam (4 Regions)',
   definitions: {
     revenue: 'Gross Realized Sales in VND',
-    gross_profit: 'Revenue minus Landed COGS',
+    gross_profit: 'Revenue minus Total Direct Cost',
   },
 }
 
 export const mockAlerts: { rows: Alert[] } = {
   rows: [
     {
-      id: 'ANOM-2026-10-14-01',
-      metric: 'marketing_roas',
-      start: '2026-10-10',
-      end: '2026-10-17',
-      actual: 2.2,
-      baseline: 3.8,
-      deviation: -0.42,
-      severity: 'high',
+      id: 'ANOM-2026-09-14-01',
+      metric: 'facebook_roas',
+      start: '2026-09-03',
+      end: '2026-09-30',
+      actual: 1.59,
+      baseline: 3.66,
+      deviation: -0.566,
+      severity: 'critical',
       score: 0.94,
-      action: 'Reallocate $2,500 budget from Meta Ads to Google Search and pause saturated ad sets.',
-      scope: 'Meta Ads Channel',
+      action: 'Review spend and attributed order efficiency on Facebook Ads before reallocating budget toward Google Ads.',
+      scope: 'Facebook Ads Channel',
       chart: [
-        { date: '10/08', roas: 3.9 },
-        { date: '10/10', roas: 3.4 },
-        { date: '10/12', roas: 2.8 },
-        { date: '10/14', roas: 2.2 },
-        { date: '10/16', roas: 2.1 },
+        { date: '09/01', roas: 3.5 },
+        { date: '09/05', roas: 2.1 },
+        { date: '09/10', roas: 1.8 },
+        { date: '09/15', roas: 1.6 },
+        { date: '09/25', roas: 1.59 },
       ],
       evidence: {
-        spend_change: '+35%',
-        conversion_rate_change: '-40%',
-        attributed_revenue: '260M VND',
+        spend_multiplier: '1.85x vs trailing 56d shifted reference',
+        attribution_share: 'Dropped from 25.0% to 5.5% in Online',
+        attributed_revenue: '295M VND',
       },
     },
     {
-      id: 'ANOM-2026-10-21-02',
+      id: 'ANOM-2026-09-21-02',
       metric: 'revenue',
-      start: '2026-10-15',
-      end: '2026-10-22',
+      start: '2026-09-03',
+      end: '2026-09-30',
       actual: 42000000,
       baseline: 55000000,
-      deviation: -0.24,
-      severity: 'medium',
-      score: 0.78,
-      action: 'Apply calibrated 5% discount on SmartDesk Mini in HCMC to counter local price resistance.',
-      scope: 'SmartDesk Mini (HCMC)',
+      deviation: -0.236,
+      severity: 'high',
+      score: 0.82,
+      action: 'Review product, region, and customer segment mix across HCMC before applying promotional discounts.',
+      scope: 'Aggregate Daily Revenue (HCMC Impact)',
       chart: [
-        { date: '10/15', revenue: 54000000 },
-        { date: '10/17', revenue: 49000000 },
-        { date: '10/19', revenue: 45000000 },
-        { date: '10/21', revenue: 42000000 },
+        { date: '09/01', revenue: 54000000 },
+        { date: '09/08', revenue: 49000000 },
+        { date: '09/15', revenue: 45000000 },
+        { date: '09/25', revenue: 42000000 },
       ],
       evidence: {
-        region: 'HCMC',
-        competitor_price_drop: '-8%',
+        region: 'HCMC demand shift on P002 / P003',
+        returning_share: 'Dropped from 44% to 20%',
       },
     },
   ],
@@ -171,128 +171,150 @@ export const mockAlerts: { rows: Alert[] } = {
 
 export const mockForecast: Forecast = {
   target: 'demand',
-  scope: 'SmartDesk Mini (P001)',
+  scope: 'sku:P001',
   horizon: 30,
-  total: 624,
-  data_as_of: '2026-10-31',
-  model_version: 'LightGBM-v1.0.0',
-  stockout_note: 'Projected demand exceeds current warehouse inventory on Day 18. Reorder required.',
-  interval_method: 'Quantile Loss (90% Confidence Interval)',
-  warnings: ['Stockout Risk on Day 18: 140 units short without replenishment.'],
+  total: 192,
+  data_as_of: '2026-09-30',
+  model_version: 'dp-1.1',
+  stockout_note: 'Projected cumulative P001 demand exceeds buffer threshold unless replenishment arrives within lead time (14 days).',
+  interval_method: 'Empirical validation residual quantiles split by lead bucket (90% nominal)',
+  warnings: ['Replenishment watch: monitor closing stock against 14-day supplier lead time.'],
   drivers: {
-    rolling_mean_7d: 0.342,
-    lag_7d: 0.215,
-    promotion_flag: 0.112,
-    is_weekend: 0.084,
+    mean_7: 0.34,
+    lag_7: 0.22,
+    lag_1: 0.15,
+    holiday: 0.11,
+    weekend: 0.08,
   },
   metrics: {
-    selected: 'LightGBM Regressor',
-    test_coverage: 0.94,
+    selected: 'lightgbm',
+    test_coverage: 0.9286,
     test: {
-      demand: { mae: 14.82, rmse: 21.05, wape: 0.112, mape: 0.124, bias: -0.4 },
+      lightgbm: { mae: 2.68, rmse: 3.43, wape: 0.4187, mape: 0.5843, bias: 0.003 },
+      moving_average: { mae: 2.77, rmse: 3.54, wape: 0.4328, mape: 0.6344, bias: 0.28 },
+      seasonal_naive: { mae: 3.49, rmse: 4.56, wape: 0.5454, mape: 0.7491, bias: -0.15 },
     },
     validation: {
-      demand: { mae: 15.1, rmse: 22.4, wape: 0.118, mape: 0.13, bias: -0.6 },
+      lightgbm: { mae: 2.73, rmse: 3.54, wape: 0.4068, mape: 0.6449, bias: -0.87 },
+      moving_average: { mae: 2.82, rmse: 3.53, wape: 0.4205, mape: 0.7191, bias: -0.45 },
+      seasonal_naive: { mae: 3.4, rmse: 4.36, wape: 0.5066, mape: 0.7309, bias: -0.44 },
     },
   },
   history: [
-    { date: '10/25', actual: 18, baseline: 17 },
-    { date: '10/26', actual: 21, baseline: 20 },
-    { date: '10/27', actual: 16, baseline: 17 },
-    { date: '10/28', actual: 15, baseline: 16 },
-    { date: '10/29', actual: 19, baseline: 18 },
-    { date: '10/30', actual: 22, baseline: 21 },
-    { date: '10/31', actual: 20, baseline: 19 },
+    { date: '09/24', actual: 6, baseline: 6 },
+    { date: '09/25', actual: 7, baseline: 6 },
+    { date: '09/26', actual: 8, baseline: 7 },
+    { date: '09/27', actual: 7, baseline: 7 },
+    { date: '09/28', actual: 5, baseline: 6 },
+    { date: '09/29', actual: 6, baseline: 6 },
+    { date: '09/30', actual: 7, baseline: 6 },
   ],
   prediction: [
-    { date: '11/01', forecast: 21, lower: 18, upper: 25 },
-    { date: '11/05', forecast: 23, lower: 19, upper: 27 },
-    { date: '11/10', forecast: 22, lower: 18, upper: 26 },
-    { date: '11/15', forecast: 26, lower: 21, upper: 31 },
-    { date: '11/20', forecast: 28, lower: 23, upper: 34 },
-    { date: '11/25', forecast: 32, lower: 26, upper: 38 },
-    { date: '11/30', forecast: 30, lower: 24, upper: 36 },
+    { date: '10/01', forecast: 6.2, lower: 2.0, upper: 10.4 },
+    { date: '10/05', forecast: 6.5, lower: 2.3, upper: 10.7 },
+    { date: '10/10', forecast: 6.8, lower: 2.1, upper: 11.5 },
+    { date: '10/15', forecast: 6.1, lower: 1.4, upper: 10.8 },
+    { date: '10/20', forecast: 6.4, lower: 1.7, upper: 11.1 },
+    { date: '10/25', forecast: 6.6, lower: 1.9, upper: 11.3 },
+    { date: '10/30', forecast: 6.3, lower: 1.6, upper: 11.0 },
   ],
 }
 
 export function generateMockScenario(params?: Record<string, unknown>): Scenario {
   const discounts = (params?.discounts as number[]) || [0.05, 0.1]
-  const targetDiscount = discounts[0] || 0.05
+  const discountA = discounts[0] ?? 0.05
+  const discountB = discounts[1] ?? 0.1
 
-  // Microeconomic simulation formula
   const baseDemand = 180
   const basePrice = 2490000
   const unitCost = 1650000
+  const stockCap = 250
   const elasticity = -1.1
 
-  const newDemand = Math.round(baseDemand * (1 + elasticity * -targetDiscount))
-  const newPrice = basePrice * (1 - targetDiscount)
-  const newRevenue = Math.round(newDemand * newPrice)
-  const newProfit = Math.round(newRevenue - newDemand * unitCost)
+  const computeRow = (discount: number, e: number) => {
+    const newPrice = basePrice * (1 - discount)
+    const demand = Math.max(0, baseDemand * (1 + e * (newPrice / basePrice - 1)))
+    const fulfilled = Math.min(demand, stockCap)
+    const revenue = Math.round(fulfilled * newPrice)
+    const profit = revenue - Math.round(fulfilled * unitCost)
+    return {
+      demand: Math.round(demand * 100) / 100,
+      fulfilled: Math.round(fulfilled * 100) / 100,
+      revenue,
+      profit,
+      margin: revenue > 0 ? Math.round((profit / revenue) * 10000) / 10000 : 0,
+      risk: demand > stockCap ? Math.round((demand - stockCap) * 100) / 100 : null,
+    }
+  }
+
   const baseRevenue = baseDemand * basePrice
   const baseProfit = baseRevenue - baseDemand * unitCost
-  const profitDelta = newProfit - baseProfit
+  const rowA = computeRow(discountA, elasticity)
+  const rowB = computeRow(discountB, elasticity)
+
+  const profitDeltaA = rowA.profit - baseProfit
+  const profitDeltaB = rowB.profit - baseProfit
+
+  const bestIsBaseline = baseProfit >= rowA.profit && baseProfit >= rowB.profit
+  const recommendedName = bestIsBaseline
+    ? 'Current realized price (0% Discount)'
+    : rowA.profit >= rowB.profit
+      ? `Scenario A (${Math.round(discountA * 100)}% list discount)`
+      : `Scenario B (${Math.round(discountB * 100)}% list discount)`
 
   return {
     simulation_id: 'SIM-' + Date.now().toString(36),
-    dataset_id: 'dp_seed_20261105',
+    dataset_id: 'f32e87e3a5744333ff98d3bf',
     decision: 'pending',
     type: (params?.type as string) || 'price',
     objective: (params?.objective as string) || 'profit',
     baseline: {
-      name: 'Baseline (0% Discount)',
+      name: 'Current realized price',
       demand: baseDemand,
       fulfilled: baseDemand,
       revenue: baseRevenue,
       profit: baseProfit,
       gross_profit: baseProfit,
-      margin: 0.337,
+      margin: Math.round((baseProfit / baseRevenue) * 10000) / 10000,
       risk: null,
     },
     alternatives: [
       {
-        name: `Scenario A (${Math.round(targetDiscount * 100)}% Discount)`,
-        demand: newDemand,
-        fulfilled: Math.min(newDemand, 250),
-        revenue: newRevenue,
-        profit: newProfit,
-        gross_profit: newProfit,
-        profit_delta: profitDelta,
-        margin: Math.round(((newRevenue - newDemand * unitCost) / newRevenue) * 1000) / 1000,
-        risk: newDemand > 250 ? newDemand - 250 : null,
+        name: `${Math.round(discountA * 100)}% list discount`,
+        ...rowA,
+        gross_profit: rowA.profit,
+        profit_delta: profitDeltaA,
       },
       {
-        name: 'Scenario B (10% Discount)',
-        demand: 276,
-        fulfilled: 250,
-        revenue: 180000000,
-        profit: 70000000,
-        gross_profit: 70000000,
-        profit_delta: 5200000,
-        margin: 0.388,
-        risk: 26,
+        name: `${Math.round(discountB * 100)}% list discount`,
+        ...rowB,
+        gross_profit: rowB.profit,
+        profit_delta: profitDeltaB,
       },
     ],
     recommended: {
-      name: `Scenario A (${Math.round(targetDiscount * 100)}% Discount)`,
-      profit_delta: profitDelta,
-      rationale: 'Optimizes contribution profit yield while avoiding inventory stockout risk.',
+      name: recommendedName,
+      profit_delta: bestIsBaseline ? 0 : Math.max(profitDeltaA, profitDeltaB),
+      rationale:
+        'Compares gross contribution profit after unit COGS against stock capacity across catalog elasticity (e = -1.1) and sensitivity bounds.',
     },
     sensitivity: [
       {
-        name: 'Elasticity Variations (+/- 20%)',
+        name: `${Math.round(discountA * 100)}% list discount`,
         alternatives: [
-          { elasticity: -0.88, result: { profit: 68400000, revenue: 165000000, risk: 0 } },
-          { elasticity: -1.32, result: { profit: 75200000, revenue: 181000000, risk: 12 } },
+          { elasticity: -1.4, result: computeRow(discountA, -1.4) },
+          { elasticity: -1.1, result: rowA },
+          { elasticity: -0.8, result: computeRow(discountA, -0.8) },
         ],
       },
     ],
     assumptions: [
-      'Constant supplier COGS at 1,650,000 VND per unit',
-      'Physical warehouse inventory capped at 250 available units',
-      `Consumer price response follows calibrated historical elasticity e = ${elasticity}`,
+      `Elasticity ${elasticity}; catalog assumption for P001 SmartDesk Mini.`,
+      'Demand response is linear in percentage change relative to trailing realized price.',
+      `Physical fulfillment is capped at ${stockCap} units on hand in static demo fallback.`,
     ],
     evidence: {
+      product: 'P001',
       calibrated_elasticity: elasticity,
       historical_volume: baseDemand,
     },
@@ -300,66 +322,65 @@ export function generateMockScenario(params?: Record<string, unknown>): Scenario
 }
 
 export const mockRecommendations: { rows: Recommendation[]; dataset_id: string } = {
-  dataset_id: 'dp_seed_20261105',
+  dataset_id: 'f32e87e3a5744333ff98d3bf',
   rows: [
     {
-      id: 'REC-2026-10-15-01',
-      title: 'Apply 5% Calibrated Discount on SmartDesk Mini',
-      context: 'HCMC branch sales contracted 24% due to competitor discount campaigns.',
-      action: 'Implement a 5% promotional discount on SmartDesk Mini for the next 14 days.',
+      id: 'REC-2026-09-30-01',
+      title: 'Hold List Price (0% Blanket Discount) on SmartDesk Mini (P001)',
+      context: 'Simulating 5%–10% across-the-board discounting erodes unit margin faster than volume lift (-1.1 catalog elasticity).',
+      action: 'Maintain regular list price at 2,490,000 VND and pair targeted stock monitoring over the 14-day supplier lead time.',
       priority: 'high',
       decision: 'pending',
       expected_impact: {
-        incremental_profit: 8160000,
-        volume_expansion_pct: 26.6,
+        preserved_profit: 151200000,
+        margin_pct: 33.7,
       },
-      assumptions: ['Price elasticity stays within [-1.4, -0.9]', 'Warehouse inventory >= 228 units'],
-      risk: 'Stockout risk if demand exceeds 250 units without batch replenishment.',
-      uncertainty: 'Low (High empirical validation on historical Black Friday cycles)',
+      assumptions: ['Catalog elasticity e = -1.1 within sensitivity [-1.4, -0.8]', 'Unit direct cost 1,650,000 VND'],
+      risk: 'Competitor temporary markdowns may still shift price-sensitive segment conversion.',
+      uncertainty: 'Sensitivity evaluated across e ± 0.30 bounds',
       evidence: { elasticity: -1.1, base_demand: 180 },
     },
     {
-      id: 'REC-2026-10-15-02',
-      title: 'Reallocate $2,500 Ad Budget from Meta to Google Search',
-      context: 'Meta Ads ROAS fell from 3.8x to 2.2x as audience frequency reached saturation (4.8).',
-      action: 'Shift $2,500 from retargeting to Google Search high-intent keywords.',
+      id: 'REC-2026-09-30-02',
+      title: 'Rebalance 50M VND Spend from Saturated Facebook Ads toward Google Ads',
+      context: 'Facebook Ads spend surged 1.85x in September while attribution share dropped from 25% to 5.5%, compressing ROAS.',
+      action: 'Review Facebook Ads delivery and test reallocating 50,000,000 VND incremental spend toward Google Ads high-intent search.',
       priority: 'high',
       decision: 'pending',
       expected_impact: {
-        projected_roas_uplift: 0.65,
-        estimated_incremental_revenue: 145000000,
+        google_roas: 3.66,
+        response_exponent: 0.65,
       },
-      assumptions: ['Google Search search volume remains consistent'],
-      risk: 'Temporary dip in upper-funnel brand impressions.',
-      uncertainty: 'Medium',
-      evidence: { meta_frequency: 4.8, google_roas: 4.59 },
+      assumptions: ['Diminishing returns power exponent alpha = 0.65 over 28d baseline'],
+      risk: 'Attribution ratios reflect historical correlations rather than randomized incrementality.',
+      uncertainty: 'Medium (Sensitivity tested across alpha ± 0.15)',
+      evidence: { facebook_roas: 1.59, google_roas: 3.66 },
     },
   ],
 }
 
 export const mockQueryResponse: QueryResult = {
   answer:
-    'October gross revenue decreased by 11.2% (VND 182.4M) compared to September. The primary drivers were: (1) Meta Ads efficiency declined with ROAS falling from 3.8x to 2.2x; (2) Sales of SmartDesk Mini in HCMC contracted by 24% due to local competitive price resistance.',
+    'Gross revenue decreased compared with August 2026 in the active snapshot (f32e87e3a5744333ff98d3bf). Primary observed contributors included a 0.59x store traffic drop, HCMC demand weight reductions across top SKUs, and returning customer share falling from 44% to 20%.',
   chart: {
     type: 'bar',
     x: 'product_name',
     y: 'revenue_delta',
     rows: [
       { product_name: 'SmartDesk Mini', revenue_delta: -48200000, profit_delta: -21400000 },
-      { product_name: 'AirPure S', revenue_delta: -12500000, profit_delta: -5200000 },
-      { product_name: 'FocusCam Pro', revenue_delta: -8400000, profit_delta: -3100000 },
+      { product_name: 'AirPure S', revenue_delta: -32500000, profit_delta: -12800000 },
+      { product_name: 'FocusCam Pro', revenue_delta: -24400000, profit_delta: -9100000 },
     ],
   },
   trace: {
-    tool: 'SQL Analytical Drill-down',
-    provider: 'Local PostgreSQL / SQLite Core',
-    sources: ['sales_transactions', 'marketing_campaigns'],
+    tool: 'explain',
+    provider: 'local rules (static fallback)',
+    sources: ['sales_transactions', 'products', 'customers'],
     formulas: {
-      revenue_delta: 'SUM(october_revenue) - SUM(september_revenue)',
+      revenue_delta: 'SUM(september_revenue) - SUM(august_revenue)',
     },
   },
   evidence: {
-    top_negative_driver: 'SmartDesk Mini in HCMC Branch',
+    top_negative_driver: 'SmartDesk Mini in HCMC',
   },
 }
-

@@ -41,6 +41,28 @@ jobs:
         working-directory: frontend
         run: npm audit --audit-level=high
 
+  docs-check:
+    name: Docs Portal Typecheck & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: 'docs-site/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: docs-site
+        run: npm ci
+
+      - name: Typecheck and build documentation portal
+        working-directory: docs-site
+        run: npm run build
+
   backend-check:
     name: Backend Tests (${{ matrix.database }})
     runs-on: ubuntu-latest

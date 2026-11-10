@@ -2,13 +2,17 @@ import { CodeBlock } from '../components/CodeBlock'
 import { Calendar, ShieldAlert, GitBranch, Terminal } from 'lucide-react'
 
 export function Section07Training() {
-  const trainCli = `# Run model training across all targets and SKUs
-python -m scripts.train --dataset-id f32e87e3a5744333ff98d3bf --output-dir artifacts
+  const trainCli = `# Run model training across all targets, categories, SKUs, and horizons (7d / 30d)
+python -m scripts.train --out artifacts
 
-# Expected output:
-# [INFO] Chronological split: Train (509 days) | Val (110 days) | Test (110 days)
-# [INFO] Evaluating SKU P001: LightGBM MAE = 2.68 vs Baseline MAE = 3.85 (beat > 2%) -> SELECTED
-# [INFO] Model bundle dp-1.1 serialized to artifacts/f32e87e3a5744333ff98d3bf.joblib`
+# Expected JSON summary output:
+# {
+#   "dataset_id": "f32e87e3a5744333ff98d3bf",
+#   "version": "dp-1.1",
+#   "split": { "train_end": "2026-02-22", "validation_end": "2026-06-12", "test_end": "2026-09-30" },
+#   "evaluated_forecast_variants": ...
+# }
+# Serializes model bundle artifacts/f32e87e3a5744333ff98d3bf.joblib + evaluation.json + *.csv.gz`
 
   return (
     <section id="sec-training-workflow">
@@ -76,7 +80,7 @@ python -m scripts.train --dataset-id f32e87e3a5744333ff98d3bf --output-dir artif
           The 2% Rule: Conservative Model Selection Protocol
         </div>
         <p style={{ margin: 0, fontSize: '0.9rem', color: '#CBD5E1' }}>
-          Complex ML models are not deployed blindly. In <code>ai_service/forecasting.py</code>, LightGBM is only promoted to production if its validation MAE improves upon the baseline moving average by more than <strong>2.0%</strong>. For series where statistical noise dominates, the system transparently falls back to resilient moving averages.
+          Complex ML models are not deployed blindly. In <code>ai_service/forecasting.py</code>, LightGBM is only promoted to production if its validation MAE improves upon the better statistical baseline (Seasonal Naive or Moving Average) by more than <strong>2.0%</strong>. For series where statistical noise dominates, the system transparently selects the stronger baseline.
         </p>
       </div>
 

@@ -54,7 +54,7 @@ export function Section01Overview() {
             1. Ask (Khám phá)
           </div>
           <p className="card-desc">
-            Executive natural language Copilot translates Vietnamese and English questions into read-only analytical SQL queries. Zero hallucination: answers are grounded strictly on verifiable database aggregates.
+            Executive natural language Copilot translates Vietnamese and English questions into strict typed intents and parameterized read-only SQLAlchemy Core queries. Zero hallucination: answers are grounded strictly on verifiable database aggregates.
           </p>
         </div>
 

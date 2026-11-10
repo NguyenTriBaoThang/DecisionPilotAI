@@ -110,12 +110,12 @@ export function LandingPage() {
                 <span className="text-xs text-slate-400">Validated Orders</span>
               </div>
               <div>
-                <span className="block text-2xl font-black text-violet-400">91.9%</span>
-                <span className="text-xs text-slate-400">Prediction Coverage</span>
+                <span className="block text-2xl font-black text-violet-400">92.9%</span>
+                <span className="text-xs text-slate-400">SKU P001 Coverage</span>
               </div>
               <div>
-                <span className="block text-2xl font-black text-emerald-400">&lt; 1 sec</span>
-                <span className="text-xs text-slate-400">Time-to-Insight</span>
+                <span className="block text-2xl font-black text-emerald-400">1.43 sec</span>
+                <span className="text-xs text-slate-400">Median Copilot Latency</span>
               </div>
             </div>
           </div>

@@ -68,40 +68,41 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     method: 'GET',
     path: '/options',
     summary: 'Available dashboard filter options',
-    description: 'Fetches distinct sales regions, distribution channels, customer segments, and product categories for UI selection.',
+    description: 'Fetches distinct products, regions, sales channels, categories, and marketing channels for UI selection.',
     role: 'viewer',
     responseSample: `{
-  "regions": ["Hồ Chí Minh", "Hà Nội", "Đà Nẵng", "Cần Thơ"],
-  "channels": ["Direct Store", "Shopee Mall", "TikTok Shop", "Website Direct"],
-  "categories": ["Electronics", "Office Furniture", "Accessories", "Services"],
-  "segments": ["Retail New", "Retail VIP", "SME Wholesale", "Corporate"]
+  "products": [{ "product_id": "P001", "product_name": "SmartDesk Mini", "category": "Office Equipment", "is_physical": true }],
+  "regions": ["HCMC", "Hanoi", "Da Nang", "Can Tho"],
+  "channels": ["Online", "Retail", "B2B"],
+  "categories": ["Office Equipment", "Home/Office", "Electronics", "SaaS Service", "Business Service", "Accessories"],
+  "marketing_channels": ["Facebook Ads", "Google Ads", "TikTok Ads", "Email"]
 }`,
   },
   {
     method: 'GET',
     path: '/kpi/summary',
     summary: 'Topline executive KPIs & breakdowns',
-    description: 'Aggregates total gross revenue, profit, unit counts, margin %, and channel attribution over the filtered date range.',
+    description: 'Aggregates revenue, gross profit, margin, orders, AOV, active customers, ROAS, and channel/product breakdowns over the filtered date range.',
     role: 'viewer',
     queryParams: [
       { name: 'start', type: 'date (YYYY-MM-DD)', required: false, description: 'Start date filter' },
       { name: 'end', type: 'date (YYYY-MM-DD)', required: false, description: 'End date filter' },
-      { name: 'region', type: 'string', required: false, description: 'Region filter (e.g. "Hồ Chí Minh")' },
-      { name: 'channel', type: 'string', required: false, description: 'Sales channel filter' },
+      { name: 'region', type: 'string', required: false, description: 'Region filter (e.g. "HCMC")' },
+      { name: 'channel', type: 'string', required: false, description: 'Sales channel filter (Online, Retail, B2B)' },
     ],
     responseSample: `{
-  "total_revenue": 1428500000,
-  "gross_profit": 524000000,
-  "gross_margin": 0.3668,
-  "total_orders": 3420,
-  "average_order_value": 417690,
-  "top_products": [
-    { "sku": "P001", "name": "SmartDesk Mini", "revenue": 420000000, "gross_profit": 168000000, "units": 420, "margin": 0.40 },
-    { "sku": "P003", "name": "FocusCam Pro", "revenue": 310000000, "gross_profit": 108500000, "units": 248, "margin": 0.35 }
+  "summary": {
+    "revenue": 3988062500,
+    "gross_profit": 1612480000,
+    "margin": 0.4043,
+    "orders": 1764
+  },
+  "products": [
+    { "product_id": "P001", "product_name": "SmartDesk Mini", "revenue": 420000000, "gross_profit": 141600000, "units": 175 }
   ],
-  "channel_breakdown": [
-    { "name": "Shopee Mall", "revenue": 620000000, "roas": 4.59 },
-    { "name": "Direct Store", "revenue": 485000000, "roas": 3.05 }
+  "marketing_channels": [
+    { "channel": "Google Ads", "spend": 62000000, "attributed_revenue": 285000000, "roas": 4.59 },
+    { "channel": "Facebook Ads", "spend": 85000000, "attributed_revenue": 260000000, "roas": 3.05 }
   ]
 }`,
   },
@@ -109,25 +110,34 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     method: 'POST',
     path: '/query',
     summary: 'Ask AI Copilot natural language query',
-    description: 'Translates Vietnamese/English executive queries into validated read-only SQL, executes against data, and produces grounded analytical answers with chart configs.',
+    description: 'Classifies Vietnamese/English executive queries into a strict Pydantic Intent schema, runs parameterized SQLAlchemy Core queries on read-only DB sessions, and produces grounded answers with traces.',
     role: 'viewer',
     requestBody: `{
-  "question": "Tại sao doanh thu tháng 10/2026 tại chi nhánh TP.HCM lại giảm so với tháng 9?",
-  "session_id": "sess_89f1a2"
+  "question": "Why did revenue decrease in HCMC this month?",
+  "context": {
+    "region": "HCMC"
+  }
 }`,
     responseSample: `{
-  "answer": "Doanh thu tháng 10/2026 tại TP.HCM đạt 318,000,000 ₫ (-24.3% so với tháng 9). Nguyên nhân chính xuất phát từ sản phẩm P003 (FocusCam Pro) bị đứt hàng cục bộ từ ngày 12/10 đến 25/10 khiến doanh thu SKU này giảm 68%, kết hợp với chi phí quảng cáo Facebook Ads tăng 1.85x nhưng tỷ lệ chuyển đổi giảm từ 25% xuống 5.5%.",
-  "sql": "SELECT p.sku, p.name, SUM(s.gross_revenue) as rev FROM sales_transactions s JOIN products p ON s.product_id=p.id WHERE s.region='Hồ Chí Minh' AND s.transaction_date BETWEEN '2026-10-01' AND '2026-10-31' GROUP BY p.sku, p.name ORDER BY rev DESC",
+  "answer": "Revenue in HCMC declined compared with the prior period, driven by lower transaction volume and SKU mix shifts.",
+  "intent": {
+    "action": "explain",
+    "metric": "revenue",
+    "dimension": "product",
+    "period": "this_month",
+    "filters": { "region": "HCMC", "grain": "daily" }
+  },
   "chart": {
     "type": "bar",
-    "x_key": "name",
-    "y_key": "rev",
-    "title": "Doanh thu theo sản phẩm tại TP.HCM (Tháng 10/2026)"
+    "x": "name",
+    "y": "revenue_delta"
   },
   "trace": {
-    "tool": "sql_analytical_engine",
-    "execution_ms": 142.5,
-    "grounded": true
+    "tool": "explain_metric_change",
+    "provider": "local_rules",
+    "range": ["2026-09-01", "2026-09-30"],
+    "sources": ["sales_transactions", "products"],
+    "formulas": { "revenue": "SUM(quantity * unit_price * (1 - discount_pct))" }
   }
 }`,
   },
@@ -135,7 +145,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     method: 'GET',
     path: '/anomalies',
     summary: 'List observed business anomalies',
-    description: 'Fetches statistical anomalies detected across daily revenue, order volumes, inventory depletions, and marketing ROAS using Isolation Forest and Z-score hybrids.',
+    description: 'Fetches statistical anomalies detected across revenue, margin, Facebook spend/ROAS/conversion, and stockout risk using a 56-day shifted rolling window (Isolation Forest, IQR, robust Z-score) and business rules.',
     role: 'viewer',
     queryParams: [
       { name: 'start', type: 'date', required: false, description: 'Start date filter' },
@@ -145,142 +155,136 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     responseSample: `{
   "rows": [
     {
-      "id": "alt_rev_20260903",
+      "id": "anom_revenue_20260903",
       "metric": "revenue",
-      "date": "2026-09-03",
+      "start": "2026-09-03",
+      "end": "2026-09-30",
       "severity": "critical",
-      "z_score": -3.84,
-      "expected_value": 48500000,
-      "actual_value": 28615000,
-      "summary": "Doanh thu ngày giảm 41% dưới ngưỡng dự báo; suy giảm lưu lượng đơn hàng tại TP.HCM."
-    },
-    {
-      "id": "alt_mkt_20260905",
-      "metric": "facebook_roas",
-      "date": "2026-09-05",
-      "severity": "high",
-      "z_score": -2.92,
-      "expected_value": 4.12,
-      "actual_value": 1.25,
-      "summary": "ROAS Facebook Ads sụt giảm mạnh do chi tiêu tăng đột biến nhưng chuyển đổi giảm."
+      "score": 92,
+      "actual": 28615000,
+      "baseline": 48500000,
+      "deviation": -0.41,
+      "scope": "all"
     }
-  ],
-  "result_type": "observed alerts"
+  ]
 }`,
   },
   {
     method: 'POST',
     path: '/forecast',
     summary: 'Chronological sales & demand forecast',
-    description: 'Generates 30-day chronological forecasts with 90% confidence bands using LightGBM and rolling seasonal features.',
+    description: 'Generates 7- or 30-day forecasts with 90% empirical validation-residual intervals using LightGBM or rolling baselines across 17 point-in-time features.',
     role: 'viewer',
     requestBody: `{
-  "horizon_days": 30,
-  "scope": "all",
-  "target": "revenue",
-  "confidence_interval": 0.90
+  "target": "demand",
+  "product": "P001",
+  "horizon": 30
 }`,
     responseSample: `{
-  "target": "revenue",
-  "scope": "all",
-  "model_used": "moving_average_ensemble",
-  "horizon_days": 30,
-  "forecasts": [
-    { "date": "2026-10-01", "predicted": 48200000, "lower_bound": 41200000, "upper_bound": 55100000 },
-    { "date": "2026-10-02", "predicted": 51400000, "lower_bound": 43800000, "upper_bound": 58900000 }
+  "target": "demand",
+  "scope": "sku:P001",
+  "horizon": 30,
+  "model_version": "dp-1.1",
+  "interval_method": "Empirical validation residual quantiles split by lead bucket (90% nominal)",
+  "prediction": [
+    { "date": "2026-10-01", "value": 6.4, "lower": 1.2, "upper": 12.1 }
   ],
-  "historical_wape": 0.1124,
-  "test_interval_coverage": 0.8381
+  "metrics": {
+    "selected": "lightgbm",
+    "test_coverage": 0.9286,
+    "test": {
+      "lightgbm": { "mae": 2.68, "wape": 0.4187 }
+    }
+  }
 }`,
   },
   {
     method: 'POST',
     path: '/simulate',
     summary: 'Microeconomic scenario simulator',
-    description: 'Simulates business outcomes under pricing changes, discount shifts, marketing spend reallocations, and inventory restock buffers using microeconomic elasticity curves.',
+    description: 'Discriminated union supporting price, marketing, and inventory counterfactual scenarios over 7- or 30-day horizons.',
     role: 'viewer',
     requestBody: `{
-  "price_change_pct": -5.0,
-  "marketing_budget_multiplier": 1.2,
-  "inventory_buffer_days": 15,
-  "target_sku": "P001"
+  "type": "price",
+  "objective": "profit",
+  "horizon": 30,
+  "parameters": {
+    "product": "P001",
+    "discounts": [0, 0.05, 0.10]
+  }
 }`,
     responseSample: `{
-  "simulation_id": "sim_7d8a9f02c4b1e5",
+  "simulation_id": "a7f3c819d4e2...",
   "dataset_id": "f32e87e3a5744333ff98d3bf",
   "decision": "pending",
+  "type": "price",
+  "objective": "profit",
   "baseline": {
-    "revenue": 420000000,
-    "gross_profit": 168000000,
-    "units": 420,
-    "stockout_probability": 0.12
+    "name": "Current realized price",
+    "demand": 192.4,
+    "fulfilled": 192.4,
+    "revenue": 479076000,
+    "profit": 161616000
   },
-  "projected": {
-    "revenue": 462500000,
-    "gross_profit": 178200000,
-    "units": 492,
-    "stockout_probability": 0.04
-  },
-  "delta": {
-    "revenue_pct": 10.12,
-    "profit_pct": 6.07,
-    "units_pct": 17.14
-  },
-  "elasticity_coefficient": -1.42,
-  "recommended": true
+  "alternatives": [
+    {
+      "name": "5% list discount",
+      "demand": 203.0,
+      "fulfilled": 203.0,
+      "revenue": 480196500,
+      "profit": 145246500
+    }
+  ],
+  "evidence": { "product": "P001", "forecast": "dp-1.1", "elasticity": -1.1 }
 }`,
   },
   {
     method: 'GET',
     path: '/recommendations',
     summary: 'AI-generated prescriptive business decisions',
-    description: 'Lists ranked recommendations with quantified upside, risk factors, underlying evidence, and user decision status.',
+    description: 'Lists ranked recommendations synthesized from active anomalies, forecasts, and counterfactual checks with uncertainty disclosures.',
     role: 'viewer',
     responseSample: `{
   "rows": [
     {
-      "id": "rec_price_p001_01",
-      "category": "pricing",
-      "title": "Áp dụng giảm giá 5% cho SKU SmartDesk Mini (P001)",
-      "impact_revenue_vnd": 42500000,
-      "impact_profit_vnd": 10200000,
-      "confidence": 0.88,
-      "status": "pending",
-      "supporting_evidence": "Hệ số co giãn giá P001 là -1.42 (co giãn cao). Dự báo nhu cầu sẽ tăng +17.1%, bù đắp hoàn toàn tỷ lệ giảm giá 5% và mang lại 10.2 triệu ₫ lợi nhuận ròng bổ sung.",
-      "risks": "Cần đảm bảo tồn kho tối thiểu 120 chiếc để tránh rủi ro đứt hàng khi lượng đặt tăng nhanh."
+      "id": "rec_stockout_p001",
+      "priority": "high",
+      "decision": "pending",
+      "title": "Replenish SmartDesk Mini (P001) to prevent stockout",
+      "action": "Schedule supplier order covering lead-time demand buffer.",
+      "assumptions": ["Catalog lead_time_days and 30-day forecast"],
+      "risk": "Extended replenishment lead times could amplify lost sales."
     }
   ],
-  "dataset_id": "f32e87e3a5744333ff98d3bf",
-  "result_type": "business recommendation"
+  "dataset_id": "f32e87e3a5744333ff98d3bf"
 }`,
   },
   {
     method: 'POST',
     path: '/recommendations/feedback',
-    summary: 'Human-in-the-loop decision approval/rejection',
-    description: 'Records executive approval or dismissal of a recommendation into immutable audit ledger with dataset version lock.',
+    summary: 'Human-in-the-loop decision acceptance/rejection',
+    description: 'Records executive acceptance or rejection (accepted | rejected) into the append-only audit ledger pinned to dataset_id.',
     role: 'analyst',
     requestBody: `{
-  "recommendation_id": "rec_price_p001_01",
+  "recommendation_id": "rec_stockout_p001",
   "dataset_id": "f32e87e3a5744333ff98d3bf",
-  "decision": "approved",
-  "note": "Phê duyệt chiến dịch ưu đãi 5% cho SmartDesk Mini bắt đầu từ tuần tới."
+  "decision": "accepted"
 }`,
     responseSample: `{
   "id": 142,
-  "decision": "approved",
+  "decision": "accepted",
   "status": "recorded"
 }`,
   },
   {
     method: 'GET',
     path: '/audit',
-    summary: 'Query tamper-evident audit ledger',
-    description: 'Inspects sequential log of all user natural language queries, simulation runs, dataset imports, and executive approvals.',
+    summary: 'Query append-only audit ledger',
+    description: 'Inspects sequential log of human decisions and system events.',
     role: 'viewer',
     queryParams: [
       { name: 'limit', type: 'integer (1-100)', required: false, description: 'Number of rows to return (default: 25)' },
-      { name: 'kind', type: 'string', required: false, description: 'Filter by "query", "recommendation_feedback", "scenario_feedback"' },
+      { name: 'kind', type: 'string', required: false, description: 'Filter by "decisions", "recommendation_feedback", "scenario_feedback"' },
     ],
     responseSample: `{
   "rows": [
@@ -288,10 +292,10 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
       "id": 142,
       "occurred_at": "2026-11-06T13:45:00Z",
       "kind": "recommendation_feedback",
-      "subject": "rec_price_p001_01",
+      "subject": "rec_stockout_p001",
       "payload": {
         "actor": "executive@decisionpilot.ai",
-        "decision": "approved",
+        "decision": "accepted",
         "dataset_id": "f32e87e3a5744333ff98d3bf"
       }
     }

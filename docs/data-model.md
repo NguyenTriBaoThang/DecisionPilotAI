@@ -1,158 +1,134 @@
 # DecisionPilot AI — Relational Data Model Specification
 
-> **Database Engines Supported:** SQLite 3.40+ (Local Development) & PostgreSQL 16+ (Production Deployment)  
-> **ORM & Migration Tooling:** SQLAlchemy 2.0 Core & Alembic (`alembic upgrade head`)  
-> **Seed Volume:** 50,000 Transactions, 50 SKUs, 5,000 Customers, 730 Days (24 Months)
+> **Database Engines Supported:** SQLite 3 (Local `data/local.sqlite`) & PostgreSQL 16 (Docker Compose / CI)  
+> **ORM & Migrations:** SQLAlchemy 2.0.44 Core & Alembic 1.17.2 (`alembic upgrade head`)  
+> **Bundled Snapshot Volume (`f32e87e3a5744333ff98d3bf`):** 50,000 Transactions, 50 SKUs (`34` physical / `16` digital service), 10,000 Customers, 2,920 Campaign-Days, 24,820 Inventory-Days across 730 Calendar Days
 
 ---
 
-## 1. Entity-Relationship Diagram (ERD)
+## 1. Entity-Relationship Diagram (ERD) ([`backend/app/db.py`](../backend/app/db.py))
 
 ```mermaid
 erDiagram
-    PRODUCTS ||--o{ SALES_TRANSACTIONS : "purchased_in"
-    CUSTOMERS ||--o{ SALES_TRANSACTIONS : "generates"
-    MARKETING_CAMPAIGNS ||--o{ SALES_TRANSACTIONS : "attributed_from"
-    PRODUCTS ||--o{ INVENTORY_DAILY : "tracked_in"
-    CALENDAR_EVENTS ||--o{ SALES_TRANSACTIONS : "calendar_context"
-    CALENDAR_EVENTS ||--o{ INVENTORY_DAILY : "calendar_context"
+    CALENDAR_EVENTS ||--o{ SALES_TRANSACTIONS : "date_fk"
+    CALENDAR_EVENTS ||--o{ MARKETING_CAMPAIGNS : "date_fk"
+    CALENDAR_EVENTS ||--o{ INVENTORY_DAILY : "date_fk"
+    PRODUCTS ||--o{ SALES_TRANSACTIONS : "product_id_fk"
+    PRODUCTS ||--o{ INVENTORY_DAILY : "product_id_fk"
+    CUSTOMERS ||--o{ SALES_TRANSACTIONS : "customer_id_fk"
+    MARKETING_CAMPAIGNS ||--o{ SALES_TRANSACTIONS : "campaign_id_date_fk"
+
+    CALENDAR_EVENTS {
+        date date PK "Asia/Ho_Chi_Minh ISO YYYY-MM-DD"
+        int day_of_week "0=Mon..6=Sun"
+        int month "1..12"
+        int quarter "1..4"
+        boolean is_weekend "Sat/Sun"
+        boolean is_holiday "National calendar event"
+        string event_name "Nullable event title"
+        boolean promotion_flag "Double-days (>=Jun) & final 4d"
+    }
 
     PRODUCTS {
-        string product_id PK "e.g. P001"
-        string product_name "Product Name"
-        string category "e.g. Office, Electronics"
-        string brand "Brand Identifier"
-        float list_price "Original Price (VND)"
-        float unit_cost "Cost of Goods Sold (VND)"
-        string supplier "Supplier ID / Name"
-        int lead_time_days "Replenishment lead time (e.g. 7)"
-        int reorder_point "Minimum safety threshold (units)"
-        int current_stock "Current on-hand warehouse stock"
-        boolean is_physical "True for physical SKUs, False for SaaS"
+        string product_id PK "P001..P050"
+        string product_name "e.g. SmartDesk Mini"
+        string category "6 categories"
+        string brand "Pilot Essentials / Pilot Select"
+        bigint list_price "Integer VND > 0"
+        bigint unit_cost "Integer VND >= 0"
+        string supplier "Local Supply / In-house"
+        boolean is_physical "34 true, 16 false"
+        int lead_time_days "Nullable unless is_physical"
+        int reorder_point "Nullable unless is_physical"
+        int current_stock "Nullable unless is_physical"
+        numeric elasticity "NUMERIC(8,4) in [-5, 0]"
     }
 
     CUSTOMERS {
-        string customer_id PK "e.g. C0001"
-        string customer_segment "New, Returning, High-Value, Corporate"
+        string customer_id PK "C000001..C010000"
+        string customer_segment "Returning, Individual, Corporate, Price-sensitive"
         string region "HCMC, Hanoi, Da Nang, Can Tho"
-        date signup_date "Acquisition Date"
-        string acquisition_channel "Facebook, Google, Direct, Referral"
-        boolean is_returning "True if customer >= 2 orders"
-        float lifetime_value "Cumulative Historical Revenue"
-        date last_purchase_date "Recency anchor"
+        date signup_date "Precedes orders"
+        string acquisition_channel "Facebook Ads, Google Ads, TikTok Ads, Email, Organic"
+        boolean is_returning "True when orders > 1"
+        bigint lifetime_value "Reconciled integer VND >= 0"
+        date last_purchase_date "Nullable most recent order date"
     }
 
     MARKETING_CAMPAIGNS {
-        string campaign_id PK "e.g. M001"
-        date date "Campaign Reporting Date"
-        string channel "Meta Ads, Google Search, TikTok Shop"
-        string campaign_name "Campaign Title"
-        float spend "Daily Advertising Spend"
-        int impressions "Ad Views"
-        int clicks "User Link Clicks"
-        int leads "Prospective Inquiries"
-        int orders "Attributed Order Count"
-        float attributed_revenue "Attributed Gross Revenue"
+        string campaign_id PK "Composite PK (campaign_id, date)"
+        date date PK "References calendar_events.date"
+        string channel "Facebook Ads, Google Ads, TikTok Ads, Email"
+        string campaign_name "Channel + Month Year"
+        bigint spend "Integer VND >= 0"
+        int impressions "impressions >= clicks"
+        int clicks "clicks >= leads"
+        int leads "leads >= orders"
+        int orders "orders >= 0"
+        bigint attributed_revenue "Sum of linked sales revenue"
     }
 
     SALES_TRANSACTIONS {
-        string transaction_id PK "e.g. T000001"
-        date date "Transaction Date"
-        string customer_id FK "References CUSTOMERS"
-        string product_id FK "References PRODUCTS"
-        int quantity "Units Purchased (quantity > 0)"
-        float unit_price "Realized Sales Price per Unit"
-        float discount_pct "Discount applied (0.0 to 0.50)"
-        float revenue "Quantity * Unit Price * (1 - Discount)"
-        float unit_cost "Cost per Unit"
-        float total_cost "Quantity * Unit Cost"
-        float gross_profit "Revenue - Total Cost"
-        string region "Branch / Geographic Territory"
-        string sales_channel "Online Store, Retail Store, TikTok Shop"
-        string campaign_id FK "Nullable attribution link"
+        string transaction_id PK "T0000001..T0050000"
+        date date "References calendar_events.date"
+        string customer_id FK "References customers"
+        string product_id FK "References products"
+        int quantity "quantity > 0"
+        bigint unit_price "Integer VND > 0"
+        numeric discount_pct "NUMERIC(8,4) in [0, 1]"
+        bigint revenue "Rounded quantity * price * (1 - discount)"
+        bigint unit_cost "Integer VND >= 0"
+        bigint total_cost "quantity * unit_cost"
+        bigint gross_profit "revenue - total_cost"
+        string region "HCMC, Hanoi, Da Nang, Can Tho"
+        string sales_channel "Online, Retail, B2B"
+        string campaign_id FK "Composite FK (campaign_id, date), nullable"
     }
 
     INVENTORY_DAILY {
-        int id PK "Auto-increment ID"
-        date date "Warehouse Snapshot Date"
-        string product_id FK "References PRODUCTS"
-        int opening_stock "Beginning-of-day Inventory"
-        int received_qty "Inbound Supplier Delivery"
-        int sold_qty "Fulfilled Customer Demand"
-        int closing_stock "End-of-day Inventory"
-        boolean stockout_flag "True when stock reaches 0"
-    }
-
-    CALENDAR_EVENTS {
-        date date PK "Unique Calendar Date"
-        string day_of_week "Monday - Sunday"
-        int month "1 - 12"
-        int quarter "1 - 4"
-        boolean is_weekend "True for Saturday & Sunday"
-        boolean is_holiday "True for National Holidays"
-        string event_name "Tet, Black Friday, Payday, etc."
-        boolean promotion_flag "Active promotional period"
+        date date PK "Composite PK (date, product_id)"
+        string product_id PK "References products"
+        int opening_stock "opening >= 0"
+        int received_qty "received >= 0"
+        int sold_qty "Reconciles to SKU-day sales"
+        int closing_stock "opening + received - sold"
+        boolean stockout_flag "closing_stock == 0"
     }
 ```
 
----
-
-## 2. Table Schemas & Data Dictionary
-
-### 2.1 Table: `products`
-Master catalog containing SKU specifications, economic price elasticity defaults, and warehouse constraints.
-
-| Column | Data Type | Nullable | Constraints & Defaults | Business Purpose |
-| :--- | :--- | :---: | :--- | :--- |
-| `product_id` | `VARCHAR(32)` | No | Primary Key | Unique SKU identifier (e.g., `P001`). |
-| `product_name` | `VARCHAR(128)` | No | Indexed | Human-readable product title (e.g., `SmartDesk Mini`). |
-| `category` | `VARCHAR(64)` | No | Indexed | Product classification (`Office Equipment`, `Electronics`, `SaaS`). |
-| `brand` | `VARCHAR(64)` | No | — | Manufacturer or sub-brand. |
-| `list_price` | `NUMERIC(12,2)` | No | Check (> 0) | Benchmark retail selling price in VND. |
-| `unit_cost` | `NUMERIC(12,2)` | No | Check (> 0) | Landed supplier cost per unit. |
-| `supplier` | `VARCHAR(64)` | No | — | Supplier code (e.g., `SUP-KOREA-01`). |
-| `lead_time_days` | `INTEGER` | No | Check (>= 1) | Expected days for replenishment arrival. |
-| `reorder_point` | `INTEGER` | No | Check (>= 0) | Minimum stock threshold triggering restock warnings. |
-| `current_stock` | `INTEGER` | No | Check (>= 0) | Live on-hand inventory count. |
-| `is_physical` | `BOOLEAN` | No | Default True | Distinguishes physical inventory from digital SaaS subscriptions. |
-
-### 2.2 Table: `sales_transactions`
-Atomic transaction-level records capturing every customer purchase with explicit margin and discount computations.
-
-| Column | Data Type | Nullable | Constraints & Defaults | Business Purpose |
-| :--- | :--- | :---: | :--- | :--- |
-| `transaction_id`| `VARCHAR(32)` | No | Primary Key | Unique transaction identifier (e.g., `T000001`). |
-| `date` | `DATE` | No | Indexed | Order placement date (YYYY-MM-DD). |
-| `customer_id` | `VARCHAR(32)` | No | Foreign Key (`customers`) | Purchasing customer ID. |
-| `product_id` | `VARCHAR(32)` | No | Foreign Key (`products`) | SKU purchased. |
-| `quantity` | `INTEGER` | No | Check (> 0) | Number of units ordered in transaction. |
-| `unit_price` | `NUMERIC(12,2)` | No | Check (> 0) | Actual price per unit charged. |
-| `discount_pct` | `NUMERIC(5,4)` | No | Check (0.0 to 0.5) | Discount percentage applied (0.05 = 5%). |
-| `revenue` | `NUMERIC(14,2)` | No | Computed | Gross realized sales: `quantity * unit_price * (1 - discount_pct)`. |
-| `unit_cost` | `NUMERIC(12,2)` | No | Check (> 0) | Unit COGS at time of transaction. |
-| `total_cost` | `NUMERIC(14,2)` | No | Computed | Total landed COGS: `quantity * unit_cost`. |
-| `gross_profit` | `NUMERIC(14,2)` | No | Computed | Contribution margin: `revenue - total_cost`. |
-| `region` | `VARCHAR(32)` | No | Indexed | Store / delivery territory (`HCMC`, `Hanoi`, `Da Nang`). |
-| `sales_channel` | `VARCHAR(32)` | No | Indexed | Channel (`Online Store`, `Retail Store`, `TikTok Shop`). |
-| `campaign_id` | `VARCHAR(32)` | Yes | Foreign Key (`marketing`)| Marketing campaign driving acquisition. |
+### Runtime System & Governance Tables
+In addition to the 6 business tables above, `backend/app/db.py` persists three system tables:
+- `dataset_metadata` (`id`, `payload` JSON): stores active snapshot SHA-256 `dataset_id`, row counts, date range, and validation/injection manifest.
+- `simulation_runs` (`id` SHA-256 `64`-char hex PK, `dataset_id`, `created_at`, `payload` JSON): stores immutable request + computed outcome bundles so `/scenarios/feedback` cites exact verified outputs.
+- `audit_events` (`id`, `occurred_at`, `kind`, `subject`, `payload` JSON): append-protected history covering `query`, `dataset_loaded`, `recommendation_feedback`, and `scenario_feedback` (guarded by database triggers created in Alembic revision `0002_decision_integrity`).
 
 ---
 
-## 3. Synthetic Data Generation Logic & Quality Guarantees
+## 2. Schema Constraints & Integrity Invariants (`backend/app/db.py`)
 
-The generator script [`scripts/generate.py`](file:///g:/GITHUB/DecisionPilotAI/scripts/generate.py) synthesizes 24 continuous months of realistic SME data following strict empirical rules:
+All integer currency columns use `BIGINT` (`VND`), and database `CheckConstraint` rules enforce accounting consistency:
 
-1. **Temporal Trends & Day-of-Week Seasonality:**  
-   - Base weekly multiplier: Saturday & Sunday receive $+35\%$ sales volume compared to Tuesday/Wednesday.
-   - Monthly trend: Steady $1.8\%$ month-over-month baseline growth across the SME lifespan.
-2. **Holiday & Promotional Surges:**  
-   - Black Friday & Year-End Payday events generate $+60\%$ to $+120\%$ spikes in order volume.
-3. **Injected Business Anomalies (For Evaluation):**  
-   - **October Revenue Dip:** Meta Ads CPC surges $+45\%$ with a $-30\%$ drop in conversion efficiency, causing an $-11.2\%$ gross revenue drop across the business.
-   - **HCMC Product A Slowdown:** `SmartDesk Mini` experiences a localized $-24\%$ revenue contraction in District 1 due to competitor pricing pressure.
-   - **November Stockout Threat:** Projected demand outstrips current inventory on Day 18, generating an explicit supply chain alert.
-4. **Data Integrity & Consistency Rules:**  
-   - Foreign key integrity is guaranteed ($100\%$ of customer and product references resolve).
-   - Zero negative sales quantities (refunds are tracked via flagged transactions).
-   - All monetary figures strictly adhere to `Revenue = Quantity * Unit_Price * (1 - Discount)` and `Gross_Profit = Revenue - Total_Cost`.
+- **`products` (`valid_product_price`, `valid_product_inventory`):** Enforces `list_price > 0`, `unit_cost >= 0`, `elasticity BETWEEN -5 AND 0`; physical SKUs require non-null `lead_time_days >= 1`, `reorder_point >= 0`, `current_stock >= 0`, whereas non-physical service SKUs enforce `NULL` for all three inventory fields.
+- **`sales_transactions` (`valid_transaction`):** Enforces `quantity > 0`, `unit_price > 0`, `discount_pct BETWEEN 0 AND 1`, `total_cost = quantity * unit_cost`, `gross_profit = revenue - total_cost`, plus composite foreign key `["campaign_id", "date"] -> marketing_campaigns`.
+- **`marketing_campaigns` (`valid_funnel`):** Enforces monotonic daily funnel counts `impressions >= clicks >= leads >= orders >= 0`, `spend >= 0`, `attributed_revenue >= 0`.
+- **`inventory_daily` (`valid_inventory_movement`):** Composite PK `(date, product_id)`; enforces `opening_stock + received_qty - sold_qty = closing_stock` and `stockout_flag = (closing_stock = 0)`.
 
+---
+
+## 3. Synthetic Data Generation & Injected Events ([`scripts/generate.py`](../scripts/generate.py))
+
+Using `seed=42`, `months=24`, `transactions=50_000`, `sku_count=50`, `customer_count=10_000`, ending `2026-09-30` (`start = 2024-10-01`):
+
+1. **Statutory Holidays & Commercial Calendar:**
+   - **5 Vietnam Holidays:** `1/1` (`New Year`), `4/30` (`Reunification Day`), `5/1` (`Labour Day`), `9/2` (`National Day`), and `12/25` (`Year-end shopping`) receive a `1.24x` demand multiplier.
+   - **Promotions:** Double-day promos (`month == day` for months `6`–`12`, i.e., `6.6`..`12.12`) plus the final 4 days of history (`2026-09-27`–`2026-09-30`).
+   - **Seasonality & Weekends:** Cosine annual curve plus weekend `1.20x` vs weekday `0.96x` weights.
+2. **Dated Evaluation Shocks Recorded in Snapshot Manifest (`injected_events`):**
+   - **Early Demand Shock (`early_shock`, 6 days starting `end - 70d`, July 2026):** Overall demand traffic `0.75x`.
+   - **Macro Revenue & Channel Shock (`shock_start`, last 28 days `end - 27d..end`, Sept 2026):** Traffic `0.59x`, HCMC SKU `P002`/`P003` weights `0.26x`, returning customer probability `44% -> 20%`.
+   - **Facebook Spend / ROAS / Conversion Shock (last 28 days, Sept 2026):** Facebook Ads spend `1.85x`, online FB attribution share drops `25% -> 5.5%`, with `+24` additional non-converting daily leads.
+   - **FocusCam Pro (`P003`) Supply Interruption:** Replenishment suspended between `early_shock - 10d` and `early_shock + 27d` (`stockout_event`).
+   - **SmartDesk Mini (`P001`) Replenishment Pause (last 12 days, `end - 11d..end`):** Tests `stockout_risk` forward warning rules.
+   - **Late Promotion Margin Shift (final 4 days `end - 3d..end`):** Extra promotional discounting compressing daily margin (`margin`).
+
+For column-by-column business definitions and KPI formulas, see [`DATA_DICTIONARY.md`](./DATA_DICTIONARY.md).

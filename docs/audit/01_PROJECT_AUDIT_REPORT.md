@@ -1,83 +1,66 @@
 # DecisionPilot AI — Project Audit Report
 
 **Document ID:** AUD-01-PROJECT-OVERVIEW  
-**Audit Date:** November 8, 2026  
-**Auditor:** Senior Software Architect & AI/ML Staff Engineer  
-**System:** DecisionPilot AI (`v1.0.0`)  
+**Audit Date:** November 10, 2026  
+**System:** DecisionPilot AI (`v1.0.0` / Model Bundle `dp-1.1`)  
 **Repository:** `https://github.com/NguyenTriBaoThang/DecisionPilotAI`  
-**Target Competition:** LIKELION — AI for Business Innovation 2026 (Track 5: Data & Decision Intelligence)  
+**Competition Track:** LIKELION — AI for Business Innovation 2026 (Track 5: Data & Decision Intelligence)
 
 ---
 
 ## 1. Executive Summary
 
-DecisionPilot AI is an enterprise-grade AI-powered business intelligence and decision-support platform designed specifically for Vietnamese and regional Small & Medium Enterprises (SMEs). The system bridges raw transactional telemetry with executive decision-making across an unbroken four-stage workflow: **Ask → Understand → Predict → Decide**.
+DecisionPilot AI is an AI-powered business analytics, forecasting, and decision-support platform designed for Small and Medium Enterprises (SMEs). The platform connects validated operational data with deterministic analytics, ML surveillance, demand forecasting, econometric scenario simulation, and audited executive governance across the loop: **Ask → Understand → Predict → Simulate → Decide**.
 
-This comprehensive repository audit verifies that DecisionPilot AI is an authentic, production-grade codebase with verified zero-mock production backends, reproducible machine learning pipelines, deterministic financial analytics, robust cybersecurity guards, and an interactive 3D decision simulation engine.
+This audit verifies that the implementation across `frontend/`, `backend/`, `ai_service/`, `docs-site/`, `artifacts/`, and `.github/workflows/` aligns consistently with verified holdout evaluations (`MODEL_EVALUATION.md`), API benchmarks (`query_benchmark.json`), scenario replay (`scenario_backtest.json`), and automated tests.
 
 ---
 
-## 2. Audit Scope & Verification Methodology
+## 2. Audit Scope
 
-The audit covered 100% of the repository assets:
-- **Core Architecture & Backend:** `backend/app/`, `backend/migrations/`, FastAPI endpoints, SQLAlchemy schemas, analytical services.
-- **AI/ML Engine:** `ai_service/`, LightGBM quantile regression models, feature engineering pipelines, anomaly radar algorithms, SQL AST query validators.
-- **Frontend & 3D Visualization:** `frontend/src/`, React 19.2 + TypeScript + Vite 7.3, Tailwind CSS v4, Three.js 0.186 3D Scenario Simulator, Vitest test suites.
-- **Documentation & Showcase Portal:** `docs-site/`, 16 technical documentation chapters, interactive API explorer, 3D Hero, interactive Section 5 (Data & Decision Intelligence).
-- **Data Engineering:** `data/synthetic/`, 50,000 transactions across 730 days, deterministic hash reconciliation (`f32e87e3a5744333ff98d3bf`).
-- **CI/CD & DevOps:** `.github/workflows/ci.yml`, `.github/workflows/deploy-pages.yml`, `docker-compose.yml`, multi-stage Dockerfiles.
+- **Backend & Migrations:** `backend/app/`, `backend/alembic/` (`0001_initial`, `0002_decision_integrity`), 16 FastAPI endpoints, SQLAlchemy 2.0 Core queries, Pydantic v2 schemas (`extra="forbid"`).
+- **AI / ML Engine:** `ai_service/` (`features.py`, `forecasting.py`, `anomaly.py`, `root_cause.py`, `scenario.py`, `llm_orchestrator.py`).
+- **Frontend & 3D Workspace:** `frontend/src/`, React `19.2`, TypeScript `5.9`, Vite `7.3`, Tailwind CSS `4.1`, Three.js `0.186` Simulator, Vitest `5.1`, Playwright `1.65`.
+- **Documentation Portal:** `docs-site/`, 16 interactive chapters plus Track 5 *Data & Decision Intelligence* showcase (`src/features/data-decision-intelligence/`).
+- **Dataset & Artifacts:** `data/synthetic/` (`f32e87e3a5744333ff98d3bf`, 50,000 transactions across 730 days) and `artifacts/` (`dp-1.1`).
+- **CI/CD & Packaging:** `.github/workflows/ci.yml` (5 jobs), `.github/workflows/deploy-pages.yml` (`/` Docs + `/app/` SPA), `docker-compose.yml`, and `Dockerfile`.
 
 ---
 
 ## 3. High-Level System Architecture
 
-```
+```text
 [ SME User / Executive ]
          │
          ▼
-[ React 19 + Three.js Frontend / GitHub Pages Portal ]
+[ React 19 + Three.js App (/ & /app/)  |  GitHub Pages Docs Portal (docs-site/) ]
          │
-   REST API / JSON
+   REST / JSON (/api proxy)
          │
          ▼
-[ FastAPI Application Core (Python 3.12 / 3.13) ]
- ├── Authentication & Bearer Tokens (HMAC-SHA256, Constant-Time Comparison)
- ├── Read-Only AST Query Validator (Zero mutation, restricted SELECT execution)
- ├── Analytical Aggregation Engine (Pre-calibrated SQL, zero math hallucination)
- ├── LightGBM Forecasting Engine (P10/P50/P90 Quantile Interval Forecasts)
- ├── Hybrid Anomaly Radar (IQR + Z-Score + Trend Baseline)
- └── Decision Simulator & Audit Trail (Advisory locks, SHA-256 state tracking)
+[ FastAPI Application Core (Python 3.12+ / 16 Endpoints) ]
+ ├── Bearer Token RBAC (viewer / analyst / admin) + Security Headers
+ ├── Constrained Intent Router (llm_orchestrator.py -> Pydantic Intent + BLOCKED guard)
+ ├── Read-Only Analytical Core (read_connection -> allowlisted SQLAlchemy Core)
+ ├── Forecasting Engine (17-feature LightGBM + Moving Avg / Seasonal Naive + 2% gate)
+ ├── Hybrid Anomaly Engine (56d shifted Isolation Forest + IQR + Robust Z + 7d drop + stockout rule)
+ └── Econometric Simulator & Audit Store (simulation_runs + audit_events)
          │
          ▼
 [ Relational Storage Engine (PostgreSQL 16 / SQLite 3) ]
- ├── sales_transactions (50,000 rows)
- ├── inventory_daily (24,820 rows)
- ├── customers (10,000 rows)
- ├── marketing_campaigns (2,920 rows)
- ├── products (50 SKUs)
- └── audit_trail & simulations (Immutable event sourcing)
+ ├── Business Tables (6): calendar_events, products, customers, marketing_campaigns, sales_transactions, inventory_daily
+ └── System Tables (3): dataset_metadata, simulation_runs, audit_events
 ```
 
 ---
 
-## 4. Key Audit Findings
+## 4. Key Audit Findings Summary
 
-| Dimension | Status | Verified Metric |
+| Dimension | Status | Verified Evidence |
 | :--- | :---: | :--- |
-| **Data Integrity** | **PASS** | 50,000 sales transactions reconciled across 730 days; SHA-256 checksum `f32e87e3a5744333ff98d3bf`. |
-| **AI Demand Forecasting** | **PASS** | LightGBM WAPE 11.24% on aggregate revenue; 92.86% 90-interval test coverage; 2% Rule Gate validated. |
-| **Anomaly Detection** | **PASS** | 100% precision on Facebook Ads spend anomalies; 86.67% precision on revenue contraction flags. |
-| **Security & AST Sandbox** | **PASS** | Strict read-only AST parser prevents SQL injection and mutation; no leaked production secrets in Git history. |
-| **Frontend Code Quality** | **PASS** | 100% TypeScript type-checked; 8 Vitest unit/integration tests passing; zero build errors. |
-| **Documentation Quality** | **PASS** | 16 comprehensive chapters in `docs-site` + dedicated Data & Decision Intelligence interactive section. |
-| **Competition Compliance** | **PASS** | 100% alignment with LIKELION 2026 Track 5 requirements (Pillars 1 to 4). |
-
----
-
-## 5. Overall System Readiness
-
-- **Functional Completeness:** 96%
-- **Code & Test Reliability:** 94%
-- **Competition Readiness:** 98%
-- **Deployment Status:** Production-ready for local Docker deployment, cloud container runtimes, and GitHub Pages static showcase.
-
+| **Data Integrity** | **PASS** | `f32e87e3a5744333ff98d3bf` passes all 7 structural & accounting checks across 730 days (`50,000` txns, `24,820` stock rows, `10,000` customers, `2,920` campaigns, `50` SKUs). |
+| **Demand Forecasting** | **PASS** | Strict chronological split & `>2%` val MAE gate: selects `moving_average` on aggregate revenue (`24.14%` 30d / `21.84%` 7d WAPE) and promotes `lightgbm` on `sku:P001` (`2.68` MAE, `41.87%` WAPE, `92.86%` coverage). |
+| **Anomaly Detection** | **PASS** | `facebook_spend`: `100.00%` precision, `82.14%` recall, `90.20%` F1 (`0.00%` FPR); `revenue`: `86.67%` precision (`38.24%` recall with 7d sustained check). |
+| **NL Copilot Security** | **PASS** | `46/46` (`100%`) query benchmark pass (`1,432.2 ms` median); zero free-form SQL generation; prompt/SQL injection inputs cleanly refused. |
+| **Frontend & Docs Build** | **PASS** | TypeScript + Vite builds succeed for both `frontend` and `docs-site`; `8/8` Vitest tests pass; CI workflows validate E2E & Docker. |
+| **Track 5 Alignment** | **PASS** | All four LIKELION 2026 capabilities implemented end-to-end with disclosed limitations and human-in-the-loop governance. |

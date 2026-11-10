@@ -4,16 +4,29 @@ import { CodeBlock } from '../../components/CodeBlock'
 import { TrendingUp, BarChart2, Calendar, Target, CheckCircle2, ShieldCheck, Cpu, ArrowRight } from 'lucide-react'
 
 export function TabDemandForecasting() {
-  const [horizon, setHorizon] = useState<'7d' | '14d'>('14d')
+  const [horizon, setHorizon] = useState<'7d' | '30d'>('30d')
   const [seriesView, setSeriesView] = useState<'revenue' | 'sku'>('revenue')
 
-  // Filter data based on horizon
-  const displayData = horizon === '7d' 
+  const scaleVal = (v: number | undefined) => {
+    if (v === undefined) return undefined
+    return seriesView === 'revenue' ? v : Number((v / 6_800_000).toFixed(2))
+  }
+
+  // Filter data based on horizon (14 historical days at indices 0..13, 30 forecast days at 14..43)
+  const rawDisplayData = horizon === '7d'
     ? FORECAST_CHRONOLOGICAL_DATA.slice(7, 21) // 7 historical + 7 predicted
-    : FORECAST_CHRONOLOGICAL_DATA // 14 historical + 14 predicted
+    : FORECAST_CHRONOLOGICAL_DATA // 14 historical + 30 predicted
+
+  const displayData: ForecastPoint[] = rawDisplayData.map((d) => ({
+    date: d.date,
+    actual: scaleVal(d.actual),
+    predicted: scaleVal(d.predicted),
+    lowerBound: scaleVal(d.lowerBound),
+    upperBound: scaleVal(d.upperBound),
+  }))
 
   const formatVND = (v: number) => (v / 1_000_000).toFixed(1) + 'M ₫'
-  const formatSKU = (v: number) => `${Math.round(v / 1_000_000)} pcs`
+  const formatSKU = (v: number) => `${v.toFixed(1)} pcs`
 
   // SVG Chart Dimensions
   const svgWidth = 760
@@ -32,8 +45,9 @@ export function TabDemandForecasting() {
 
   const rawMin = Math.min(...allValues)
   const rawMax = Math.max(...allValues)
-  const minVal = Math.floor(rawMin * 0.9 / 5_000_000) * 5_000_000
-  const maxVal = Math.ceil(rawMax * 1.05 / 5_000_000) * 5_000_000
+  const stepUnit = seriesView === 'revenue' ? 5_000_000 : 2
+  const minVal = Math.max(0, Math.floor((rawMin * 0.9) / stepUnit) * stepUnit)
+  const maxVal = Math.ceil((rawMax * 1.05) / stepUnit) * stepUnit
 
   const getX = (idx: number) => padding.left + (idx / (displayData.length - 1)) * chartW
   const getY = (val: number) => padding.top + chartH - ((val - minVal) / (maxVal - minVal)) * chartH
@@ -67,12 +81,12 @@ export function TabDemandForecasting() {
     : ''
 
   const pipelineSteps = [
-    { step: '01', title: 'Chronological Data Split', desc: '70% Train (to Feb 2026), 15% Validation (to Jun 2026), 15% Holdout Test (to Sep 2026). Zero future leakage.' },
-    { step: '02', title: 'Lag & Rolling Features', desc: 'Computes lag_7, lag_14, lag_28, roll_mean_7, roll_std_14, and day_of_week / holiday calendar flags.' },
-    { step: '03', title: 'LightGBM Multi-Quantile', desc: 'Trains gradient-boosted trees targeting median (q=0.5) and prediction intervals (q=0.05, q=0.95).' },
-    { step: '04', title: '2% Rule Selection Gate', desc: 'Model candidate MUST beat Seasonal Naive WAPE by at least 2.00% on holdout validation.' },
-    { step: '05', title: 'Continuous Calibration', desc: 'Validates 90% prediction interval coverage (actual: 92.86% on top SKU).' },
-    { step: '06', title: 'Multi-Horizon Forecast', desc: 'Generates daily demand projections across 7-day, 14-day, and 30-day decision horizons.' },
+    { step: '01', title: 'Chronological Data Split', desc: 'Train (2024-10-01 to 2026-02-22), Validation (to 2026-06-12), Holdout Test (to 2026-09-30). Zero leakage.' },
+    { step: '02', title: '17 Point-in-Time Features', desc: 'Builds lag_1/7/14/28, rolling mean/std (7, 14, 28), growth_7, weekday/month/quarter/holiday, and scale.' },
+    { step: '03', title: 'Model Family Competition', desc: 'Trains LightGBM regressors alongside Seasonal Naive (t-7) and Moving Average baselines per scope.' },
+    { step: '04', title: '>2% Validation MAE Gate', desc: 'LightGBM is promoted ONLY if validation MAE beats the better statistical baseline by more than 2%.' },
+    { step: '05', title: 'Empirical Residual Intervals', desc: 'Constructs 90% nominal intervals using empirical validation residual quantiles split by lead bucket.' },
+    { step: '06', title: '7d & 30d Decision Horizons', desc: 'Serves daily forecasts across 7-day and 30-day horizons for revenue, orders, or SKU demand.' },
   ]
 
   return (
@@ -141,7 +155,7 @@ export function TabDemandForecasting() {
               </h4>
             </div>
             <p style={{ fontSize: '0.82rem', color: 'var(--muted)', margin: '4px 0 0 0' }}>
-              Historical actuals (solid blue) compared with multi-quantile LightGBM forecast (dashed violet) &amp; 90% confidence envelope.
+              Historical actuals (solid cyan) compared with selected forecast (dashed violet) &amp; empirical 90% prediction envelope.
             </p>
           </div>
 
@@ -197,10 +211,10 @@ export function TabDemandForecasting() {
                 7-Day Horizon
               </button>
               <button
-                onClick={() => setHorizon('14d')}
+                onClick={() => setHorizon('30d')}
                 style={{
-                  background: horizon === '14d' ? 'var(--cyan)' : 'transparent',
-                  color: horizon === '14d' ? '#070B17' : '#94A3B8',
+                  background: horizon === '30d' ? 'var(--cyan)' : 'transparent',
+                  color: horizon === '30d' ? '#070B17' : '#94A3B8',
                   border: 'none',
                   borderRadius: '6px',
                   padding: '6px 12px',
@@ -209,7 +223,7 @@ export function TabDemandForecasting() {
                   cursor: 'pointer',
                 }}
               >
-                14-Day Horizon
+                30-Day Horizon
               </button>
             </div>
           </div>
@@ -223,15 +237,17 @@ export function TabDemandForecasting() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ width: '16px', height: '0px', borderTop: '2px dashed #A78BFA' }} />
-            <span style={{ color: '#E2E8F0' }}>LightGBM Forecast (Median q=0.5)</span>
+            <span style={{ color: '#E2E8F0' }}>
+              {seriesView === 'revenue' ? 'Moving Average (Selected for Total Revenue)' : 'LightGBM Forecast (Selected for P001)'}
+            </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ width: '16px', height: '10px', background: 'rgba(139, 92, 246, 0.2)', border: '1px solid rgba(139, 92, 246, 0.4)' }} />
-            <span style={{ color: '#E2E8F0' }}>90% Prediction Interval (q=0.05 - 0.95)</span>
+            <span style={{ color: '#E2E8F0' }}>Empirical 90% Interval (Validation Residuals)</span>
           </div>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span className="badge badge-indigo">LightGBM v4.3</span>
-            <span className="badge badge-green">2% Rule Passed</span>
+            <span className="badge badge-indigo">Bundle dp-1.1</span>
+            <span className="badge badge-green">&gt;2% Val MAE Gate</span>
           </div>
         </div>
 
@@ -303,8 +319,8 @@ export function TabDemandForecasting() {
 
             {/* X-Axis Dates */}
             {displayData.map((d, i) => {
-              // Show label every 2nd or 3rd point depending on density
-              const step = horizon === '7d' ? 2 : 4
+              // Show label every 2nd point on 7d or 6th point on 30d
+              const step = horizon === '7d' ? 2 : 6
               if (i % step !== 0 && i !== displayData.length - 1) return null
               const x = getX(i)
               return (
@@ -330,22 +346,22 @@ export function TabDemandForecasting() {
           <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', borderRadius: '8px', padding: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
               <span style={{ fontSize: '0.75rem', color: '#94A3B8', textTransform: 'uppercase', fontFamily: 'var(--mono)' }}>
-                Test WAPE (Holdout)
+                Revenue 30d Test WAPE
               </span>
               <Target size={14} color="var(--cyan)" />
             </div>
             <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#FFFFFF' }}>
-              11.24%
+              24.14%
             </div>
             <span style={{ fontSize: '0.72rem', color: 'var(--green)', display: 'block', marginTop: '2px' }}>
-              &bull; 24.14% on daily series (Outperformed Seasonal Naive by 4.2%)
+              &bull; Moving Avg selected (MAE 34.58M ₫ vs Seasonal Naive 26.40%)
             </span>
           </div>
 
           <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', borderRadius: '8px', padding: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
               <span style={{ fontSize: '0.75rem', color: '#94A3B8', textTransform: 'uppercase', fontFamily: 'var(--mono)' }}>
-                SKU P001 WAPE
+                SKU P001 30d Test WAPE
               </span>
               <BarChart2 size={14} color="var(--indigo)" />
             </div>
@@ -353,14 +369,14 @@ export function TabDemandForecasting() {
               41.87%
             </div>
             <span style={{ fontSize: '0.72rem', color: '#94A3B8', display: 'block', marginTop: '2px' }}>
-              &bull; Test MAE: 2.68 units/day (Top revenue generator)
+              &bull; LightGBM selected (MAE: 2.68 units/day vs Naive 3.49)
             </span>
           </div>
 
           <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--line)', borderRadius: '8px', padding: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
               <span style={{ fontSize: '0.75rem', color: '#94A3B8', textTransform: 'uppercase', fontFamily: 'var(--mono)' }}>
-                90% Interval Coverage
+                SKU P001 90% Coverage
               </span>
               <ShieldCheck size={14} color="var(--green)" />
             </div>
@@ -368,7 +384,7 @@ export function TabDemandForecasting() {
               92.86%
             </div>
             <span style={{ fontSize: '0.72rem', color: '#94A3B8', display: 'block', marginTop: '2px' }}>
-              &bull; Target 90.0% &bull; Calibrated multi-quantile bounds
+              &bull; Empirical residual quantiles (90% nominal; Revenue 30d: 83.81%)
             </span>
           </div>
 
@@ -380,63 +396,63 @@ export function TabDemandForecasting() {
               <Calendar size={14} color="#A78BFA" />
             </div>
             <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#FFFFFF' }}>
-              70 / 15 / 15 Split
+              Train / Val / Test
             </div>
             <span style={{ fontSize: '0.72rem', color: '#94A3B8', display: 'block', marginTop: '2px' }}>
-              &bull; Strict time ordering: No future data leakage
+              &bull; Strict temporal ordering (to 2026-09-30): zero leakage
             </span>
           </div>
         </div>
 
         <div style={{ marginTop: '14px', fontSize: '0.75rem', color: 'var(--muted)', textAlign: 'right' }}>
-          Documented Demo Result — Synthetic Dataset &bull; Evaluated against holdout test partition (2026-06-13 to 2026-09-30)
+          Documented Demo Result — Synthetic Dataset (<code>dp-1.1</code>) &bull; Evaluated against holdout test partition (2026-06-13 to 2026-09-30)
         </div>
       </div>
 
-      {/* Model Architecture Deep-Dive: LightGBM vs Statistical Moving Averages */}
+      {/* Model Architecture Deep-Dive: LightGBM vs Statistical Baselines */}
       <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: '12px', padding: '24px' }}>
         <h4 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#FFFFFF', marginTop: 0, marginBottom: '14px' }}>
-          Methodological Comparison: Gradient Boosting vs. Simple Baselines
+          Methodological Comparison: Model Families Across Scopes (30-Day Holdout Test)
         </h4>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--line)', textAlign: 'left', color: '#94A3B8' }}>
-                <th style={{ padding: '10px 12px' }}>Evaluation Metric / Property</th>
-                <th style={{ padding: '10px 12px' }}>Seasonal Naive Baseline</th>
-                <th style={{ padding: '10px 12px' }}>LightGBM (DecisionPilot)</th>
-                <th style={{ padding: '10px 12px' }}>Selection Delta</th>
-                <th style={{ padding: '10px 12px' }}>Verification Status</th>
+                <th style={{ padding: '10px 12px' }}>Evaluation Metric / Scope</th>
+                <th style={{ padding: '10px 12px' }}>Seasonal Naive</th>
+                <th style={{ padding: '10px 12px' }}>Moving Average</th>
+                <th style={{ padding: '10px 12px' }}>LightGBM (17 Features)</th>
+                <th style={{ padding: '10px 12px' }}>Production Selection</th>
               </tr>
             </thead>
             <tbody>
               <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                <td style={{ padding: '10px 12px', fontWeight: 600, color: '#FFFFFF' }}>Aggregated Revenue WAPE</td>
-                <td style={{ padding: '10px 12px', fontFamily: 'var(--mono)', color: '#CBD5E1' }}>15.42%</td>
-                <td style={{ padding: '10px 12px', fontFamily: 'var(--mono)', color: 'var(--green)', fontWeight: 700 }}>11.24%</td>
-                <td style={{ padding: '10px 12px', color: 'var(--green)', fontWeight: 600 }}>-4.18% (Better)</td>
-                <td style={{ padding: '10px 12px' }}><span className="badge badge-green">Passed 2% Gate</span></td>
+                <td style={{ padding: '10px 12px', fontWeight: 600, color: '#FFFFFF' }}>All-Revenue 30d Test WAPE</td>
+                <td style={{ padding: '10px 12px', fontFamily: 'var(--mono)', color: '#CBD5E1' }}>26.40%</td>
+                <td style={{ padding: '10px 12px', fontFamily: 'var(--mono)', color: 'var(--green)', fontWeight: 700 }}>24.14%</td>
+                <td style={{ padding: '10px 12px', fontFamily: 'var(--mono)', color: '#94A3B8' }}>22.96% (missed val gate)</td>
+                <td style={{ padding: '10px 12px' }}><span className="badge badge-cyan">Moving Avg Selected</span></td>
               </tr>
               <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                <td style={{ padding: '10px 12px', fontWeight: 600, color: '#FFFFFF' }}>Test Revenue MAE</td>
-                <td style={{ padding: '10px 12px', fontFamily: 'var(--mono)', color: '#CBD5E1' }}>41,120,400 ₫</td>
-                <td style={{ padding: '10px 12px', fontFamily: 'var(--mono)', color: 'var(--cyan)', fontWeight: 700 }}>34,584,971 ₫</td>
-                <td style={{ padding: '10px 12px', color: 'var(--green)', fontWeight: 600 }}>-6,535,429 ₫</td>
-                <td style={{ padding: '10px 12px' }}><span className="badge badge-green">Verified</span></td>
+                <td style={{ padding: '10px 12px', fontWeight: 600, color: '#FFFFFF' }}>All-Revenue 30d Test MAE</td>
+                <td style={{ padding: '10px 12px', fontFamily: 'var(--mono)', color: '#CBD5E1' }}>37,823,705 ₫</td>
+                <td style={{ padding: '10px 12px', fontFamily: 'var(--mono)', color: 'var(--cyan)', fontWeight: 700 }}>34,584,972 ₫</td>
+                <td style={{ padding: '10px 12px', fontFamily: 'var(--mono)', color: '#94A3B8' }}>32,895,074 ₫</td>
+                <td style={{ padding: '10px 12px' }}><span className="badge badge-green">Verified in CSV</span></td>
               </tr>
               <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                <td style={{ padding: '10px 12px', fontWeight: 600, color: '#FFFFFF' }}>SKU P001 90% Coverage</td>
-                <td style={{ padding: '10px 12px', fontFamily: 'var(--mono)', color: '#CBD5E1' }}>78.50% (Underconfident)</td>
-                <td style={{ padding: '10px 12px', fontFamily: 'var(--mono)', color: 'var(--green)', fontWeight: 700 }}>92.86%</td>
-                <td style={{ padding: '10px 12px', color: 'var(--green)', fontWeight: 600 }}>+14.36%</td>
-                <td style={{ padding: '10px 12px' }}><span className="badge badge-green">Calibrated</span></td>
+                <td style={{ padding: '10px 12px', fontWeight: 600, color: '#FFFFFF' }}>SKU P001 Demand WAPE / MAE</td>
+                <td style={{ padding: '10px 12px', fontFamily: 'var(--mono)', color: '#CBD5E1' }}>54.54% (3.49)</td>
+                <td style={{ padding: '10px 12px', fontFamily: 'var(--mono)', color: '#CBD5E1' }}>43.28% (2.77)</td>
+                <td style={{ padding: '10px 12px', fontFamily: 'var(--mono)', color: 'var(--green)', fontWeight: 700 }}>41.87% (2.68)</td>
+                <td style={{ padding: '10px 12px' }}><span className="badge badge-green">LightGBM Selected</span></td>
               </tr>
               <tr>
-                <td style={{ padding: '10px 12px', fontWeight: 600, color: '#FFFFFF' }}>Exogenous Factors &amp; Lags</td>
-                <td style={{ padding: '10px 12px', color: '#94A3B8' }}>None (Direct shift t-7)</td>
-                <td style={{ padding: '10px 12px', color: '#FFFFFF' }}>Lags (7, 14, 28) + Rolling stats + Holidays</td>
-                <td style={{ padding: '10px 12px', color: 'var(--cyan)' }}>Multivariate</td>
-                <td style={{ padding: '10px 12px' }}><span className="badge badge-indigo">Trained Model</span></td>
+                <td style={{ padding: '10px 12px', fontWeight: 600, color: '#FFFFFF' }}>90% Nominal Coverage &amp; Features</td>
+                <td style={{ padding: '10px 12px', color: '#94A3B8' }}>Direct shift (t-7)</td>
+                <td style={{ padding: '10px 12px', color: '#CBD5E1' }}>83.81% (Revenue 30d)</td>
+                <td style={{ padding: '10px 12px', color: 'var(--green)', fontWeight: 700 }}>92.86% (P001, 17 features)</td>
+                <td style={{ padding: '10px 12px' }}><span className="badge badge-indigo">Empirical Residuals</span></td>
               </tr>
             </tbody>
           </table>
@@ -462,6 +478,14 @@ export function TabDemandForecasting() {
               <Cpu size={14} /> <code>ai_service/forecasting.py</code> &rarr;
             </a>
             <a
+              href="https://github.com/NguyenTriBaoThang/DecisionPilotAI/blob/main/ai_service/features.py"
+              target="_blank"
+              rel="noreferrer"
+              style={{ color: 'var(--indigo)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Cpu size={14} /> <code>ai_service/features.py</code> &rarr;
+            </a>
+            <a
               href="https://github.com/NguyenTriBaoThang/DecisionPilotAI/blob/main/artifacts/MODEL_EVALUATION.md"
               target="_blank"
               rel="noreferrer"
@@ -478,18 +502,18 @@ export function TabDemandForecasting() {
           </span>
           <div style={{ marginBottom: '8px' }}>
             <code style={{ fontSize: '0.82rem', color: '#38BDF8', background: 'rgba(0,0,0,0.3)', padding: '4px 8px', borderRadius: '4px' }}>
-              POST /api/forecast
+              POST /forecast
             </code>
           </div>
           <p style={{ fontSize: '0.8rem', color: '#94A3B8', margin: '6px 0 10px 0' }}>
-            Accepts forecast horizon, target metric (revenue, orders, units), and optional SKU filters. Returns quantile bands and confidence intervals.
+            Accepts target metric (<code>revenue</code>, <code>orders</code>, <code>demand</code>), optional <code>product</code> or <code>category</code> scope, and horizon (<code>7</code> or <code>30</code>). Returns selected model predictions with empirical 90% intervals.
           </p>
           <CodeBlock
-            code={`// Request Payload Example
+            code={`// Request Payload Example (ForecastRequest)
 {
-  "horizon_days": 14,
-  "product_id": "P001",
-  "quantiles": [0.05, 0.5, 0.95]
+  "target": "demand",
+  "product": "P001",
+  "horizon": 30
 }`}
             label="json"
           />

@@ -1,119 +1,123 @@
 # DecisionPilot AI — Model Versioning & Lifecycle Governance Policy
 
-> **Scope:** Machine Learning, Econometric Simulation, and Anomaly Detection Models  
-> **Current Version:** `v1.0.0-production`  
-> **Artifacts Directory:** [`artifacts/`](file:///g:/GITHUB/DecisionPilotAI/artifacts)
+> **Scope:** Forecasting, Anomaly Detection, Scenario Econometrics, and Grounded Query Orchestration  
+> **Active Bundle Version:** `dp-1.1` (Platform MVP `v1.0.0`)  
+> **Artifacts Directory:** [`artifacts/`](./artifacts)
 
 ---
 
 ## 1. Overview & Versioning Principles
 
-DecisionPilot AI enforces a strict, reproducible model versioning standard across all analytical, forecasting, and simulation components. No model is deployed to production without an associated dataset snapshot signature, evaluation metrics artifact, and feature importance manifest.
+DecisionPilot AI enforces reproducible model serialization, leakage-free temporal evaluation, and explicit baseline comparisons before serving forecasts or anomaly scores. Trained bundles are stored deterministically by SHA-256 dataset snapshot signature (`artifacts/<dataset_id>.joblib`).
 
 ### Core Governance Principles
-1. **Deterministic Artifact Bundling:** Every trained model is saved alongside its exact dataset ID, training timestamp, feature list, and benchmark scores in a versioned joblib bundle: `artifacts/<dataset_id>.joblib`.
-2. **Temporal Split Guarantee:** Time-series demand forecasting models must strictly adhere to chronological splits ($70\%$ train, $15\%$ validation, $15\%$ test). Random k-fold cross-validation is forbidden to prevent data leakage.
-3. **Reproducible Seed Control:** Stochastic models (e.g., Isolation Forest, LightGBM tree building) use pinned seeds (`random_state=42`) across training runs.
-4. **Zero Silent Degradation:** In-flight model inference is tracked against rolling error thresholds; models falling below benchmark gates trigger automated alerts.
+1. **Snapshot-Locked Bundling:** Every bundle in `artifacts/<dataset_id>.joblib` embeds its exact `dataset_id`, `version` (`dp-1.1`), trained `forecast` models/scales/calibration radii, fitted `anomaly` detectors, and full `report` dictionary—written alongside [`artifacts/evaluation.json`](./artifacts/evaluation.json).
+2. **Leakage-Free Temporal Partition:** Forecast evaluation uses strict chronological splits (`70%` train, `15%` validation, `15%` test). Validation is further divided into independent selection (`selection_range`) and interval calibration (`calibration_range`) slices whenever enough history exists (`validation_end - train_end >= 2 * horizon`).
+3. **Validation Gate Over Baselines (>2% Rule):** A learned `LGBMRegressor` is selected for a given `(target, scope, horizon)` slice **only** if its validation MAE improves over the better of `moving_average` and `seasonal_naive` by strictly more than `2.0%` (`lgbm_mae < 0.98 * best_baseline_mae`).
+4. **Reproducible Seed Control:** Synthetic data generation, LightGBM (`random_state=42`), and Isolation Forest (`random_state=42`) use pinned random seeds.
 
 ---
 
-## 2. Model Catalog (v1.0.0 Production)
+## 2. Model & Engine Catalog (`dp-1.1`)
 
-| Model Name | Module Path | Algorithm / Method | Target / Output | Validation Metric Gate |
+| Component | Module Path | Method & Hyperparameters | Target / Scope | Verification & Holdout Findings (`f32e87e3a5744333ff98d3bf`) |
 | :--- | :--- | :--- | :--- | :--- |
-| **Demand Forecaster** | `ai_service/forecasting.py` | LightGBM Regressor (14 temporal lag & rolling features) | 7-day and 30-day daily product demand | **WAPE $\le 15.0\%$** (Current: $11.2\%$) |
-| **Anomaly Detector** | `ai_service/anomaly.py` | Multi-variate Isolation Forest + Robust Z-Scores | Binary anomaly flag, severity score $[0, 1]$, root-cause attribution | **Precision $\ge 85.0\%$** (Current: $92.4\%$) |
-| **What-If Simulator** | `ai_service/scenario.py` | Microeconomic Price Elasticity + Diminishing Returns | Simulated demand, revenue delta, contribution profit, stockout risk | **Residual Error $\le 8.0\%$** vs holdout |
-| **Recommendation Formulator** | `ai_service/llm_orchestrator.py` | Grounded Prompt Engine with SQL Verification | Ranked executive actions, confidence score, explicit assumptions | **Zero Hallucination Gate** ($100\%$ SQL verified) |
+| **Demand Forecaster** | [`ai_service/forecasting.py`](./ai_service/forecasting.py) | Global scaled `LGBMRegressor` (`n_estimators=125`, `lr=0.045`, `num_leaves=23`, `min_child_samples=28`) competing vs. `moving_average` & `seasonal_naive` across `17` features | `revenue`, `orders`, `demand` for `7d` & `30d` horizons (`all`, category, SKU) | `moving_average` selected for smooth aggregates (`revenue\|all` 30d WAPE `24.14%`, 7d WAPE `21.84%`); **`lightgbm`** promoted for `demand\|sku:P001` 30d (`MAE 2.68`, `WAPE 41.87%`, `92.86%` interval coverage). |
+| **Anomaly Detector** | [`ai_service/anomaly.py`](./ai_service/anomaly.py) | **56-day rolling window shifted 7 days** (`min_periods=28`): `IsolationForest(n_estimators=120, contamination=0.065)` on `(robust_z, z)` + IQR + sustained 7d revenue drop + `stockout_risk` rule | Daily KPIs, Facebook spend/ROAS/conversion, margins, stockout risk | Test precision `100.00%` (`90.20%` F1, `0.00%` FPR) on `facebook_spend`; `86.67%` precision on `revenue`; `75.00%` F1 on `facebook_conversion`. |
+| **What-If Simulator** | [`ai_service/scenario.py`](./ai_service/scenario.py) | Linear-% price elasticity ($1 + e \cdot \Delta P / P_0$), power-law spend response ($r^\alpha$, $\alpha \in [0.20, 0.95]$), daily stock ledger balance | Counterfactual 7d/30d P&L, demand & shortage simulation | Conditional 7d replay: weekly P001 units **23.99% WAPE** (vs `24.24%` baseline); P003 depletion checks matched **15/15** weeks (`scenario_backtest.json`). |
+| **Query Copilot** | [`ai_service/llm_orchestrator.py`](./ai_service/llm_orchestrator.py) | Bilingual VI/EN parser (OpenAI/Gemini/regex) -> Pydantic `Intent` (`extra="forbid"`) -> parameterized read-only SQLAlchemy Core | Executive KPI, trends, ranking, explainability, forecasts, refusals | **46/46 (100%)** benchmark accuracy across intent, filters, execution, chart, numerical & grounding (`query_benchmark.json`). |
 
 ---
 
-## 3. Artifact Bundle Specification
+## 3. Feature Set & Serialized Bundle Structure
 
-When `python -m scripts.pipeline` or `backend/app/services.py` trains and serializes a model bundle to `artifacts/<dataset_id>.joblib`, the following dictionary structure is verified:
+### 3.1 Exact 17 Point-in-Time Forecast Features ([`ai_service/features.py`](./ai_service/features.py))
+
+```python
+FEATURES = (
+    "lag_1", "lag_7", "lag_14", "lag_28",
+    "mean_7", "std_7", "mean_14", "std_14", "mean_28", "std_28",
+    "growth_7", "weekday", "month", "quarter", "weekend", "holiday", "scale",
+)
+```
+
+*`scale` equals `log1p(mean_train_series_value)` allowing one scaled `LGBMRegressor` per target (`revenue`, `orders`, `demand`) to share signal across enterprise aggregate, category, and SKU slices without future leakage.*
+
+### 3.2 Actual Serialized Artifact Bundle (`scripts/train.py`)
+
+When running `python -m scripts.train --out artifacts`, the persisted joblib dictionary (`artifacts/<dataset_id>.joblib`) contains:
 
 ```python
 {
-    "version": "1.0.0",
-    "dataset_id": "dp_seed_20261105",
-    "trained_at": "2026-11-05T07:30:00Z",
-    "forecasting": {
-        "model_type": "LightGBMRegressor",
-        "model_binary": <lightgbm.Booster / LGBMRegressor>,
-        "features": [
-            "lag_1", "lag_7", "lag_14", "lag_28",
-            "rolling_mean_7", "rolling_std_7",
-            "rolling_mean_14", "rolling_std_14",
-            "rolling_mean_28", "rolling_std_28",
-            "day_of_week", "month", "is_weekend", "promotion_flag"
-        ],
-        "metrics": {
-            "wape": 0.1124,
-            "mae": 14.82,
-            "rmse": 21.05,
-            "naive_wape": 0.2965,
-            "improvement_pct": 0.1841
+    "dataset_id": "f32e87e3a5744333ff98d3bf",
+    "version": "dp-1.1",
+    "forecast": {
+        "revenue": {
+            "model": <LGBMRegressor>,
+            "scales": {"all": ..., "sku:P001": ..., "category:Electronics": ...},
+            "series": {
+                ("all", 7):  {"selected": "moving_average", "radii": [(7, ...)], "report": {...}},
+                ("all", 30): {"selected": "moving_average", "radii": [(7, ...), (30, ...)], "report": {...}},
+                ("sku:P001", 30): {"selected": "lightgbm", "radii": [(7, ...), (30, ...)], "report": {...}},
+                ...
+            },
+            "drivers": [(feature_name, gain_importance), ...],  # Top 6 gain features
         },
-        "feature_importance": {
-            "rolling_mean_7": 0.342,
-            "lag_7": 0.215,
-            "lag_1": 0.148,
-            "promotion_flag": 0.112,
-            "rolling_mean_14": 0.083
-        }
+        "orders": { ... },
+        "demand": { ... },
     },
     "anomaly": {
-        "model_type": "IsolationForest",
-        "contamination": 0.03,
-        "metrics": {
-            "precision": 0.924,
-            "recall": 0.886,
-            "f1": 0.904
-        }
+        "revenue": <IsolationForest | None>,
+        "margin": <IsolationForest | None>,
+        "units": <IsolationForest | None>,
+        "facebook_spend": <IsolationForest | None>,
+        "facebook_roas": <IsolationForest | None>,
+        "facebook_conversion": <IsolationForest | None>,
+        "marketing_spend": <IsolationForest | None>,
+        "marketing_roas": <IsolationForest | None>,
+        "marketing_conversion": <IsolationForest | None>,
     },
-    "simulation": {
-        "calibrated_elasticities": {
-            "P001": -1.10,
-            "P002": -1.40,
-            "P003": -0.80,
-            "P004": -0.60,
-            "P005": -0.40
+    "report": {
+        "dataset_id": "f32e87e3a5744333ff98d3bf",
+        "version": "dp-1.1",
+        "split": {
+            "train": ["2024-10-01", "2026-02-22"],
+            "validation": ["2026-02-23", "2026-06-12"],
+            "test": ["2026-06-13", "2026-09-30"],
         },
-        "marketing_response_exponents": {
-            "Meta Ads": 0.45,
-            "Google Search": 0.62,
-            "TikTok Shop": 0.38
-        }
-    }
+        "forecast": [ ... ],   # Detailed per-(target, scope, horizon) validation/test metrics
+        "anomaly": { ... },    # Hybrid vs z_score vs robust_z vs iqr confusion metrics per signal
+        "notes": [ ... ],
+    },
 }
 ```
 
 ---
 
-## 4. Retraining & Rollout Protocol
+## 4. Retraining, Evaluation & Publication Workflow
 
 ```mermaid
 flowchart TD
-    Trigger["Retraining Trigger<br/>(Monthly Schedule / Data Drift Alert)"] --> Ingest["Ingest New Snapshot<br/>(pipeline.py validate)"]
-    Ingest --> Split["Temporal Split<br/>(70% Train / 15% Val / 15% Test)"]
-    Split --> Train["Train LightGBM & Isolation Forest"]
-    Train --> Eval{"Evaluate against<br/>Quality Gates"}
-    Eval -- "WAPE <= 15% & Precision >= 85%" --> Promote["Promote to Production<br/>(Save to artifacts/<dataset_id>.joblib)"]
-    Eval -- "Failed Gates" --> Rollback["Reject Candidate<br/>(Keep current active artifact)"]
-    Promote --> Audit["Log Model Version Upgrade<br/>in audit table"]
+    Trigger["Trigger: New Snapshot Loaded or Scheduled Retrain"] --> Validate["Validate Snapshot (scripts.pipeline validate / load)"]
+    Validate --> CheckLen{"At least 201 contiguous days?"}
+    CheckLen -- "No" --> Abort["Reject Training (422 / ValueError)"]
+    CheckLen -- "Yes" --> Split["Chronological Split: 70% Train / 15% Validation / 15% Test"]
+    Split --> TrainModels["Fit 17-Feature LGBMRegressor + 9 IsolationForest Detectors"]
+    TrainModels --> Gate{"Per Slice & Horizon: Val MAE(LGBM) < 0.98 * Val MAE(Best Baseline)?"}
+    Gate -- "Yes" --> SelectLGBM["Select LightGBM + Calibrate 1-7d / 8-30d 90% Empirical Radii"]
+    Gate -- "No" --> SelectBase["Select Best Baseline (moving_average or seasonal_naive) + Calibrate Radii"]
+    SelectLGBM --> Publish["Write artifacts/<dataset_id>.joblib & artifacts/evaluation.json"]
+    SelectBase --> Publish
+    Publish --> Report["Optional Reports: python -m scripts.report (MODEL_EVALUATION.md, figures/)"]
 ```
 
-### 4.1 Retraining Triggers
-1. **Periodic Cadence:** Every 30 calendar days when new transactional closing data is confirmed.
-2. **Data Distribution Drift:** When the rolling 14-day WAPE exceeds $18.0\%$ or when an Anomaly Rate shift greater than $3\sigma$ is sustained for 5 consecutive days.
-3. **Catalog Expansions:** Introduction of more than $10\%$ new SKUs or brand-new sales channels.
+### Offline Feature Exports & Rebuilding Evidence
+Running `python -m scripts.train --out artifacts` (without `--skip-features`) also exports compressed feature tables (`daily_features.csv.gz`, `customer_rfm.csv.gz`, `inventory_features.csv.gz`). Running `python -m scripts.report` regenerates `MODEL_EVALUATION.md`, `forecast_metrics.csv`, `scenario_backtest.json`, and all 10 charts in `artifacts/figures/`.
 
 ---
 
-## 5. Future Roadmap & Planned Releases
+## 5. Planned Evolution
 
-- **v1.1.0 (Q1 2027):** Automated elasticity recalibration using rolling 60-day price-promotion response data.
-- **v2.0.0 (Q2 2027):** Deep learning foundational time-series backbones (Chronos / TiDE / PatchTST) for multi-horizon hierarchical forecasting.
-- **v2.5.0 (Q3 2027):** Multi-armed bandit dynamic recommendation engine with online reinforcement learning from manager feedback.
-
+- **Periodic Elasticity Recalibration:** Empirical price elasticity estimation from observed historical promotion windows alongside catalog defaults and operator overrides.
+- **Automated Drift Alerts:** Tracking rolling out-of-sample WAPE and 90% coverage drift against validation expectations after snapshot imports.
+- **Multi-Tenant Artifact Partitioning:** Scoped `artifacts/<workspace_id>/<dataset_id>.joblib` directories once multi-tenant workspaces are introduced.
