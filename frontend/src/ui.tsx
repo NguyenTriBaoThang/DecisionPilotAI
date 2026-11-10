@@ -415,15 +415,26 @@ export function Table({
         <tbody className="divide-y divide-indigo-500/5">
           {rows.map((row, i) => (
             <tr key={i} className="hover:bg-indigo-500/5 transition-colors">
-              {columns.map((col) => (
-                <td key={col.key} className="py-2.5 px-3">
-                  {typeof row[col.key] === 'number'
-                    ? (col.format || decimal)(row[col.key] as number)
-                    : row[col.key] == null
-                    ? '—'
-                    : String(row[col.key])}
-                </td>
-              ))}
+              {columns.map((col) => {
+                const cellVal =
+                  row[col.key] ??
+                  (col.key === 'name'
+                    ? (row.product_name ?? row.channel ?? row.region ?? row.category)
+                    : col.key === 'gross_profit'
+                    ? row.profit
+                    : col.key === 'units'
+                    ? (row.orders ?? row.quantity)
+                    : undefined)
+                return (
+                  <td key={col.key} className="py-2.5 px-3">
+                    {typeof cellVal === 'number'
+                      ? (col.format || decimal)(cellVal)
+                      : cellVal == null
+                      ? '—'
+                      : String(cellVal)}
+                  </td>
+                )
+              })}
             </tr>
           ))}
         </tbody>

@@ -59,6 +59,8 @@ export const mockKPI: KPI = {
     roas: 3.42,
     stockout_units: 42,
     inventory_availability: 0.942,
+    new_customers: 580,
+    returning_customers: 840,
   },
   changes: {
     revenue: -0.112,
@@ -91,15 +93,15 @@ export const mockKPI: KPI = {
     { name: 'CarePlus Support', product_name: 'CarePlus Support', revenue: 200200000, gross_profit: 100100000, profit: 100100000, units: 280, orders: 280 },
   ],
   regions: [
-    { name: 'HCMC', region: 'HCMC', revenue: 680000000, gross_profit: 292400000, profit: 292400000 },
-    { name: 'Hanoi', region: 'Hanoi', revenue: 440000000, gross_profit: 189200000, profit: 189200000 },
-    { name: 'Da Nang', region: 'Da Nang', revenue: 210000000, gross_profit: 90300000, profit: 90300000 },
-    { name: 'Can Tho', region: 'Can Tho', revenue: 120200000, gross_profit: 53100000, profit: 53100000 },
+    { name: 'HCMC', region: 'HCMC', revenue: 680000000, gross_profit: 292400000, profit: 292400000, orders: 840 },
+    { name: 'Hanoi', region: 'Hanoi', revenue: 440000000, gross_profit: 189200000, profit: 189200000, orders: 560 },
+    { name: 'Da Nang', region: 'Da Nang', revenue: 210000000, gross_profit: 90300000, profit: 90300000, orders: 280 },
+    { name: 'Can Tho', region: 'Can Tho', revenue: 120200000, gross_profit: 53100000, profit: 53100000, orders: 160 },
   ],
   sales_channels: [
-    { name: 'Online Store', channel: 'Online Store', revenue: 780000000, gross_profit: 351000000, profit: 351000000 },
-    { name: 'Retail Store', channel: 'Retail Store', revenue: 450000000, gross_profit: 189000000, profit: 189000000 },
-    { name: 'TikTok Shop', channel: 'TikTok Shop', revenue: 220200000, gross_profit: 85000000, profit: 85000000 },
+    { name: 'Online Store', channel: 'Online Store', revenue: 780000000, gross_profit: 351000000, profit: 351000000, orders: 980 },
+    { name: 'Retail Store', channel: 'Retail Store', revenue: 450000000, gross_profit: 189000000, profit: 189000000, orders: 570 },
+    { name: 'TikTok Shop', channel: 'TikTok Shop', revenue: 220200000, gross_profit: 85000000, profit: 85000000, orders: 290 },
   ],
   marketing_channels: [
     { name: 'Meta Ads', channel: 'Meta Ads', spend: 85000000, revenue: 260000000, roas: 3.05 },

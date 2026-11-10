@@ -28,7 +28,7 @@ export function SettingsPage({ dark, setDark, session }: SettingsPageProps) {
     <>
       <Heading
         eyebrow="CONFIGURATION"
-        title="Settings & Workspace Preferences"
+        title={translate('Settings & Workspace Preferences', preferences.language)}
         subtitle="Manage appearance, interface defaults, business currency display, and workspace diagnostics."
       />
 

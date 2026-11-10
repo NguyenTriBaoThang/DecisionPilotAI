@@ -1,11 +1,8 @@
-name: Deploy Documentation Site to GitHub Pages
+name: Deploy Documentation Site & Live App to GitHub Pages
 
 on:
   push:
     branches: [main]
-    paths:
-      - 'docs-site/**'
-      - '.github/workflows/deploy-pages.yml'
   workflow_dispatch:
 
 permissions:
@@ -19,10 +16,8 @@ concurrency:
 
 jobs:
   build:
+    name: Build Documentation Portal & Live App
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: docs-site
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -32,16 +27,28 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: docs-site/package-lock.json
+          cache-dependency-path: |
+            docs-site/package-lock.json
+            frontend/package-lock.json
 
-      - name: Install docs dependencies
-        run: npm ci
+      - name: Install & Build Technical Documentation Site
+        working-directory: docs-site
+        run: |
+          npm ci
+          npm run build
 
-      - name: Build documentation production bundle
-        run: npm run build
+      - name: Install & Build Frontend Application
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
 
-      - name: Prepare SPA 404 fallback for GitHub Pages
-        run: cp dist/index.html dist/404.html
+      - name: Bundle Documentation & Live App Artifacts
+        run: |
+          mkdir -p docs-site/dist/app
+          cp -r frontend/dist/* docs-site/dist/app/
+          cp docs-site/dist/index.html docs-site/dist/404.html
+          cp docs-site/dist/app/index.html docs-site/dist/app/404.html
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
@@ -52,6 +59,7 @@ jobs:
           path: docs-site/dist
 
   deploy:
+    name: Deploy to GitHub Pages
     needs: build
     runs-on: ubuntu-latest
     environment:

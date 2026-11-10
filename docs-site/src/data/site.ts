@@ -7,7 +7,7 @@ export interface NavSection {
 }
 
 export const REPO_URL = 'https://github.com/NguyenTriBaoThang/DecisionPilotAI'
-export const APP_DEMO_URL = 'https://nguyentribaothang.github.io/DecisionPilotAI/'
+export const APP_DEMO_URL = 'https://nguyentribaothang.github.io/DecisionPilotAI/app/'
 export const VERSION = 'v1.0.0'
 export const COMPETITION = 'AI for Business Innovation 2026'
 
