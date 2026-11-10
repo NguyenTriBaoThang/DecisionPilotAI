@@ -2,7 +2,9 @@ import { test, expect } from '@playwright/test'
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
-    localStorage.setItem('dp-preferences', JSON.stringify({ language: 'en', currency: 'vnd' }))
+    if (!localStorage.getItem('dp-preferences')) {
+      localStorage.setItem('dp-preferences', JSON.stringify({ language: 'en', currency: 'vnd' }))
+    }
   })
 })
 
