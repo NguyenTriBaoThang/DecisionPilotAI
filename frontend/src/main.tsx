@@ -44,6 +44,7 @@ const TechnicalDocumentationPage = lazy(() =>
 import { DataSourcesPage } from './components/DataSourcesPage'
 import { SettingsPage } from './components/SettingsPage'
 import './styles.css'
+import { KnowledgePage } from './components/KnowledgePage'
 
 // 4-STEP PRIMARY END-TO-END DECISION WORKFLOW
 const workflowSections = [
@@ -55,6 +56,7 @@ const workflowSections = [
 
 // SECONDARY SYSTEM / CONFIGURATION TOOLS
 const systemSections = [
+  { to: '/knowledge', title: 'Kho tri thức & RAG', icon: BookOpen },
   { to: '/data-sources', title: 'Data Sources', icon: Database },
   { to: '/settings', title: 'Settings', icon: Settings },
 ]
@@ -276,6 +278,7 @@ function AppShell({ session }: { session: Session }) {
         </header>
 
         <main className="flex-1 p-4 sm:p-6 space-y-6 max-w-7xl w-full mx-auto">
+          {pathname === '/knowledge' && <KnowledgePage key={ds.data?.dataset_id} />}
           {/* Universal End-to-End Decision Stepper */}
           <EndToEndStepper />
 
@@ -290,7 +293,7 @@ function AppShell({ session }: { session: Session }) {
 
           {!ds.isLoading && !ds.data && <Link to="/data-sources">{t('Open Data Sources to import a dataset')}</Link>}
           {pathname === '/data-sources' && !ds.data && !ds.isLoading && <DataSourcesPage session={session} />}
-          {ds.data && opts.data && (
+          {pathname !== '/knowledge' && ds.data && opts.data && (
             <Routes key={ds.data.dataset_id}>
               {/* Step 1: Overview & Diagnostics */}
               <Route path="/" element={<Dashboard dataset={ds.data} options={opts.data} />} />

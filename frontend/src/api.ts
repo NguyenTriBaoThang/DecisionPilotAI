@@ -103,7 +103,7 @@ export async function send<T>(path: string, init: RequestInit = {}): Promise<T> 
   } catch {}
 
   try {
-    const response = await fetch('/api' + path, { ...init, headers, signal: init.signal ?? AbortSignal.timeout(8_000) })
+    const response = await fetch('/api' + path, { ...init, headers, signal: init.signal ?? AbortSignal.timeout(path.startsWith('/knowledge/') ? 60_000 : 8_000) })
     if (response.ok) {
       const data = await response.json().catch(() => null)
       return data as T

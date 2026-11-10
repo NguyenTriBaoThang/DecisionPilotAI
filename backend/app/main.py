@@ -19,6 +19,7 @@ from backend.app.analytics import dataset_info, options
 from backend.app.db import audit, datasets, make_engine, read_connection, simulations
 from backend.app.schemas import Feedback, Filters, ForecastRequest, Question, QueryResponse, ScenarioRequest, ScenarioFeedback
 from backend.app.security import credentials, identify
+from backend.app.knowledge import router as knowledge_router
 from scripts.pipeline import LIMIT_BYTES, SnapshotConflict, load_snapshot, read_upload
 
 log = logging.getLogger(__name__)
@@ -58,6 +59,7 @@ def create_app(engine=None):
     engine = engine if engine is not None else make_engine()
     access = credentials()
     app = FastAPI(root_path=os.getenv("ROOT_PATH","/api"),title="DecisionPilot AI",version="1.0.0",description="Business analytics and decision support for a single validated workspace.")
+    app.include_router(knowledge_router(engine))
 
     @app.middleware("http")
     async def workspace_access(request: Request, call_next):
