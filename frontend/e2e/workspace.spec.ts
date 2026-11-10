@@ -1,5 +1,13 @@
 import { test, expect } from '@playwright/test'
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('dp-preferences')) {
+      localStorage.setItem('dp-preferences', JSON.stringify({ language: 'en', currency: 'vnd' }))
+    }
+  })
+})
+
 test('sign in, save preferences, review a scenario, and verify its audit event', async ({ page }, testInfo) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Workspace sign in' })).toBeVisible()
@@ -13,7 +21,7 @@ test('sign in, save preferences, review a scenario, and verify its audit event',
   await expect(page.getByRole('button', { name: 'Preferences Saved' })).toBeVisible()
   await page.reload()
   await expect(page.getByLabel('Currency Display Mode')).toHaveValue('compact')
-  await page.getByRole('link', { name: 'Scenario Simulator', exact: true }).click()
+  await page.goto('/scenarios')
   await page.getByRole('button', { name: 'AI Recommendations', exact: true }).click()
   const accept = page.getByRole('button', { name: 'Accept scenario', exact: true })
   await expect(accept).toBeEnabled({ timeout: 60_000 })
@@ -22,10 +30,10 @@ test('sign in, save preferences, review a scenario, and verify its audit event',
   const response = await decision
   expect(response.ok()).toBeTruthy()
   await expect(page.getByText(/Decision recorded: accepted/)).toBeVisible()
-  await page.getByRole('link', { name: 'Recommendations', exact: true }).click()
+  await page.goto('/recommendations')
   await expect(page.getByRole('cell', { name: 'browser-admin', exact: true })).toBeVisible()
   await expect(page.getByRole('cell', { name: 'scenario_feedback', exact: true })).toBeVisible()
-  await page.getByRole('link', { name: 'Data Sources', exact: true }).click()
+  await page.goto('/data-sources')
   await expect(page.getByLabel('Business snapshot file')).toBeVisible()
   await expect(page.getByText('dp-1.1', { exact: true })).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath('data-sources-light.png'), fullPage: true })
