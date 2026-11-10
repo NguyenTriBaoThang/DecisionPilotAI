@@ -1,5 +1,11 @@
 import { test, expect } from '@playwright/test'
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('dp-preferences', JSON.stringify({ language: 'en', currency: 'vnd' }))
+  })
+})
+
 test('sign in, save preferences, review a scenario, and verify its audit event', async ({ page }, testInfo) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Workspace sign in' })).toBeVisible()
