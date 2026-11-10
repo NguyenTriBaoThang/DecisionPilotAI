@@ -22,7 +22,7 @@ import {
   X,
 } from 'lucide-react'
 import { type Dataset, type Options, type Session, ApiError, dateLabel, request } from './api'
-import { PreferencesProvider, translate, usePreferences, useT } from './preferences'
+import { PreferencesProvider, translate, usePageTranslations, usePreferences, useT } from './preferences'
 import { ErrorState, Loading } from './ui'
 import { Dashboard } from './Dashboard'
 import { Alerts, Ask, ForecastPage, Recommendations, type ChatMessage } from './WorkspacePages'
@@ -66,6 +66,7 @@ const client = new QueryClient({
 function AppShell({ session }: { session: Session }) {
   const { preferences } = usePreferences()
   const { t } = useT()
+  usePageTranslations(preferences.language)
   const [dark, setDark] = useState(() => localStorage.getItem('dp-theme') !== 'light')
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
