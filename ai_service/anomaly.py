@@ -7,7 +7,7 @@ import sqlalchemy as sa
 from sklearn.ensemble import IsolationForest
 from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
 
-from backend.app.db import inventory, products
+from backend.app.db import inventory, products, tenant_inventory_daily, tenant_products
 
 DIRECTIONS = {
     "revenue": "low", "margin": "low", "units": "both", "facebook_spend": "high",
@@ -27,7 +27,14 @@ ACTIONS = {
 
 def signals(values, metric):
     # The seven-day exclusion reduces contamination from an ongoing event.
-    recent = values.shift(7).rolling(56,min_periods=28)
+    n = len(values)
+    if n >= 56:
+        recent = values.shift(7).rolling(56, min_periods=28)
+    elif n >= 10:
+        shift_k = max(2, min(7, n // 5))
+        recent = values.shift(shift_k).rolling(max(7, n // 2), min_periods=max(5, n // 4))
+    else:
+        recent = values.shift(1).rolling(1, min_periods=999)
     median = recent.median()
     q1,q3 = recent.quantile(.25),recent.quantile(.75)
     floor = median.abs()*.03 + 1e-8
@@ -63,7 +70,7 @@ def detect(metric, series, model):
     # Daily noise can hide sustained contractions. Compare complete weeks only;
     # the reference ends before the monitored week and uses no future values.
     work["sustained_flag"] = False
-    if metric == "revenue":
+    if metric == "revenue" and len(series) >= 42:
         weekly = series.rolling(7, min_periods=7).mean()
         reference = weekly.shift(7).rolling(56, min_periods=28)
         baseline = reference.median()
@@ -91,13 +98,17 @@ def event_labels(index, events, metric):
 
 def fit_detectors(frame, manifest):
     train_end, test_start = int(len(frame)*.70), int(len(frame)*.85)
+    min_fit = 28 if len(frame) >= 56 else 12
     models, report = {}, {}
     for metric in DIRECTIONS:
+        if metric not in frame or frame[metric].dropna().empty:
+            models[metric] = None
+            continue
         stats = signals(frame[metric],metric)
         x = stats[["robust","z"]].iloc[:train_end].dropna().to_numpy()
-        model = IsolationForest(n_estimators=120,contamination=.065,random_state=42,n_jobs=1).fit(x) if len(x) >= 28 else None
+        model = IsolationForest(n_estimators=120,contamination=.065,random_state=42,n_jobs=1).fit(x) if len(x) >= min_fit else None
         models[metric] = model
-        if manifest["kind"] == "synthetic":
+        if manifest.get("kind") == "synthetic":
             work = detect(metric,frame[metric],model).iloc[test_start:]
             labels = event_labels(work.index,manifest.get("injected_events", []),metric)
             report[metric] = {name:classification(labels, flags.fillna(False)) for name,flags in {
@@ -107,16 +118,38 @@ def fit_detectors(frame, manifest):
     return models,report
 
 
-def inventory_risk(conn, start, end):
-    ledger, p = inventory.c, products.c
+def inventory_risk(conn, start, end, info=None):
     start_read = start - timedelta(days=28)
-    q = sa.select(inventory, p.product_name, p.lead_time_days).select_from(inventory.join(products)).where(
-        ledger.date.between(start_read,end)).order_by(ledger.date)
+    if info and info.get("storage_mode") == "partitioned":
+        caps = info.get("capabilities") or {}
+        if not caps.get("has_inventory"):
+            return []
+        cid, did = info["company_id"], info["dataset_id"]
+        ledger, p = tenant_inventory_daily.c, tenant_products.c
+        q = (
+            sa.select(tenant_inventory_daily, p.product_name, p.lead_time_days)
+            .select_from(
+                tenant_inventory_daily.join(
+                    tenant_products,
+                    sa.and_(
+                        ledger.company_id == p.company_id,
+                        ledger.dataset_id == p.dataset_id,
+                        ledger.product_id == p.product_id,
+                    ),
+                )
+            )
+            .where(ledger.company_id == cid, ledger.dataset_id == did, ledger.date.between(start_read, end))
+            .order_by(ledger.date)
+        )
+    else:
+        ledger, p = inventory.c, products.c
+        q = sa.select(inventory, p.product_name, p.lead_time_days).select_from(inventory.join(products)).where(
+            ledger.date.between(start_read,end)).order_by(ledger.date)
     frame = pd.read_sql(q,conn)
     if frame.empty:
         return []
     frame["rate"] = frame.groupby("product_id").sold_qty.transform(lambda x: x.shift().rolling(28,min_periods=7).mean())
-    frame["required"] = frame.rate * frame.lead_time_days
+    frame["required"] = frame.rate * frame.lead_time_days.fillna(7)
     flags = (frame.date >= start) & (frame.required > 0) & (frame.closing_stock < frame.required)
     return list(frame.loc[flags].itertuples(index=False))
 
@@ -126,12 +159,21 @@ def severity(relative, strength):
     return score, ("critical" if score >= 77 else "high" if score >= 52 else "medium")
 
 
-def alert_list(conn, frame, models, start, end):
+def alert_list(conn, frame, models, start, end, info=None):
     alerts = []
+    baseline_method = (
+        "56-day trailing median with seven-day exclusion"
+        if len(frame) >= 56
+        else "Adaptive trailing median with exclusion window"
+    )
     for metric in DIRECTIONS:
+        if metric not in frame or frame[metric].dropna().shape[0] < 7:
+            continue
         work = detect(metric,frame[metric],models.get(metric))
         flagged = work.loc[str(start):str(end)]
         flagged = flagged[flagged.flag]
+        if flagged.empty:
+            continue
         streaks = flagged.index.to_series().diff().dt.days.ne(1).cumsum()
         for _, batch in flagged.groupby(streaks):
             actual, baseline = float(batch.actual.mean()),float(batch.baseline.mean())
@@ -149,13 +191,13 @@ def alert_list(conn, frame, models, start, end):
             alerts.append(dict(id=f"{metric}:{batch.index[0].date()}", metric=metric, start=str(batch.index[0].date()),
                 end=str(batch.index[-1].date()), actual=actual, baseline=baseline, deviation=relative, severity=level,
                 score=score, action=action, scope="Facebook Ads" if metric.startswith("facebook_") else "Business-wide",
-                evidence=dict(daily_points=len(batch), baseline_method="56-day trailing median with seven-day exclusion",
+                evidence=dict(daily_points=len(batch), baseline_method=baseline_method,
                     isolation_forest_signals=int((batch.isolation_score < 0).sum()),
                     sustained_week_signals=int(batch.sustained_flag.sum())),
                 chart=[dict(date=str(index.date()),actual=float(row.actual),baseline=float(row.baseline) if pd.notna(row.baseline) else None)
                        for index,row in history.iterrows() if pd.notna(row.actual)]))
     latest = {}
-    for row in inventory_risk(conn,start,end):
+    for row in inventory_risk(conn,start,end,info=info):
         latest[row.product_id] = row
     for pid,row in latest.items():
         relative = (row.closing_stock-row.required)/row.required

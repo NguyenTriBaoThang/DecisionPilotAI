@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Check, Zap } from 'lucide-react'
 import { decimal, moneyCompact, type Options, type Scenario } from '../../../../api'
 import { Button } from '../../../../ui'
@@ -25,13 +25,21 @@ export function MarketingScenarioTab({
   scenarioData,
   preset,
 }: MarketingScenarioTabProps) {
-  const defaultChannel = options.marketing_channels[0] || 'Facebook Ads'
+  const defaultChannel = options.marketing_channels[0] || ''
   const [channel, setChannel] = useState(preset?.channel ?? defaultChannel)
   const [budgetChangePct, setBudgetChangePct] = useState(preset?.pct ?? 20)
   const [objective, setObjective] = useState<'profit' | 'revenue' | 'balanced'>('profit')
   const [horizon] = useState(30)
 
+  useEffect(() => {
+    if (preset?.channel) return
+    if (!options.marketing_channels.includes(channel)) {
+      setChannel(defaultChannel)
+    }
+  }, [options.marketing_channels, defaultChannel, channel, preset])
+
   const handleRun = () => {
+    if (!channel) return
     const changes =
       preset && channel === preset.channel && budgetChangePct === preset.pct
         ? preset.changes
@@ -52,10 +60,19 @@ export function MarketingScenarioTab({
 
   return (
     <div className="space-y-4">
+      {options.marketing_channels.length === 0 && (
+        <div
+          className="rounded-lg border p-3 text-xs"
+          style={{ background: 'var(--warning-bg)', borderColor: 'var(--warning-border)', color: 'var(--warning-text)' }}
+        >
+          No marketing spend or channel attribution fields exist in the active dataset. Map Marketing Spend and Channel columns to simulate ad budget shifts.
+        </div>
+      )}
       <div className="grid grid-cols-1 gap-3 text-xs">
         <label className="dp-field">
           <span className="dp-field-label">Marketing Channel</span>
-          <select value={channel} onChange={(e) => setChannel(e.target.value)} className="dp-select">
+          <select value={channel} onChange={(e) => setChannel(e.target.value)} className="dp-select" disabled={!options.marketing_channels.length}>
+            {options.marketing_channels.length === 0 && <option value="">No marketing channels available</option>}
             {options.marketing_channels.map((ch) => (
               <option key={ch} value={ch}>
                 {ch}
@@ -114,7 +131,7 @@ export function MarketingScenarioTab({
         <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
           Diminishing returns model: Exponent α = 0.65
         </span>
-        <Button variant="primary" onClick={handleRun} disabled={isLoading}>
+        <Button variant="primary" onClick={handleRun} disabled={isLoading || !channel}>
           <Zap size={14} />
           <span>{isLoading ? 'Calculating ROAS…' : 'Simulate Budget Shift'}</span>
         </Button>

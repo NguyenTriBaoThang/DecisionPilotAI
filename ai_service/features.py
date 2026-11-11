@@ -3,7 +3,17 @@ import numpy as np
 import pandas as pd
 import sqlalchemy as sa
 
-from backend.app.db import calendar, customers, inventory, marketing, products, sales
+from backend.app.db import (
+    calendar,
+    customers,
+    inventory,
+    marketing,
+    products,
+    sales,
+    tenant_marketing_daily,
+    tenant_products,
+    tenant_transactions,
+)
 
 FEATURES = ("lag_1","lag_7","lag_14","lag_28","mean_7","std_7","mean_14","std_14","mean_28","std_28",
             "growth_7","weekday","month","quarter","weekend","holiday","scale")
@@ -24,6 +34,64 @@ def lag_features(history, day, scale, holiday=None):
 def observed_series(conn, info):
     """Target matrices are indexed by dataset date and scope, with zero-sale days retained."""
     dates = pd.date_range(info["start"], info["end"])
+    if info.get("storage_mode") == "partitioned":
+        cid, did = info["company_id"], info["dataset_id"]
+        catalog = pd.read_sql(
+            sa.select(tenant_products.c.product_id, tenant_products.c.category)
+            .where(tenant_products.c.company_id == cid, tenant_products.c.dataset_id == did),
+            conn,
+        )
+        tx = tenant_transactions.c
+        frame = pd.read_sql(
+            sa.select(
+                tx.date,
+                tx.product_id,
+                sa.func.sum(tx.revenue).label("revenue"),
+                sa.func.count().label("orders"),
+                sa.func.sum(tx.quantity).label("demand"),
+            )
+            .where(tx.company_id == cid, tx.dataset_id == did)
+            .group_by(tx.date, tx.product_id),
+            conn,
+        )
+        frame["date"] = pd.to_datetime(frame["date"])
+        # Keep top 120 SKUs by revenue when uploaded catalog is very wide to keep model build bounded
+        if len(catalog) > 120 and not frame.empty:
+            top_pids = set(frame.groupby("product_id")["revenue"].sum().nlargest(120).index)
+            catalog_sku = catalog[catalog["product_id"].isin(top_pids)]
+        else:
+            catalog_sku = catalog
+        ids = sorted(catalog_sku.product_id.unique())
+        # Aggregate full frame by category independently so category totals remain 100% exact
+        cat_frame = pd.read_sql(
+            sa.select(
+                tx.date,
+                tx.category,
+                sa.func.sum(tx.revenue).label("revenue"),
+                sa.func.count().label("orders"),
+                sa.func.sum(tx.quantity).label("demand"),
+            )
+            .where(tx.company_id == cid, tx.dataset_id == did)
+            .group_by(tx.date, tx.category),
+            conn,
+        )
+        cat_frame["date"] = pd.to_datetime(cat_frame["date"])
+        all_frame = frame.groupby("date")[["revenue", "orders", "demand"]].sum().reindex(dates).fillna(0)
+        categories = sorted(catalog.category.unique())
+        labels = ["all", *["sku:" + x for x in ids], *["category:" + x for x in categories]]
+        matrices = {}
+        for target in ("revenue", "orders", "demand"):
+            sku_pivot = frame.pivot(index="date", columns="product_id", values=target).reindex(index=dates, columns=ids).fillna(0)
+            cat_pivot = cat_frame.pivot(index="date", columns="category", values=target).reindex(index=dates, columns=categories).fillna(0)
+            blocks = [all_frame[target].to_numpy()[None, :]]
+            if len(ids):
+                blocks.append(sku_pivot.to_numpy().T)
+            if len(categories):
+                blocks.append(cat_pivot.to_numpy().T)
+            matrices[target] = np.vstack(blocks).astype(float)
+        holidays = {ts.date(): (ts.month, ts.day) in HOLIDAYS for ts in dates}
+        return [d.date() for d in dates], labels, matrices, holidays
+
     catalog = pd.read_sql(sa.select(products.c.product_id, products.c.category), conn)
     cols = sales.c
     frame = pd.read_sql(sa.select(cols.date, cols.product_id, sa.func.sum(cols.revenue).label("revenue"),
@@ -44,6 +112,70 @@ def observed_series(conn, info):
 
 def anomaly_frame(conn, info):
     days = pd.date_range(info["start"],info["end"])
+    if info.get("storage_mode") == "partitioned":
+        cid, did = info["company_id"], info["dataset_id"]
+        caps = info.get("capabilities") or {}
+        has_gp = caps.get("has_cost_or_profit", True)
+        tx = tenant_transactions.c
+        frame = pd.read_sql(
+            sa.select(
+                tx.date,
+                sa.func.sum(tx.revenue).label("revenue"),
+                (sa.func.sum(tx.gross_profit).label("gross_profit") if has_gp else sa.literal(0.0).label("gross_profit")),
+                sa.func.sum(tx.quantity).label("units"),
+                sa.func.count().label("orders"),
+            )
+            .where(tx.company_id == cid, tx.dataset_id == did)
+            .group_by(tx.date)
+            .order_by(tx.date),
+            conn,
+        )
+        frame.date = pd.to_datetime(frame.date)
+        frame = frame.set_index("date").reindex(days).fillna(0.0)
+        frame["margin"] = (frame.gross_profit / frame.revenue.where(frame.revenue > 0)) if has_gp else np.nan
+        if caps.get("has_marketing"):
+            m = tenant_marketing_daily.c
+            fb = pd.read_sql(
+                sa.select(
+                    m.date,
+                    *(sa.func.sum(m[k]).label(k) for k in ("spend", "attributed_revenue", "orders", "leads")),
+                )
+                .where(m.company_id == cid, m.dataset_id == did, m.channel == "Facebook Ads")
+                .group_by(m.date),
+                conn,
+            )
+            if not fb.empty:
+                fb.date = pd.to_datetime(fb.date)
+                fb = fb.set_index("date").reindex(days)
+                frame["facebook_spend"] = fb.spend
+                frame["facebook_roas"] = fb.attributed_revenue / fb.spend.where(fb.spend > 0)
+                frame["facebook_conversion"] = fb.orders / fb.leads.where(fb.leads > 0)
+            else:
+                frame["facebook_spend"] = np.nan
+                frame["facebook_roas"] = np.nan
+                frame["facebook_conversion"] = np.nan
+            other = pd.read_sql(
+                sa.select(
+                    m.date,
+                    *(sa.func.sum(m[k]).label(k) for k in ("spend", "attributed_revenue", "orders", "leads")),
+                )
+                .where(m.company_id == cid, m.dataset_id == did)
+                .group_by(m.date),
+                conn,
+            )
+            other.date = pd.to_datetime(other.date)
+            other = other.set_index("date").reindex(days)
+            frame["marketing_spend"] = other.spend
+            frame["marketing_roas"] = other.attributed_revenue / other.spend.where(other.spend > 0)
+            frame["marketing_conversion"] = other.orders / other.leads.where(other.leads > 0)
+        else:
+            for col_name in (
+                "facebook_spend", "facebook_roas", "facebook_conversion",
+                "marketing_spend", "marketing_roas", "marketing_conversion",
+            ):
+                frame[col_name] = np.nan
+        return frame
+
     frame = pd.read_sql(sa.text("SELECT date, revenue, gross_profit, units, orders FROM daily_sales ORDER BY date"),conn)
     frame.date = pd.to_datetime(frame.date)
     frame = frame.set_index("date").reindex(days).fillna(0)

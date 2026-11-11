@@ -34,10 +34,10 @@ const quickRoutes = [
 ]
 
 const sampleQueries = [
-  'Why did revenue decrease this month?',
+  'Why did revenue change recently?',
   'Which marketing channel had the lowest ROAS?',
   'Which product generated the highest profit?',
-  'Forecast demand for SmartDesk Mini for the next 30 days.',
+  'How is our business performing this month?',
 ]
 
 export function GlobalSearchDialog({ open, onClose }: GlobalSearchDialogProps) {

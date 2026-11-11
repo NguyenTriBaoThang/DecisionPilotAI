@@ -101,8 +101,10 @@ audit = sa.Table(
     "audit_events", metadata, C("id", sa.Integer, primary_key=True),
     C("occurred_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
     label("kind"), C("subject", sa.String(100), nullable=False), C("payload", sa.JSON, nullable=False),
+    C("company_id", sa.String(64), nullable=False, server_default="comp-default"),
 )
 sa.Index("ix_audit_kind_subject_id", audit.c.kind, audit.c.subject, audit.c.id)
+sa.Index("ix_audit_company_id_id", audit.c.company_id, audit.c.id)
 DATA_TABLES = (calendar, products, customers, marketing, sales, inventory)
 
 simulations = sa.Table(
@@ -110,6 +112,196 @@ simulations = sa.Table(
     C("dataset_id", sa.String(24), nullable=False, index=True),
     C("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
     C("payload", sa.JSON, nullable=False),
+    C("company_id", sa.String(64), nullable=False, server_default="comp-default"),
+)
+sa.Index("ix_simulation_runs_company_dataset", simulations.c.company_id, simulations.c.dataset_id)
+
+# ---------------------------------------------------------------------------
+# Multi-Tenant Enterprise Data Ingestion & Partitioned Analytical Tables
+# ---------------------------------------------------------------------------
+
+companies = sa.Table(
+    "companies", metadata,
+    C("id", sa.String(64), primary_key=True),
+    C("name", sa.String(120), nullable=False),
+    C("slug", sa.String(80), nullable=False, unique=True),
+    C("status", sa.String(32), nullable=False, server_default="active"),
+    C("active_dataset_id", sa.String(64), nullable=True),
+    C("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    C("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+)
+
+data_sources = sa.Table(
+    "data_sources", metadata,
+    C("id", sa.String(64), primary_key=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("name", sa.String(120), nullable=False),
+    C("source_type", sa.String(40), nullable=False),
+    C("config_json", sa.JSON, nullable=False),
+    C("status", sa.String(32), nullable=False, server_default="active"),
+    C("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    C("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+)
+
+enterprise_datasets = sa.Table(
+    "datasets", metadata,
+    C("id", sa.String(64), primary_key=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("data_source_id", sa.ForeignKey("data_sources.id"), nullable=False, index=True),
+    C("name", sa.String(160), nullable=False),
+    C("kind", sa.String(32), nullable=False, server_default="uploaded"),
+    C("status", sa.String(32), nullable=False, server_default="uploaded"),
+    C("storage_mode", sa.String(32), nullable=False, server_default="partitioned"),
+    C("file_name", sa.String(255), nullable=True),
+    C("file_format", sa.String(24), nullable=True),
+    C("file_size_bytes", sa.BigInteger, nullable=False, server_default="0"),
+    C("checksum_sha256", sa.String(64), nullable=True),
+    C("raw_storage_key", sa.String(500), nullable=True),
+    C("cleaned_storage_key", sa.String(500), nullable=True),
+    C("selected_sheet", sa.String(120), nullable=True),
+    C("row_count", sa.Integer, nullable=False, server_default="0"),
+    C("valid_rows", sa.Integer, nullable=False, server_default="0"),
+    C("invalid_rows", sa.Integer, nullable=False, server_default="0"),
+    C("duplicate_rows", sa.Integer, nullable=False, server_default="0"),
+    C("date_start", sa.Date, nullable=True),
+    C("date_end", sa.Date, nullable=True),
+    C("mapping_confirmed", sa.Boolean, nullable=False, server_default=sa.false()),
+    C("quality_confirmed", sa.Boolean, nullable=False, server_default=sa.false()),
+    C("is_active", sa.Boolean, nullable=False, server_default=sa.false()),
+    C("mapping_json", sa.JSON, nullable=True),
+    C("cleaning_policy_json", sa.JSON, nullable=True),
+    C("capabilities_json", sa.JSON, nullable=True),
+    C("metadata_json", sa.JSON, nullable=False),
+    C("created_by", sa.String(100), nullable=False),
+    C("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    C("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    C("imported_at", sa.DateTime(timezone=True), nullable=True),
+)
+sa.Index("ix_datasets_company_status", enterprise_datasets.c.company_id, enterprise_datasets.c.status)
+
+mapping_templates = sa.Table(
+    "mapping_templates", metadata,
+    C("id", sa.String(64), primary_key=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("name", sa.String(120), nullable=False),
+    C("source_signature", sa.String(64), nullable=False, index=True),
+    C("mappings_json", sa.JSON, nullable=False),
+    C("custom_fields_json", sa.JSON, nullable=False),
+    C("created_by", sa.String(100), nullable=False),
+    C("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    C("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+)
+
+dataset_quality_reports = sa.Table(
+    "dataset_quality_reports", metadata,
+    C("id", sa.String(64), primary_key=True),
+    C("dataset_id", sa.ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False, index=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("overall_score", sa.Float, nullable=False),
+    C("completeness_score", sa.Float, nullable=False),
+    C("validity_score", sa.Float, nullable=False),
+    C("consistency_score", sa.Float, nullable=False),
+    C("uniqueness_score", sa.Float, nullable=False),
+    C("accuracy_score", sa.Float, nullable=False),
+    C("total_rows", sa.Integer, nullable=False),
+    C("valid_rows", sa.Integer, nullable=False),
+    C("invalid_rows", sa.Integer, nullable=False),
+    C("missing_values_count", sa.Integer, nullable=False),
+    C("duplicate_records_count", sa.Integer, nullable=False),
+    C("column_metrics_json", sa.JSON, nullable=False),
+    C("warnings_json", sa.JSON, nullable=False),
+    C("error_summary_json", sa.JSON, nullable=False),
+    C("error_report_storage_key", sa.String(500), nullable=True),
+    C("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+)
+
+import_logs = sa.Table(
+    "import_logs", metadata,
+    C("id", sa.Integer, primary_key=True),
+    C("dataset_id", sa.ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False, index=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("data_source_id", sa.ForeignKey("data_sources.id"), nullable=False),
+    C("stage", sa.String(40), nullable=False),
+    C("status", sa.String(32), nullable=False),
+    C("actor", sa.String(100), nullable=False),
+    C("details_json", sa.JSON, nullable=False),
+    C("error_message", sa.Text, nullable=True),
+    C("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+)
+sa.Index("ix_import_logs_company_dataset_id", import_logs.c.company_id, import_logs.c.dataset_id, import_logs.c.id)
+
+tenant_products = sa.Table(
+    "tenant_products", metadata,
+    C("company_id", sa.String(64), primary_key=True),
+    C("dataset_id", sa.String(64), primary_key=True),
+    C("product_id", sa.String(120), primary_key=True),
+    C("product_name", sa.String(160), nullable=False),
+    C("category", sa.String(120), nullable=False),
+    C("brand", sa.String(120), nullable=False),
+    C("list_price", sa.Float, nullable=False),
+    C("unit_cost", sa.Float, nullable=False),
+    C("supplier", sa.String(120), nullable=False),
+    C("is_physical", sa.Boolean, nullable=False, server_default=sa.true()),
+    C("lead_time_days", sa.Integer, nullable=True),
+    C("reorder_point", sa.Integer, nullable=True),
+    C("current_stock", sa.Integer, nullable=True),
+    C("elasticity", sa.Float, nullable=False, server_default="-1.0"),
+)
+
+tenant_transactions = sa.Table(
+    "tenant_transactions", metadata,
+    C("company_id", sa.String(64), primary_key=True),
+    C("dataset_id", sa.String(64), primary_key=True),
+    C("row_num", sa.Integer, primary_key=True),
+    C("transaction_id", sa.String(64), nullable=False),
+    C("date", sa.Date, nullable=False),
+    C("product_id", sa.String(120), nullable=False),
+    C("product_name", sa.String(160), nullable=False),
+    C("category", sa.String(120), nullable=False),
+    C("customer_id", sa.String(120), nullable=False),
+    C("customer_segment", sa.String(120), nullable=False),
+    C("region", sa.String(120), nullable=False),
+    C("sales_channel", sa.String(120), nullable=False),
+    C("quantity", sa.Integer, nullable=False),
+    C("unit_price", sa.Float, nullable=False),
+    C("discount_pct", sa.Float, nullable=False, server_default="0"),
+    C("revenue", sa.Float, nullable=False),
+    C("unit_cost", sa.Float, nullable=False, server_default="0"),
+    C("total_cost", sa.Float, nullable=False, server_default="0"),
+    C("gross_profit", sa.Float, nullable=True),
+    C("marketing_channel", sa.String(120), nullable=True),
+    C("marketing_spend", sa.Float, nullable=True),
+    C("inventory_level", sa.Integer, nullable=True),
+    C("custom_fields_json", sa.JSON, nullable=True),
+)
+sa.Index("ix_tenant_tx_company_dataset_date", tenant_transactions.c.company_id, tenant_transactions.c.dataset_id, tenant_transactions.c.date)
+sa.Index("ix_tenant_tx_company_dataset_prod", tenant_transactions.c.company_id, tenant_transactions.c.dataset_id, tenant_transactions.c.product_id)
+
+tenant_marketing_daily = sa.Table(
+    "tenant_marketing_daily", metadata,
+    C("company_id", sa.String(64), primary_key=True),
+    C("dataset_id", sa.String(64), primary_key=True),
+    C("date", sa.Date, primary_key=True),
+    C("channel", sa.String(120), primary_key=True),
+    C("spend", sa.Float, nullable=False),
+    C("attributed_revenue", sa.Float, nullable=False),
+    C("orders", sa.Integer, nullable=False),
+    C("leads", sa.Integer, nullable=False),
+    C("clicks", sa.Integer, nullable=False),
+    C("impressions", sa.Integer, nullable=False),
+)
+
+tenant_inventory_daily = sa.Table(
+    "tenant_inventory_daily", metadata,
+    C("company_id", sa.String(64), primary_key=True),
+    C("dataset_id", sa.String(64), primary_key=True),
+    C("date", sa.Date, primary_key=True),
+    C("product_id", sa.String(120), primary_key=True),
+    C("opening_stock", sa.Integer, nullable=False),
+    C("received_qty", sa.Integer, nullable=False),
+    C("sold_qty", sa.Integer, nullable=False),
+    C("closing_stock", sa.Integer, nullable=False),
+    C("stockout_flag", sa.Boolean, nullable=False),
 )
 
 

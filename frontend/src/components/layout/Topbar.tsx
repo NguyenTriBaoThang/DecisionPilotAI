@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import {
   Bell,
   BookOpen,
+  Building2,
   Calendar,
+  Check,
   ChevronDown,
   Database,
   LogOut,
@@ -12,18 +14,30 @@ import {
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
+  Plus,
   Search,
   Settings,
   Sun,
   User,
 } from 'lucide-react'
-import { dateLabel, percent, request, type Alert, type Dataset, type Session } from '../../api'
+import {
+  createCompany,
+  dateLabel,
+  listCompanies,
+  percent,
+  request,
+  type Alert,
+  type Dataset,
+  type Session,
+} from '../../api'
 import { useT } from '../../preferences'
 import { StatusBadge } from '../../ui'
 import { LanguageSwitcher } from '../LanguageSwitcher'
 
 interface TopbarProps {
   activeTitle: string
+  companyId: string
+  onChangeCompany: (companyId: string) => void
   dataset?: Dataset
   session: Session
   dark: boolean
@@ -36,6 +50,8 @@ interface TopbarProps {
 
 export function Topbar({
   activeTitle,
+  companyId,
+  onChangeCompany,
   dataset,
   session,
   dark,
@@ -46,21 +62,46 @@ export function Topbar({
   onOpenSearch,
 }: TopbarProps) {
   const { t } = useT()
+  const queryClient = useQueryClient()
   const [notifOpen, setNotifOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [workspaceOpen, setWorkspaceOpen] = useState(false)
+  const [newCompanyName, setNewCompanyName] = useState('')
+  const [createError, setCreateError] = useState('')
   const [deferredReady, setDeferredReady] = useState(false)
   const notifRef = useRef<HTMLDivElement>(null)
   const profileRef = useRef<HTMLDivElement>(null)
+  const workspaceRef = useRef<HTMLDivElement>(null)
+
+  const companiesQuery = useQuery({
+    queryKey: ['companies'],
+    queryFn: listCompanies,
+    staleTime: 60_000,
+  })
+
+  const createTenant = useMutation({
+    mutationFn: (name: string) => createCompany({ name, activate: true }),
+    onSuccess: async (created) => {
+      setNewCompanyName('')
+      setCreateError('')
+      setWorkspaceOpen(false)
+      await queryClient.invalidateQueries({ queryKey: ['companies'] })
+      onChangeCompany(created.id)
+    },
+    onError: (err) => {
+      setCreateError(err instanceof Error ? err.message : 'Unable to create company workspace.')
+    },
+  })
 
   useEffect(() => {
     setDeferredReady(false)
     if (!dataset) return
     const timer = window.setTimeout(() => setDeferredReady(true), 6000)
     return () => window.clearTimeout(timer)
-  }, [dataset?.dataset_id])
+  }, [companyId, dataset?.dataset_id])
 
   const alertsQuery = useQuery({
-    queryKey: ['anomalies-radar', dataset?.dataset_id],
+    queryKey: ['anomalies-radar', companyId, dataset?.dataset_id],
     queryFn: () => request<{ rows: Alert[] }>('/anomalies?limit=6'),
     enabled: !!dataset && (notifOpen || deferredReady),
     staleTime: 5 * 60_000,
@@ -70,10 +111,16 @@ export function Topbar({
     const handleClickOutside = (e: MouseEvent) => {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false)
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileOpen(false)
+      if (workspaceRef.current && !workspaceRef.current.contains(e.target as Node)) setWorkspaceOpen(false)
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  const companies = companiesQuery.data?.items || []
+  const activeCompany = companies.find((c) => c.id === companyId) || companies[0]
+  const canCreateCompany =
+    session.role === 'admin' && (!session.company_ids || session.company_ids.includes('*'))
 
   const alerts = (alertsQuery.data?.rows || []).slice(0, 5)
   const criticalCount = alerts.filter((a) => a.severity === 'critical' || a.severity === 'high').length
@@ -157,6 +204,122 @@ export function Topbar({
         >
           <Search size={15} />
         </button>
+
+        {/* Multi-Tenant Company Workspace Switcher */}
+        <div className="relative" ref={workspaceRef}>
+          <button
+            type="button"
+            onClick={() => {
+              setWorkspaceOpen((prev) => !prev)
+              setNotifOpen(false)
+              setProfileOpen(false)
+            }}
+            aria-label={t('Company Workspace')}
+            aria-expanded={workspaceOpen}
+            className="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium hover:bg-[var(--surface-muted)] transition-colors max-w-[190px]"
+            style={{
+              background: 'var(--surface)',
+              borderColor: 'var(--border)',
+              color: 'var(--heading)',
+            }}
+          >
+            <Building2 size={13} style={{ color: 'var(--primary)' }} className="flex-shrink-0" />
+            <span className="truncate">{activeCompany?.name || companyId}</span>
+            <ChevronDown size={12} style={{ color: 'var(--text-muted)' }} className="flex-shrink-0" />
+          </button>
+
+          {workspaceOpen && (
+            <div
+              className="absolute right-0 mt-2 w-72 rounded-xl border p-2.5 space-y-2 z-50 text-xs"
+              style={{
+                background: 'var(--surface)',
+                borderColor: 'var(--border-strong)',
+                boxShadow: 'var(--shadow-lg)',
+              }}
+            >
+              <div className="flex items-center justify-between px-1.5 pb-1.5 border-b" style={{ borderColor: 'var(--border)' }}>
+                <span className="font-semibold" style={{ color: 'var(--heading)' }}>
+                  {t('Company Workspace')}
+                </span>
+                <span className="text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>
+                  {companies.length} tenant{companies.length === 1 ? '' : 's'}
+                </span>
+              </div>
+
+              <div className="max-h-52 overflow-y-auto space-y-1">
+                {companies.map((c) => {
+                  const selected = c.id === companyId
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => {
+                        setWorkspaceOpen(false)
+                        if (c.id !== companyId) onChangeCompany(c.id)
+                      }}
+                      className="w-full flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-[var(--surface-muted)]"
+                      style={selected ? { background: 'var(--primary-soft)' } : undefined}
+                    >
+                      <div className="min-w-0">
+                        <div className="font-semibold truncate" style={{ color: 'var(--heading)' }}>
+                          {c.name}
+                        </div>
+                        <div className="text-[10px] truncate" style={{ color: 'var(--text-secondary)' }}>
+                          {c.dataset_count ?? 0} dataset{(c.dataset_count ?? 0) === 1 ? '' : 's'}
+                          {c.active_dataset_id ? ` · Active: ${c.active_dataset_id.slice(0, 10)}` : ` · ${t('Empty Company Workspace')}`}
+                        </div>
+                      </div>
+                      {selected && <Check size={14} style={{ color: 'var(--primary)' }} className="flex-shrink-0" />}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {canCreateCompany && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    const trimmed = newCompanyName.trim()
+                    if (trimmed.length >= 2 && !createTenant.isPending) {
+                      createTenant.mutate(trimmed)
+                    }
+                  }}
+                  className="pt-2 border-t space-y-1.5"
+                  style={{ borderColor: 'var(--border)' }}
+                >
+                  <div className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+                    {t('Create Company Workspace')}
+                  </div>
+                  <div className="flex gap-1.5">
+                    <input
+                      type="text"
+                      value={newCompanyName}
+                      onChange={(e) => setNewCompanyName(e.target.value)}
+                      placeholder="e.g. Acme Retail Ltd."
+                      className="dp-input flex-1 text-xs py-1.5"
+                      minLength={2}
+                      maxLength={80}
+                    />
+                    <button
+                      type="submit"
+                      disabled={createTenant.isPending || newCompanyName.trim().length < 2}
+                      className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50"
+                      style={{ background: 'var(--primary)' }}
+                    >
+                      <Plus size={12} />
+                      <span>{createTenant.isPending ? '…' : 'Add'}</span>
+                    </button>
+                  </div>
+                  {createError && (
+                    <p className="text-[11px]" style={{ color: 'var(--danger-text)' }}>
+                      {createError}
+                    </p>
+                  )}
+                </form>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Dataset Snapshot Date Pill */}
         {dataset && (

@@ -19,10 +19,17 @@ from fastapi.responses import Response
 
 if __name__ == "__main__":
     with TemporaryDirectory(prefix="decisionpilot-browser-") as folder:
+        storage_dir = Path(folder) / "ingestion_storage"
+        storage_dir.mkdir(parents=True, exist_ok=True)
         os.environ.update(DATABASE_URL="sqlite:///"+str(Path(folder)/"workspace.sqlite"), LLM_PROVIDER="none",
+                          INGESTION_STORAGE_DIR=str(storage_dir),
                           APP_ENV="production", DEMO_ALLOW_IMPORT="true", IMPORT_TOKEN="e2e-import-only",
                           WORKSPACE_ACCESS_TOKENS=json.dumps({
-                              "e2e-admin-token-for-isolated-tests-only": {"actor": "browser-admin", "role": "admin"}}))
+                              "e2e-admin-token-for-isolated-tests-only": {
+                                  "actor": "browser-admin",
+                                  "role": "admin",
+                                  "company_ids": "*",
+                              }}))
         command.upgrade(Config(str(ROOT/"alembic.ini")), "head")
         engine = make_engine()
         data, manifest = read_directory(ROOT/"data/synthetic")

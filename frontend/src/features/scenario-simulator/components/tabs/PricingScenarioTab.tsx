@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Check, SlidersHorizontal } from 'lucide-react'
 import { decimal, moneyCompact, type Options, type Scenario } from '../../../../api'
 import { Button } from '../../../../ui'
@@ -25,7 +25,7 @@ export function PricingScenarioTab({
   const defaultProduct =
     options.products.find((p) => p.product_name === 'SmartDesk Mini')?.product_id ||
     options.products[0]?.product_id ||
-    'P001'
+    ''
 
   const [productId, setProductId] = useState(defaultProduct)
   const [discountPct, setDiscountPct] = useState(5)
@@ -33,7 +33,14 @@ export function PricingScenarioTab({
   const [horizon, setHorizon] = useState(30)
   const [customElasticity, setCustomElasticity] = useState<string>('')
 
+  useEffect(() => {
+    if (!options.products.some((p) => p.product_id === productId)) {
+      setProductId(defaultProduct)
+    }
+  }, [options.products, defaultProduct, productId])
+
   const handleRun = () => {
+    if (!productId) return
     const discounts = [0, discountPct / 100, Math.min(0.2, (discountPct + 5) / 100)]
     const elasticityNum = customElasticity ? Number(customElasticity) : undefined
     onSimulatePrice({
@@ -49,10 +56,19 @@ export function PricingScenarioTab({
 
   return (
     <div className="space-y-4">
+      {options.products.length === 0 && (
+        <div
+          className="rounded-lg border p-3 text-xs"
+          style={{ background: 'var(--warning-bg)', borderColor: 'var(--warning-border)', color: 'var(--warning-text)' }}
+        >
+          No product SKUs are present in the active dataset. Map a Product column during import to unlock SKU price elasticity simulation.
+        </div>
+      )}
       <div className="grid grid-cols-1 gap-3 text-xs">
         <label className="dp-field">
           <span className="dp-field-label">Product SKU</span>
-          <select value={productId} onChange={(e) => setProductId(e.target.value)} className="dp-select">
+          <select value={productId} onChange={(e) => setProductId(e.target.value)} className="dp-select" disabled={!options.products.length}>
+            {options.products.length === 0 && <option value="">No SKUs available</option>}
             {options.products.map((p) => (
               <option key={p.product_id} value={p.product_id}>
                 {p.product_name} ({p.category})
@@ -137,7 +153,7 @@ export function PricingScenarioTab({
           ))}
         </div>
 
-        <Button variant="primary" onClick={handleRun} disabled={isLoading}>
+        <Button variant="primary" onClick={handleRun} disabled={isLoading || !productId}>
           <SlidersHorizontal size={14} />
           <span>{isLoading ? 'Simulating…' : 'Simulate Price Impact'}</span>
         </Button>

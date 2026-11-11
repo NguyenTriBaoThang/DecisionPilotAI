@@ -1,15 +1,27 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, Database, FileSpreadsheet, HardDrive, RefreshCw, ShieldCheck, UploadCloud } from 'lucide-react'
-import { dateLabel, integer, request, uploadSnapshot, type Dataset, type Session } from '../api'
+import { dateLabel, getActiveCompanyId, integer, request, uploadSnapshot, type Dataset, type Session } from '../api'
 import { Button, Card, ErrorState, Heading, Pill, SectionTitle, Source, Table, useToast } from '../ui'
+import { ConnectorsHub } from './ingestion/ConnectorsHub'
+import { DatasetCatalogPanel } from './ingestion/DatasetCatalogPanel'
+import { EnterpriseIngestionWizard } from './ingestion/EnterpriseIngestionWizard'
 
-export function DataSourcesPage({ dataset, session }: { dataset?: Dataset; session: Session }) {
+export function DataSourcesPage({
+  companyId = getActiveCompanyId(),
+  dataset,
+  session,
+}: {
+  companyId?: string
+  dataset?: Dataset
+  session: Session
+}) {
   const [token, setToken] = useState('')
   const client = useQueryClient()
   const { notify } = useToast()
   const [file, setFile] = useState<File | null>(null)
   const [confirmed, setConfirmed] = useState(false)
+  const [resumeDatasetId, setResumeDatasetId] = useState<string | null>(null)
   const [notice, setNotice] = useState(() => sessionStorage.getItem('dp-import-notice') || '')
 
   const upload = useMutation({
@@ -33,10 +45,11 @@ export function DataSourcesPage({ dataset, session }: { dataset?: Dataset; sessi
         title: 'Dataset snapshot updated',
         description: `Active dataset ID: ${next.dataset_id.slice(0, 12)}…`,
       })
-      await client.cancelQueries({ predicate: (query) => !['session'].includes(String(query.queryKey[0])) })
-      client.removeQueries({ predicate: (query) => !['session', 'dataset'].includes(String(query.queryKey[0])) })
-      client.setQueryData(['dataset'], next)
+      await client.cancelQueries({ predicate: (query) => !['session', 'companies'].includes(String(query.queryKey[0])) })
+      client.removeQueries({ predicate: (query) => !['session', 'companies', 'dataset'].includes(String(query.queryKey[0])) })
+      client.setQueryData(['dataset', companyId], next)
       await client.invalidateQueries({ queryKey: ['dataset'] })
+      await client.invalidateQueries({ queryKey: ['enterprise-datasets'] })
     },
   })
 
@@ -52,7 +65,7 @@ export function DataSourcesPage({ dataset, session }: { dataset?: Dataset; sessi
   const duration = dataset ? Math.round((Date.parse(dataset.end) - Date.parse(dataset.start)) / 86_400_000) + 1 : 0
 
   const health = useQuery({
-    queryKey: ['health'],
+    queryKey: ['health', companyId, dataset?.dataset_id],
     queryFn: () =>
       request<{
         status: string
@@ -191,7 +204,11 @@ export function DataSourcesPage({ dataset, session }: { dataset?: Dataset; sessi
       <Card>
         <SectionTitle
           title="Reconciled Relational Schema"
-          detail="All 6 date-indexed tables are verified against foreign keys, accounting formulas and stock balance."
+          detail={
+            dataset?.kind === 'uploaded'
+              ? 'Normalized tenant analytical partitions populated from your mapped dataset.'
+              : 'All 6 date-indexed tables are verified against foreign keys, accounting formulas and stock balance.'
+          }
           aside={<Pill tone="success">{tableRows.length} Active Tables</Pill>}
         />
         <Table
@@ -203,10 +220,31 @@ export function DataSourcesPage({ dataset, session }: { dataset?: Dataset; sessi
             { key: 'status', title: 'Integrity Check' },
           ]}
         />
-        <Source>SQLite / PostgreSQL engine · Point-in-time snapshot · Non-leaking features</Source>
+        <Source>SQLite / PostgreSQL engine · Tenant-isolated workspace · Non-leaking features</Source>
       </Card>
 
-      {/* Import Portal & Model Lineage */}
+      {/* Enterprise Multi-Format Ingestion Workflow (Upload -> Preview -> Map -> Validate -> Confirm Import) */}
+      <EnterpriseIngestionWizard
+        companyId={companyId}
+        session={session}
+        resumeDatasetId={resumeDatasetId}
+        onClearResume={() => setResumeDatasetId(null)}
+      />
+
+      {/* Company Dataset Catalog, Activation, History & Deletion */}
+      <DatasetCatalogPanel
+        companyId={companyId}
+        session={session}
+        onResumeDataset={(dsId) => {
+          setResumeDatasetId(dsId)
+          window.scrollTo({ top: 0, behavior: 'smooth' })
+        }}
+      />
+
+      {/* Extensible Data Connectors & Integrations Hub */}
+      <ConnectorsHub companyId={companyId} session={session} />
+
+      {/* Legacy Import Portal & Model Lineage */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <Card>
           <SectionTitle

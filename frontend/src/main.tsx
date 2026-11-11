@@ -1,8 +1,17 @@
 import { StrictMode, Suspense, lazy, useEffect, useState } from 'react'
-import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
+import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { type Dataset, type Options, type Session, ApiError, request } from './api'
+import {
+  type Dataset,
+  type Options,
+  type Session,
+  ApiError,
+  getActiveCompanyId,
+  request,
+  setActiveCompanyId,
+  setActiveCurrency,
+} from './api'
 import { PreferencesProvider, usePageTranslations, usePreferences, useT } from './preferences'
 import { ErrorState, Loading, ToastProvider } from './ui'
 import { Dashboard } from './Dashboard'
@@ -63,6 +72,7 @@ function AppShell({ session }: { session: Session }) {
   const { t } = useT()
   usePageTranslations(preferences.language)
 
+  const [companyId, setCompanyId] = useState(getActiveCompanyId)
   const [dark, setDark] = useState(readSessionDarkMode)
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('dp-sidebar-collapsed') === '1')
   const [open, setOpen] = useState(false)
@@ -72,13 +82,29 @@ function AppShell({ session }: { session: Session }) {
 
   const needsOptions = pathname === '/' || pathname === '/forecast' || pathname === '/scenarios'
 
-  const ds = useQuery({ queryKey: ['dataset'], queryFn: () => request<Dataset>('/dataset') })
+  const ds = useQuery({
+    queryKey: ['dataset', companyId],
+    queryFn: () => request<Dataset>('/dataset'),
+    retry: false,
+  })
 
   const opts = useQuery({
-    queryKey: ['options', ds.data?.dataset_id],
+    queryKey: ['options', companyId, ds.data?.dataset_id],
     queryFn: () => request<Options>('/options'),
     enabled: !!ds.data && needsOptions,
   })
+
+  const handleChangeCompany = (nextId: string) => {
+    setActiveCompanyId(nextId)
+    setCompanyId(nextId)
+    setMessages([])
+    void client.cancelQueries({ predicate: (q) => !['session', 'companies'].includes(String(q.queryKey[0])) })
+    client.removeQueries({ predicate: (q) => !['session', 'companies'].includes(String(q.queryKey[0])) })
+  }
+
+  useEffect(() => {
+    setActiveCurrency(ds.data?.currency || (ds.data?.kind === 'synthetic' ? 'VND' : 'USD'))
+  }, [companyId, ds.data?.dataset_id, ds.data?.currency, ds.data?.kind])
 
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? 'dark' : 'light'
@@ -109,7 +135,7 @@ function AppShell({ session }: { session: Session }) {
     window.scrollTo(0, 0)
   }, [pathname])
 
-  useEffect(() => setMessages([]), [ds.data?.dataset_id])
+  useEffect(() => setMessages([]), [companyId, ds.data?.dataset_id])
 
   if (pathname === '/landing') {
     return (
@@ -120,6 +146,41 @@ function AppShell({ session }: { session: Session }) {
   }
 
   const activeTitle = routeTitles[pathname] || 'Executive Dashboard'
+  const isEmptyWorkspace =
+    !ds.isLoading && !ds.data && ds.error instanceof ApiError && (ds.error.status === 503 || ds.error.status === 404)
+  const fatalDatasetError = isEmptyWorkspace ? null : ds.error
+
+  const emptyWorkspaceCard = (
+    <div className="dp-surface p-6 sm:p-8 space-y-4">
+      <div className="space-y-1.5">
+        <div className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--primary-text)' }}>
+          {t('Company Workspace')}
+        </div>
+        <h2 className="text-xl font-bold tracking-tight" style={{ color: 'var(--heading)' }}>
+          {t('Empty Company Workspace')}
+        </h2>
+        <p className="text-sm max-w-2xl leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+          Upload your company&apos;s CSV, XLSX, XLS, or JSON business data, review AI-assisted column mappings and 5-axis quality checks, and confirm import to unlock Executive Dashboard, Ask AI, Forecasts, Scenarios, and Audit trails.
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <Link
+          to="/data-sources"
+          className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold text-white transition-colors hover:brightness-95"
+          style={{ background: 'var(--primary)' }}
+        >
+          {t('Upload Your Business Data')}
+        </Link>
+        <Link
+          to="/settings"
+          className="inline-flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-medium hover:bg-[var(--surface-muted)]"
+          style={{ borderColor: 'var(--border-strong)', color: 'var(--heading)' }}
+        >
+          {t('Settings')}
+        </Link>
+      </div>
+    </div>
+  )
 
   return (
     <div className={`app-shell ${collapsed ? 'sidebar-collapsed' : ''}`}>
@@ -141,6 +202,8 @@ function AppShell({ session }: { session: Session }) {
       <div className="dp-main-column">
         <Topbar
           activeTitle={activeTitle}
+          companyId={companyId}
+          onChangeCompany={handleChangeCompany}
           dataset={ds.data}
           session={session}
           dark={dark}
@@ -154,7 +217,7 @@ function AppShell({ session }: { session: Session }) {
         <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 space-y-6 max-w-[1440px] w-full mx-auto">
           {ds.isLoading && <Loading />}
           <ErrorState
-            error={ds.error || opts.error}
+            error={fatalDatasetError || opts.error}
             retry={() => {
               void ds.refetch()
               if (ds.data) void opts.refetch()
@@ -162,45 +225,47 @@ function AppShell({ session }: { session: Session }) {
           />
 
           {!ds.isLoading && !ds.data && (
-            <div className="dp-surface p-5 text-sm">
-              <Link
-                to="/data-sources"
-                className="font-semibold hover:underline"
-                style={{ color: 'var(--primary-text)' }}
-              >
-                {t('Open Data Sources to import a dataset')}
-              </Link>
-            </div>
+            <Routes key={`empty:${companyId}`}>
+              <Route path="/data-sources" element={<DataSourcesPage companyId={companyId} session={session} />} />
+              <Route path="/settings" element={<SettingsPage dark={dark} setDark={setDark} session={session} />} />
+              <Route
+                path="/docs"
+                element={
+                  <Suspense fallback={<Loading />}>
+                    <TechnicalDocumentationPage />
+                  </Suspense>
+                }
+              />
+              <Route path="*" element={emptyWorkspaceCard} />
+            </Routes>
           )}
 
-          {pathname === '/data-sources' && !ds.data && !ds.isLoading && <DataSourcesPage session={session} />}
-
           {ds.data && (
-            <Routes key={ds.data.dataset_id}>
+            <Routes key={`${companyId}:${ds.data.dataset_id}`}>
               <Route
                 path="/"
                 element={opts.data ? <Dashboard dataset={ds.data} options={opts.data} /> : <Loading />}
               />
-              <Route path="/ask" element={<Ask dataset={ds.data} messages={messages} setMessages={setMessages} />} />
+              <Route path="/ask" element={<Ask dataset={ds.data} options={opts.data} messages={messages} setMessages={setMessages} />} />
               <Route path="/anomalies" element={<Alerts dataset={ds.data} />} />
               <Route
                 path="/forecast"
-                element={opts.data ? <ForecastPage options={opts.data} /> : <Loading />}
+                element={opts.data ? <ForecastPage dataset={ds.data} options={opts.data} /> : <Loading />}
               />
               <Route
                 path="/scenarios"
                 element={
                   opts.data ? (
                     <Suspense fallback={<Loading />}>
-                      <ScenarioSimulator3D options={opts.data} />
+                      <ScenarioSimulator3D dataset={ds.data} options={opts.data} />
                     </Suspense>
                   ) : (
                     <Loading />
                   )
                 }
               />
-              <Route path="/recommendations" element={<Recommendations />} />
-              <Route path="/data-sources" element={<DataSourcesPage dataset={ds.data} session={session} />} />
+              <Route path="/recommendations" element={<Recommendations dataset={ds.data} />} />
+              <Route path="/data-sources" element={<DataSourcesPage companyId={companyId} dataset={ds.data} session={session} />} />
               <Route path="/settings" element={<SettingsPage dark={dark} setDark={setDark} session={session} />} />
               <Route
                 path="/docs"

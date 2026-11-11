@@ -5,12 +5,22 @@ from math import ceil
 import sqlalchemy as sa
 from fastapi import HTTPException
 
-from backend.app.analytics import marketing_summary, ratio
-from backend.app.db import marketing, products, sales
+from backend.app.analytics import is_partitioned, marketing_summary, ratio, sales_total
+from backend.app.db import marketing, products, sales, tenant_products, tenant_transactions
 
 
-def product_row(conn, product):
-    row = conn.execute(sa.select(products).where(products.c.product_id==product)).mappings().one_or_none()
+def product_row(conn, product, info=None):
+    if is_partitioned(info):
+        cid, did = info["company_id"], info["dataset_id"]
+        row = conn.execute(
+            sa.select(tenant_products).where(
+                tenant_products.c.company_id == cid,
+                tenant_products.c.dataset_id == did,
+                tenant_products.c.product_id == product,
+            )
+        ).mappings().one_or_none()
+    else:
+        row = conn.execute(sa.select(products).where(products.c.product_id==product)).mappings().one_or_none()
     if not row:
         raise HTTPException(422,"Choose a product from the current catalog.")
     return row
@@ -20,28 +30,51 @@ def demand_at_price(base_demand, base_price, new_price, elasticity):
     return base_demand*max(0,1+elasticity*(new_price/base_price-1))
 
 
-def budget_response(ratio, exponent):
-    return ratio**exponent
+def budget_response(ratio_val, exponent):
+    return ratio_val**exponent
 
 
-def financial_row(name, demand, sold, price, cost, extra, *, risk=None, **evidence):
-    revenue = round(sold*price)
-    gp = revenue-round(sold*cost)
+def financial_row(name, demand, sold, price, cost, extra, *, risk=None, decimal_precision=False, **evidence):
+    if decimal_precision:
+        revenue = round(sold * price, 2)
+        gp = round(revenue - (sold * cost), 2)
+        profit = round(gp - extra, 2)
+    else:
+        revenue = round(sold*price)
+        gp = revenue-round(sold*cost)
+        profit = gp - extra
     return dict(name=name, demand=round(demand,2), fulfilled=round(sold,2), revenue=revenue,
-                gross_profit=gp, profit=gp-extra, margin=ratio(gp,revenue), risk=risk, **evidence)
+                gross_profit=gp, profit=profit, margin=ratio(gp,revenue), risk=risk, **evidence)
 
 
 def price_scenario(conn, info, request, forecast):
+    caps = (info or {}).get("capabilities") or {}
+    if is_partitioned(info) and not caps.get("has_product", True):
+        raise HTTPException(422, "Price scenarios require a mapped Product column in the active dataset.")
     p = request.parameters
-    product = product_row(conn,p.product)
+    product = product_row(conn, p.product, info=info)
     dates = date.fromisoformat(info["end"])
-    c = sales.c
-    sales_90 = conn.execute(sa.select(sa.func.sum(c.revenue),sa.func.sum(c.quantity),sa.func.sum(c.total_cost))
-        .where(c.product_id == p.product, c.date.between(dates-timedelta(days=89),dates))).one()
+    dec = is_partitioned(info)
+    if dec:
+        cid, did = info["company_id"], info["dataset_id"]
+        c = tenant_transactions.c
+        sales_90 = conn.execute(
+            sa.select(sa.func.sum(c.revenue), sa.func.sum(c.quantity), sa.func.sum(c.total_cost))
+            .where(
+                c.company_id == cid,
+                c.dataset_id == did,
+                c.product_id == p.product,
+                c.date.between(dates - timedelta(days=89), dates),
+            )
+        ).one()
+    else:
+        c = sales.c
+        sales_90 = conn.execute(sa.select(sa.func.sum(c.revenue),sa.func.sum(c.quantity),sa.func.sum(c.total_cost))
+            .where(c.product_id == p.product, c.date.between(dates-timedelta(days=89),dates))).one()
     if not sales_90[1] or not sales_90[0]:
         raise HTTPException(422,"Recent positive realized prices are required to simulate this SKU.")
     base_price = float(sales_90[0]/sales_90[1])
-    unit_cost = float(product["unit_cost"])
+    unit_cost = float(product["unit_cost"] or 0.0)
     base_demand = sum(x["value"] for x in forecast["prediction"])
     stock = product["current_stock"]
     elasticity = p.elasticity if p.elasticity is not None else product["elasticity"]
@@ -52,7 +85,8 @@ def price_scenario(conn, info, request, forecast):
         shortage = max(0,demand-sold)
         return financial_row(name,demand,sold,price,unit_cost,extra,
                              risk=round(shortage,2) if stock is not None else None,
-                             unit_price=round(price), additional_cost=extra)
+                             decimal_precision=dec,
+                             unit_price=(round(price, 2) if dec else round(price)), additional_cost=extra)
 
     base = row("Current realized price",base_price,elasticity,0)
     alternatives,sensitivity = [],[]
@@ -63,35 +97,65 @@ def price_scenario(conn, info, request, forecast):
         sensitivity.append(dict(name=name, alternatives=[
             dict(elasticity=round(e,3),result=row(name,price,e,p.additional_cost)) for e in
             (max(-5,elasticity-.30),elasticity,min(0,elasticity+.30))]))
-    return base,alternatives,sensitivity,[f"Elasticity {elasticity:g}; {('operator assumption' if p.elasticity is not None else 'catalog assumption')}.",
+    assumptions = [
+        f"Elasticity {elasticity:g}; {('operator assumption' if p.elasticity is not None else 'catalog assumption')}.",
         "Demand response is linear in percentage change relative to the past 90-day weighted realized price.",
         "Physical fulfillment is capped at current stock; no future receipts assumed.",
         "Profit is direct gross profit less incremental cost. Business overhead and returns are outside scope.",
-        "Use sensitivity results to assess how elasticity changes the decision."],dict(product=p.product,forecast=forecast["model_version"],
-                                                                                          stock_on_hand=stock)
+        "Use sensitivity results to assess how elasticity changes the decision.",
+    ]
+    if dec and not caps.get("has_cost_or_profit", True):
+        assumptions.append("No Cost or Profit column was mapped; unit direct cost is assumed 0 in this simulation.")
+    return base,alternatives,sensitivity,assumptions,dict(product=p.product,forecast=forecast["model_version"],stock_on_hand=stock)
 
 
 def marketing_scenario(conn, info, request):
+    caps = (info or {}).get("capabilities") or {}
+    dec = is_partitioned(info)
+    if dec and not caps.get("has_marketing"):
+        raise HTTPException(422, "Marketing budget simulation requires a mapped Marketing Spend column.")
     p = request.parameters
     end = date.fromisoformat(info["end"])
     start = max(date.fromisoformat(info["start"]),end-timedelta(days=27))
-    totals,_ = marketing_summary(conn,start,end,p.channel)
-    if totals["spend"] <= 0:
+    totals,_ = marketing_summary(conn,start,end,p.channel,info=info)
+    if (totals["spend"] or 0) <= 0:
         raise HTTPException(422,"The selected channel has no recent spend.")
-    c,m = sales.c,marketing.c
-    gp = conn.scalar(sa.select(sa.func.coalesce(sa.func.sum(c.gross_profit),0)).select_from(
-        sales.join(marketing,sa.and_(c.campaign_id==m.campaign_id,c.date==m.date)))
-        .where(c.date.between(start,end),m.channel==p.channel))
+    if dec:
+        cid, did = info["company_id"], info["dataset_id"]
+        c = tenant_transactions.c
+        if caps.get("has_cost_or_profit", True):
+            gp_direct = conn.scalar(
+                sa.select(sa.func.sum(c.gross_profit)).where(
+                    c.company_id == cid,
+                    c.dataset_id == did,
+                    c.date.between(start, end),
+                    sa.or_(c.marketing_channel == p.channel, c.sales_channel == p.channel),
+                )
+            )
+            if gp_direct is None:
+                period_tot = sales_total(conn, start, end, {}, info=info)
+                margin_est = period_tot.get("margin") if period_tot.get("margin") is not None else 1.0
+                gp = float(totals["attributed_revenue"]) * float(margin_est)
+            else:
+                gp = float(gp_direct)
+        else:
+            gp = float(totals["attributed_revenue"])
+    else:
+        c,m = sales.c,marketing.c
+        gp = conn.scalar(sa.select(sa.func.coalesce(sa.func.sum(c.gross_profit),0)).select_from(
+            sales.join(marketing,sa.and_(c.campaign_id==m.campaign_id,c.date==m.date)))
+            .where(c.date.between(start,end),m.channel==p.channel))
     scale = request.horizon/((end-start).days+1)
 
     def row(name, change, exponent):
         uplift = budget_response(1+change,exponent)
-        spend = round(totals["spend"]*scale*(1+change))
-        revenue = round(totals["attributed_revenue"]*scale*uplift)
-        profit = round(float(gp)*scale*uplift)
+        spend = round(totals["spend"]*scale*(1+change), 2) if dec else round(totals["spend"]*scale*(1+change))
+        revenue = round(totals["attributed_revenue"]*scale*uplift, 2) if dec else round(totals["attributed_revenue"]*scale*uplift)
+        profit = round(float(gp)*scale*uplift, 2) if dec else round(float(gp)*scale*uplift)
         orders = round(totals["orders"]*scale*uplift,2)
+        net_profit = round(profit - spend, 2) if dec else (profit - spend)
         return dict(name=name,demand=orders,fulfilled=orders,leads=round(totals["leads"]*scale*uplift,2),
-                    revenue=revenue,gross_profit=profit,profit=profit-spend,margin=ratio(profit,revenue),risk=None,
+                    revenue=revenue,gross_profit=profit,profit=net_profit,margin=ratio(profit,revenue),risk=None,
                     spend=spend,roas=ratio(revenue,spend))
     base = row("Current spend",0,p.response_exponent)
     alternatives = [row(f"{change:+.0%} budget",change,p.response_exponent) for change in p.changes]
@@ -99,20 +163,29 @@ def marketing_scenario(conn, info, request):
         dict(exponent=round(exponent,3),result=row(alternative["name"],change,exponent))
         for exponent in (max(.2,p.response_exponent-.15),p.response_exponent,min(.95,p.response_exponent+.15))])
         for change,alternative in zip(p.changes,alternatives)]
-    return base,alternatives,sensitivity,[f"Attributed funnel response scales by budget ratio raised to {p.response_exponent:g}.",
+    assumptions = [
+        f"Attributed funnel response scales by budget ratio raised to {p.response_exponent:g}.",
         "The response exponent is an assumption. Attribution is not an incrementality experiment.",
         "Baseline is the latest 28 observed days prorated to the selected horizon.",
-        "Contribution profit deducts campaign spend from attributed gross profit."],dict(channel=p.channel,
+        "Contribution profit deducts campaign spend from attributed gross profit.",
+    ]
+    if dec and not caps.get("has_cost_or_profit", True):
+        assumptions.append("No Cost or Profit column was mapped; attributed gross profit uses attributed revenue.")
+    return base,alternatives,sensitivity,assumptions,dict(channel=p.channel,
             historical_range=[str(start),str(end)],historical=totals)
 
 
-def inventory_scenario(conn, request, forecast):
+def inventory_scenario(conn, request, forecast, info=None):
+    caps = (info or {}).get("capabilities") or {}
+    dec = is_partitioned(info)
+    if dec and not caps.get("has_inventory"):
+        raise HTTPException(422, "Inventory replenishment simulation requires a mapped Inventory column.")
     p = request.parameters
-    product = product_row(conn,p.product)
-    if not product["is_physical"]:
-        raise HTTPException(422,"Inventory scenarios apply to physical products.")
-    stock, lead = product["current_stock"],product["lead_time_days"]
-    safety = p.safety_stock if p.safety_stock is not None else product["reorder_point"]
+    product = product_row(conn, p.product, info=info)
+    if not product["is_physical"] or product["current_stock"] is None:
+        raise HTTPException(422,"Inventory scenarios apply to physical products with tracked inventory.")
+    stock, lead = product["current_stock"], (product["lead_time_days"] or 7)
+    safety = p.safety_stock if p.safety_stock is not None else (product["reorder_point"] or 0)
     predicted = forecast["prediction"]
     need = [r["value"] for r in predicted]
     arrival = lead+1
@@ -134,9 +207,10 @@ def inventory_scenario(conn, request, forecast):
             fulfilled += sold
         return financial_row(f"Reorder {quantity} units" if quantity else "No new purchase order",
             sum(path),fulfilled,product["list_price"],product["unit_cost"],0,
-            risk=round(max(0,sum(path)-fulfilled),2),closing_stock=round(balance,2),
+            risk=round(max(0,sum(path)-fulfilled),2), decimal_precision=dec,
+            closing_stock=round(balance,2),
             safety_stock_gap=round(max(0,safety-balance),2),first_stockout_day=first_short,
-            order_quantity=quantity,purchase_commitment=quantity*product["unit_cost"])
+            order_quantity=quantity,purchase_commitment=round(quantity*product["unit_cost"], 2) if dec else quantity*product["unit_cost"])
 
     sensitivity = [dict(name=f"Reorder {q} units",alternatives=[
         dict(demand_path=case,result=row(q,[r[key] for r in predicted])) for case,key in

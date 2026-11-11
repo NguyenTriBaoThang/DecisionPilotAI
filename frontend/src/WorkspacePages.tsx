@@ -34,8 +34,11 @@ import {
   type Row,
   type Scenario,
   type Session,
+  currencySymbol,
   dateLabel,
   decimal,
+  getActiveCompanyId,
+  getActiveCurrency,
   integer,
   label,
   money,
@@ -69,23 +72,53 @@ import { Scenario3DLandscape } from './components/Scenario3DLandscape'
 import { useT } from './preferences'
 export { ScenarioSimulator3D } from './features/scenario-simulator/components/ScenarioSimulator3D'
 
-const promptsEN = [
-  'How is our business performing this month?',
-  'Why did revenue decrease this month?',
-  'Which product generated the highest profit?',
-  'Which marketing channel had the lowest ROAS?',
-  'Forecast demand for SmartDesk Mini for the next 30 days.',
-  'Compare revenue performance across regions.',
-]
+function buildSuggestedPrompts(dataset: Dataset, options: Options | undefined, isVi: boolean): string[] {
+  const caps = dataset.capabilities || {}
+  const firstProduct =
+    options?.products?.find((p) => p.product_name === 'SmartDesk Mini')?.product_name ||
+    options?.products?.[0]?.product_name
+  const topRegions = (options?.regions || []).slice(0, 2)
+  const regionClauseEN =
+    topRegions.length >= 2
+      ? `Compare revenue performance between ${topRegions[0]} and ${topRegions[1]}.`
+      : 'Compare revenue performance across regions.'
+  const regionClauseVI =
+    topRegions.length >= 2
+      ? `So sánh doanh thu giữa ${topRegions[0]} và ${topRegions[1]}`
+      : 'So sánh doanh thu giữa các khu vực'
 
-const promptsVI = [
-  'Tình hình kinh doanh tháng này thế nào?',
-  'Tại sao doanh thu tháng 10 bị sụt giảm?',
-  'Sản phẩm nào mang lại lợi nhuận cao nhất?',
-  'Kênh marketing nào có ROAS thấp nhất?',
-  'Dự báo nhu cầu SmartDesk Mini trong 30 ngày tới',
-  'So sánh doanh thu giữa các khu vực TP.HCM và Hà Nội',
-]
+  if (isVi) {
+    return [
+      'Tình hình kinh doanh gần đây thế nào?',
+      'Tại sao doanh thu kỳ gần nhất có biến động?',
+      caps.has_cost_or_profit !== false
+        ? 'Sản phẩm nào mang lại lợi nhuận cao nhất?'
+        : 'Sản phẩm nào có doanh thu cao nhất?',
+      caps.has_marketing !== false
+        ? 'Kênh marketing nào có ROAS thấp nhất?'
+        : 'Phân bổ doanh thu theo kênh bán hàng',
+      firstProduct
+        ? `Dự báo nhu cầu ${firstProduct} trong 30 ngày tới`
+        : 'Dự báo doanh thu trong 30 ngày tới',
+      regionClauseVI,
+    ]
+  }
+
+  return [
+    'How is our business performing overall?',
+    'Why did revenue change recently?',
+    caps.has_cost_or_profit !== false
+      ? 'Which product generated the highest profit?'
+      : 'Which product generated the highest revenue?',
+    caps.has_marketing !== false
+      ? 'Which marketing channel had the lowest ROAS?'
+      : 'Break down revenue across sales channels.',
+    firstProduct
+      ? `Forecast demand for ${firstProduct} for the next 30 days.`
+      : 'Forecast total revenue for the next 30 days.',
+    regionClauseEN,
+  ]
+}
 
 function Contribution({
   rows,
@@ -161,16 +194,18 @@ export type ChatMessage = { question: string; result?: QueryResult; error?: stri
 
 export function Ask({
   dataset,
+  options,
   messages,
   setMessages,
 }: {
   dataset: Dataset
+  options?: Options
   messages: ChatMessage[]
   setMessages: Dispatch<SetStateAction<ChatMessage[]>>
 }) {
   const { t, language } = useT()
   const isVi = language === 'vi'
-  const prompts = isVi ? promptsVI : promptsEN
+  const prompts = useMemo(() => buildSuggestedPrompts(dataset, options, isVi), [dataset, options, isVi])
 
   const form = useForm<z.infer<typeof askForm>>({
     resolver: zodResolver(askForm),
@@ -603,12 +638,12 @@ export function Alerts({ dataset }: { dataset: Dataset }) {
   const range = params(window)
 
   const list = useQuery({
-    queryKey: ['alerts', range, severity],
+    queryKey: ['alerts', dataset.dataset_id, range, severity],
     queryFn: () => request<{ rows: Alert[] }>('/anomalies?' + params({ ...window, severity })),
   })
 
   const detail = useQuery({
-    queryKey: ['alert', alertId, range],
+    queryKey: ['alert', dataset.dataset_id, alertId, range],
     queryFn: () => request<Alert>('/anomalies/' + encodeURIComponent(alertId || '') + '?' + range),
     enabled: !!alertId,
   })
@@ -940,19 +975,32 @@ export function Alerts({ dataset }: { dataset: Dataset }) {
         </Card>
       )}
 
-      <ModelQuality />
+      <ModelQuality datasetId={dataset.dataset_id} />
     </div>
   )
 }
 
-export function ForecastPage({ options }: { options: Options }) {
+export function ForecastPage({ dataset, options }: { dataset?: Dataset; options: Options }) {
   const [target, setTarget] = useState('revenue')
   const [scope, setScope] = useState('')
   const [horizon, setHorizon] = useState('30')
+  const currencyCode = dataset?.currency || getActiveCurrency()
+  const currencySym = currencySymbol(currencyCode)
 
   const mutation = useMutation({
     mutationFn: (values: unknown) => request<Forecast>('/forecast', values),
   })
+
+  useEffect(() => {
+    if (!scope) return
+    const valid =
+      scope.startsWith('p:')
+        ? options.products.some((p) => p.product_id === scope.slice(2))
+        : scope.startsWith('c:')
+          ? options.categories.includes(scope.slice(2))
+          : false
+    if (!valid) setScope('')
+  }, [options, scope])
 
   const run = () =>
     mutation.mutate({
@@ -1011,7 +1059,7 @@ export function ForecastPage({ options }: { options: Options }) {
             mutation.reset()
           }}
           options={[
-            ['revenue', 'Revenue (₫ VND)'],
+            ['revenue', `Revenue (${currencySym} ${currencyCode})`],
             ['orders', 'Order Volume'],
             ['demand', 'Demand Units'],
           ]}
@@ -1540,9 +1588,10 @@ export function Simulator({ options }: { options: Options }) {
   )
 }
 
-export function Recommendations() {
+export function Recommendations({ dataset }: { dataset?: Dataset }) {
   const client = useQueryClient()
   const { notify } = useToast()
+  const companyId = getActiveCompanyId()
   const session = useQuery({ queryKey: ['session'], queryFn: () => request<Session>('/session') })
   const [auditBefore, setAuditBefore] = useState<string | undefined>()
   const [priorityFilter, setPriorityFilter] = useState<string>('all')
@@ -1553,12 +1602,12 @@ export function Recommendations() {
   } | null>(null)
 
   const data = useQuery({
-    queryKey: ['recommendations'],
+    queryKey: ['recommendations', companyId, dataset?.dataset_id],
     queryFn: () => request<{ rows: Recommendation[]; dataset_id: string }>('/recommendations'),
   })
 
   const audit = useQuery({
-    queryKey: ['audit', auditBefore],
+    queryKey: ['audit', companyId, dataset?.dataset_id, auditBefore],
     queryFn: () =>
       request<{ rows: Audit[]; next_before: number | null }>('/audit?' + params({ kind: 'decisions', before: auditBefore })),
   })
@@ -1706,10 +1755,12 @@ export function Recommendations() {
                     style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
                   >
                     <span className="block text-[10px] font-semibold uppercase" style={{ color: 'var(--text-secondary)' }}>
-                      {label(k)}
+                      {label((dataset?.currency || getActiveCurrency()) === 'VND' ? k : k.replace(/_vnd$/, ''))}
                     </span>
                     <strong className="text-sm font-bold tabular-nums mt-0.5 block" style={{ color: 'var(--heading)' }}>
-                      {k.endsWith('vnd') || k === 'purchase_commitment' ? moneyCompact(val) : decimal(val)}
+                      {k.endsWith('vnd') || k.includes('profit') || k.includes('revenue') || k.includes('spend') || k === 'purchase_commitment'
+                        ? moneyCompact(val)
+                        : decimal(val)}
                     </strong>
                   </div>
                 ))

@@ -385,10 +385,22 @@ source .venv/bin/activate
 # Install required Python dependencies
 pip install -r requirements.txt
 
-# Run migrations & populate local SQLite database
+# Run migrations (0001..0003 incl. multi-tenant ingestion tables) & populate local SQLite database
+# On Windows, invoke Alembic through Python module mode:
 python -m alembic upgrade head
 python -m scripts.bootstrap
 ```
+
+#### Enterprise Data Ingestion Environment Variables
+
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `INGESTION_STORAGE_BACKEND` | `local` | Object storage adapter (`local` atomic filesystem or `s3` / MinIO). |
+| `INGESTION_STORAGE_DIR` | `data/storage` | Local object store root when `INGESTION_STORAGE_BACKEND=local`. |
+| `INGESTION_S3_BUCKET` | `""` | S3/MinIO bucket required when `INGESTION_STORAGE_BACKEND=s3`. |
+| `INGESTION_S3_ENDPOINT` | `""` | Custom S3-compatible endpoint URL (e.g. MinIO / R2). |
+| `INGESTION_S3_REGION` | `ap-southeast-1` | AWS/S3 region identifier. |
+| `INGESTION_MAX_FILE_BYTES` | `52428800` | Maximum uploaded ingestion file size in bytes (50 MiB default). |
 
 #### 2. Frontend Setup (React + Vite)
 
@@ -436,6 +448,16 @@ The FastAPI backend exposes 16 structured REST endpoints with complete OpenAPI 3
 | `POST` | `/recommendations/feedback`| Human-in-the-loop audit recording decision acceptance or dismissal. |
 | `GET` | `/audit` | Immutable audit trail log recording all analytical queries, actions, and decisions. |
 | `POST` | `/import` | Secure snapshot ingestion endpoint protected by authorization token. |
+| `GET` / `POST` | `/v1/companies` | List authorized company workspaces or provision an isolated tenant workspace (`admin`). |
+| `GET` | `/v1/connectors` | Catalog active (`file_upload`) and extensible (`postgresql`, `sqlserver`, `mysql`, `rest_api`, `erp_crm_pos`) connectors. |
+| `GET` / `POST` | `/v1/data-sources` & `/test` | Register or validate tenant-scoped external connector configurations (secrets redacted at rest). |
+| `POST` | `/v1/datasets/upload` | Upload `CSV`, `XLSX`, `XLS`, or `JSON` file to isolated company object storage & trigger initial profiling. |
+| `POST` | `/v1/datasets/{id}/preview` | Preview parsed records and switch worksheets for multi-sheet Excel workbooks. |
+| `POST` | `/v1/datasets/{id}/mapping` | Persist confirmed user/AI column mappings (`date`..`inventory`, `custom:<field>`) and reusable company templates. |
+| `POST` | `/v1/datasets/{id}/validate` | Run 5-axis Data Quality Engine (`completeness`, `validity`, `consistency`, `uniqueness`, `accuracy`) & cleaning preview. |
+| `POST` | `/v1/datasets/{id}/import` | Execute transactional ingestion (`confirmed: true` required) into tenant analytical tables + train company LightGBM artifacts. |
+| `GET` / `DELETE` | `/v1/datasets`, `/{id}`, `/{id}/quality`, `/{id}/error-report`, `/{id}/history`, `/{id}/activate` | Manage tenant catalog, download CSV/JSON error reports, switch active company dataset, inspect lifecycle audit, or remove datasets. |
+| `GET` / `DELETE` | `/v1/mapping-templates` | Reuse or manage tenant-scoped saved column mapping templates. |
 
 > Complete schema definitions, request payloads, and curl snippets are documented in [`docs/API.md`](./docs/API.md) and on the live Swagger UI (`http://127.0.0.1:5173/api/docs` via Vite proxy, `http://localhost:8080/api/docs` via Docker Compose, or `http://127.0.0.1:8000/docs` directly on Uvicorn).
 
@@ -524,9 +546,10 @@ DecisionPilot AI is designed around strict principles of data privacy, defensive
   - [x] Full bilingual support (Vietnamese default & English toggle).
   - [x] One-click Docker Compose (`docker-compose.yml`) and Windows (`run.bat` / `scripts/dev.ps1`) launchers.
   - [x] Multi-page GitHub Pages Technical Documentation Portal (`/`) + hosted SPA Demo (`/app/`).
+  - [x] Multi-tenant Enterprise Data Ingestion & Workspace (`CSV`, `XLSX`, `XLS`, `JSON`, 4-step workflow, AI column mapping + templates, 5-axis quality scorecard, downloadable error reports, explicit import confirmation, per-company isolation & currency support, extensible DB/API/ERP connectors).
 
 - [ ] **v1.1.0 (In Progress — Q1 2027):**
-  - [ ] Multi-tenant isolation for independent enterprise workspaces.
+  - [ ] Live execution drivers for PostgreSQL / SQL Server / MySQL / REST / ERP connectors registered in `Data Sources`.
   - [ ] Direct API connectors for Vietnamese POS platforms (KiotViet, Sapo, Haravan).
   - [ ] Automated real-time anomaly push alerts via Telegram Webhooks and Zalo OA.
 

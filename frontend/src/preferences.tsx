@@ -635,6 +635,43 @@ export const translations: Record<string, { vi: string; en: string }> = {
   'Keep at least one segment visible': { vi: 'Giữ ít nhất một nhóm hiển thị', en: 'Keep at least one segment visible' },
   'Close detail': { vi: 'Đóng chi tiết', en: 'Close detail' },
   'active': { vi: 'đang hiển thị', en: 'active' },
+
+  // Enterprise Data Ingestion & Multi-Tenant Workspace
+  'Company Workspace': { vi: 'Không gian Doanh nghiệp', en: 'Company Workspace' },
+  'Switch Company Workspace': { vi: 'Chuyển không gian doanh nghiệp', en: 'Switch Company Workspace' },
+  'New Company': { vi: 'Tạo doanh nghiệp mới', en: 'New Company' },
+  'Create Company Workspace': { vi: 'Tạo không gian doanh nghiệp mới', en: 'Create Company Workspace' },
+  'Enterprise Data Ingestion Pipeline': { vi: 'Quy trình Nhập dữ liệu Doanh nghiệp', en: 'Enterprise Data Ingestion Pipeline' },
+  'Upload business files (CSV, XLSX, XLS, JSON), preview rows, verify AI column mappings, inspect 5-axis data quality, and import after explicit confirmation.': {
+    vi: 'Tải tệp dữ liệu kinh doanh (CSV, XLSX, XLS, JSON), xem trước, kiểm tra ánh xạ cột bằng AI, đánh giá chất lượng 5 chiều và nhập sau khi xác nhận.',
+    en: 'Upload business files (CSV, XLSX, XLS, JSON), preview rows, verify AI column mappings, inspect 5-axis data quality, and import after explicit confirmation.',
+  },
+  'Upload File': { vi: '1. Tải tệp', en: '1. Upload File' },
+  'Preview Data': { vi: '2. Xem trước', en: '2. Preview Data' },
+  'Column Mapping': { vi: '3. Ánh xạ cột', en: '3. Column Mapping' },
+  'Quality & Import': { vi: '4. Chất lượng & Nhập', en: '4. Quality & Import' },
+  'Drag and drop CSV, XLSX, XLS, or JSON here': { vi: 'Kéo thả tệp CSV, XLSX, XLS hoặc JSON vào đây', en: 'Drag and drop CSV, XLSX, XLS, or JSON here' },
+  'Dataset Catalog & History': { vi: 'Danh mục & Lịch sử Bộ dữ liệu', en: 'Dataset Catalog & History' },
+  'Connectors & External Integrations': { vi: 'Cổng kết nối & Tích hợp Dữ liệu', en: 'Connectors & External Integrations' },
+  'Completeness': { vi: 'Độ đầy đủ', en: 'Completeness' },
+  'Validity': { vi: 'Tính hợp lệ', en: 'Validity' },
+  'Consistency': { vi: 'Tính nhất quán', en: 'Consistency' },
+  'Uniqueness': { vi: 'Tính duy nhất', en: 'Uniqueness' },
+  'Accuracy': { vi: 'Độ chính xác', en: 'Accuracy' },
+  'Download Error Report (CSV)': { vi: 'Tải báo cáo lỗi (CSV)', en: 'Download Error Report (CSV)' },
+  'Download Error Report (JSON)': { vi: 'Tải báo cáo lỗi (JSON)', en: 'Download Error Report (JSON)' },
+  'Confirm & Import Dataset': { vi: 'Xác nhận & Nhập bộ dữ liệu', en: 'Confirm & Import Dataset' },
+  'Save Mapping Template': { vi: 'Lưu mẫu ánh xạ', en: 'Save Mapping Template' },
+  'Activate': { vi: 'Kích hoạt', en: 'Activate' },
+  'Active': { vi: 'Đang hoạt động', en: 'Active' },
+  'Resume': { vi: 'Tiếp tục', en: 'Resume' },
+  'History': { vi: 'Lịch sử', en: 'History' },
+  'Empty Company Workspace': { vi: 'Không gian Doanh nghiệp chưa có dữ liệu', en: 'Empty Company Workspace' },
+  'Upload Your Business Data': { vi: 'Tải lên dữ liệu doanh nghiệp', en: 'Upload Your Business Data' },
+  'Optional analytics module not mapped in this dataset': {
+    vi: 'Trường dữ liệu tùy chọn chưa được ánh xạ trong bộ dữ liệu này',
+    en: 'Optional analytics module not mapped in this dataset',
+  },
 }
 
 export function translate(text: string, language: Preferences['language']): string {

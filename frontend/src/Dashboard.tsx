@@ -18,8 +18,10 @@ import {
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import {
+  currencySymbol,
   dateLabel,
   decimal,
+  getActiveCurrency,
   integer,
   moneyCompact,
   params,
@@ -115,6 +117,12 @@ export function Dashboard({ dataset, options }: { dataset: Dataset; options: Opt
     })
 
   const result = data.data
+  const curCode = result?.currency || dataset.currency || getActiveCurrency()
+  const curDisplay = `${currencySymbol(curCode)} ${curCode}`
+  const caps = result?.capabilities || dataset.capabilities || {}
+  const hasCostOrProfit = caps.has_cost_or_profit ?? result?.summary.gross_profit != null
+  const hasInventory = caps.has_inventory ?? result?.summary.inventory_availability != null
+  const skuCount = options.products.length || result?.products.length || 0
   const revenueChange = result?.changes.revenue ?? 0
   const isRevenueDown = revenueChange < -0.02
   const criticalAlertsCount = alerts.data?.rows.filter((a) => a.severity === 'critical').length ?? 0
@@ -133,10 +141,16 @@ export function Dashboard({ dataset, options }: { dataset: Dataset; options: Opt
 
   const stockAvailability = result?.summary.inventory_availability
   const stockBadgeTone =
-    stockAvailability == null ? 'muted' : stockAvailability >= 0.9 ? 'success' : stockAvailability >= 0.8 ? 'warning' : 'critical'
+    !hasInventory || stockAvailability == null
+      ? 'muted'
+      : stockAvailability >= 0.9
+      ? 'success'
+      : stockAvailability >= 0.8
+      ? 'warning'
+      : 'critical'
   const stockStatusLabel =
-    stockAvailability == null
-      ? '—'
+    !hasInventory || stockAvailability == null
+      ? 'N/A'
       : stockAvailability >= 0.9
       ? t('Healthy Stock')
       : stockAvailability >= 0.8
@@ -255,16 +269,24 @@ export function Dashboard({ dataset, options }: { dataset: Dataset; options: Opt
                 )
               ) : isVi ? (
                 <>
-                  <strong>Tóm tắt điều hành:</strong> Doanh thu đạt <strong>{moneyCompact(result.summary.revenue)}</strong> với
-                  biên lợi nhuận gộp <strong>{percent(result.summary.margin)}</strong> và tỷ lệ sẵn có tồn kho{' '}
-                  <strong>{percent(result.summary.inventory_availability)}</strong>.
+                  <strong>Tóm tắt điều hành:</strong> Doanh thu đạt <strong>{moneyCompact(result.summary.revenue)}</strong>
+                  {hasCostOrProfit && result.summary.margin != null && (
+                    <> với biên lợi nhuận gộp <strong>{percent(result.summary.margin)}</strong></>
+                  )}
+                  {hasInventory && result.summary.inventory_availability != null && (
+                    <> và tỷ lệ sẵn có tồn kho <strong>{percent(result.summary.inventory_availability)}</strong></>
+                  )}.
                 </>
               ) : (
                 <>
                   <strong>Executive summary:</strong> Revenue reached{' '}
-                  <strong>{moneyCompact(result.summary.revenue)}</strong> at a gross margin of{' '}
-                  <strong>{percent(result.summary.margin)}</strong>, with physical stock availability at{' '}
-                  <strong>{percent(result.summary.inventory_availability)}</strong>.
+                  <strong>{moneyCompact(result.summary.revenue)}</strong>
+                  {hasCostOrProfit && result.summary.margin != null && (
+                    <> at a gross margin of <strong>{percent(result.summary.margin)}</strong></>
+                  )}
+                  {hasInventory && result.summary.inventory_availability != null && (
+                    <>, with physical stock availability at <strong>{percent(result.summary.inventory_availability)}</strong></>
+                  )}.
                 </>
               )}
             </p>
@@ -464,23 +486,31 @@ export function Dashboard({ dataset, options }: { dataset: Dataset; options: Opt
                     ]}
                   />
                 }
-                legend={[
-                  { label: t('Revenue'), color: '#2563EB' },
-                  { label: t('Gross Profit'), color: '#16A34A' },
-                ]}
+                legend={
+                  hasCostOrProfit
+                    ? [
+                        { label: t('Revenue'), color: '#2563EB' },
+                        { label: t('Gross Profit'), color: '#16A34A' },
+                      ]
+                    : [{ label: t('Revenue'), color: '#2563EB' }]
+                }
                 data={result.trend}
                 x="date"
                 date
                 height={300}
-                series={[
-                  { key: 'revenue', name: t('Revenue'), kind: 'area', color: '#2563EB' },
-                  { key: 'gross_profit', name: t('Gross Profit'), kind: 'line', color: '#16A34A' },
-                ]}
+                series={
+                  hasCostOrProfit
+                    ? [
+                        { key: 'revenue', name: t('Revenue'), kind: 'area', color: '#2563EB' },
+                        { key: 'gross_profit', name: t('Gross Profit'), kind: 'line', color: '#16A34A' },
+                      ]
+                    : [{ key: 'revenue', name: t('Revenue'), kind: 'area', color: '#2563EB' }]
+                }
                 format={moneyCompact}
                 source={
                   isVi
-                    ? 'Giao dịch Bán hàng · Tiền tệ Đồng (₫ VND)'
-                    : 'Sales Transactions · Local Currency (₫ VND Integer)'
+                    ? `Giao dịch Bán hàng · Tiền tệ (${curDisplay})`
+                    : `Sales Transactions · Currency (${curDisplay})`
                 }
               />
             </div>
@@ -711,8 +741,8 @@ export function Dashboard({ dataset, options }: { dataset: Dataset; options: Opt
               emptyText={t('No product revenue recorded in this selection.')}
               source={
                 isVi
-                  ? 'Danh mục 50 SKU · Đối soát với Tổng doanh thu kỳ chọn'
-                  : '50 SKUs Catalog · Reconciled to selected Total Revenue'
+                  ? `Danh mục ${integer(skuCount)} SKU · Đối soát với Tổng doanh thu kỳ chọn`
+                  : `${integer(skuCount)} SKUs Catalog · Reconciled to selected Total Revenue`
               }
             />
 
@@ -752,7 +782,11 @@ export function Dashboard({ dataset, options }: { dataset: Dataset; options: Opt
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <AllocationDonutCard
               title={t('Revenue by Region')}
-              detail={t('Regional revenue contribution across Vietnam markets')}
+              detail={
+                dataset.kind === 'uploaded'
+                  ? `${dataset.title} · Regional distribution`
+                  : t('Regional revenue contribution across Vietnam markets')
+              }
               aside={
                 <StatusBadge tone="muted">
                   {result.regions.length} {t('Regions')}
@@ -764,8 +798,8 @@ export function Dashboard({ dataset, options }: { dataset: Dataset; options: Opt
               emptyText={t('No regional revenue recorded in this selection.')}
               source={
                 isVi
-                  ? 'Tổng hợp giao dịch theo khu vực · Đơn vị ₫ VND'
-                  : 'Regional sales allocation · Local Currency (₫ VND)'
+                  ? `Tổng hợp giao dịch theo khu vực · Đơn vị ${curDisplay}`
+                  : `Regional sales allocation · Currency (${curDisplay})`
               }
             />
 
@@ -773,8 +807,8 @@ export function Dashboard({ dataset, options }: { dataset: Dataset; options: Opt
               title={t('Sales Channel Distribution')}
               detail={
                 salesChannelMetric === 'orders'
-                  ? t('Order volume share across Online, Retail and B2B')
-                  : t('Revenue share across Online, Retail and B2B')
+                  ? `Order volume share across ${dataset.title}`
+                  : `Revenue share across sales channels (${curDisplay})`
               }
               aside={
                 <div

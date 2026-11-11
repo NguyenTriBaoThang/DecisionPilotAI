@@ -113,18 +113,23 @@ export function buildTopProductSegments(
   const items: DonutSegmentItem[] = top5.map((row, idx) => {
     const name = rowName(row, `SKU ${idx + 1}`)
     const rev = asNumber(row.revenue)
-    const profit = asNumber(row.gross_profit ?? row.profit)
+    const rawProfit = row.gross_profit ?? row.profit
+    const hasProfit = typeof rawProfit === 'number' && Number.isFinite(rawProfit)
     const units = asNumber(row.units ?? row.quantity ?? row.orders)
+
+    const details: DonutDetailRow[] = [
+      { label: labels.revenue, value: moneyCompact(rev), highlight: true },
+    ]
+    if (hasProfit) {
+      details.push({ label: labels.grossProfit, value: moneyCompact(rawProfit) })
+    }
+    details.push({ label: labels.unitsSold, value: integer(units) })
 
     return {
       id: `product:${name}`,
       name,
       value: rev,
-      details: [
-        { label: labels.revenue, value: moneyCompact(rev), highlight: true },
-        { label: labels.grossProfit, value: moneyCompact(profit) },
-        { label: labels.unitsSold, value: integer(units) },
-      ],
+      details,
     }
   })
 
@@ -135,16 +140,21 @@ export function buildTopProductSegments(
   if (hasOther) {
     const otherProfit = Math.round(scopeProfit - top5Profit)
     const otherUnits = Math.max(0, Math.round(scopeUnits - top5Units))
+    const hasSummaryProfit = typeof summary.gross_profit === 'number' && Number.isFinite(summary.gross_profit)
+    const otherDetails: DonutDetailRow[] = [
+      { label: labels.revenue, value: moneyCompact(otherRevenue), highlight: true },
+    ]
+    if (hasSummaryProfit) {
+      otherDetails.push({ label: labels.grossProfit, value: moneyCompact(otherProfit) })
+    }
+    otherDetails.push({ label: labels.unitsSold, value: integer(otherUnits) })
+
     items.push({
       id: 'product:__other__',
       name: labels.otherProducts,
       value: otherRevenue,
       color: ENTERPRISE_DONUT_PALETTE[5],
-      details: [
-        { label: labels.revenue, value: moneyCompact(otherRevenue), highlight: true },
-        { label: labels.grossProfit, value: moneyCompact(otherProfit) },
-        { label: labels.unitsSold, value: integer(otherUnits) },
-      ],
+      details: otherDetails,
     })
   }
 

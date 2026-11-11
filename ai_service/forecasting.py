@@ -110,6 +110,83 @@ def train_forecasts(dates, labels, matrices, holidays):
     return bundle,evaluation,split,examples
 
 
+def train_adaptive_forecasts(dates, labels, matrices, holidays):
+    """Train full LGBM pipeline on >=201d datasets, or honest causal statistical baseline on shorter uploaded datasets."""
+    if len(dates) >= 201:
+        return train_forecasts(dates, labels, matrices, holidays)
+    if len(dates) < 7:
+        raise ValueError("At least 7 historical calendar days are required for forecasting.")
+
+    bundle, evaluation, examples = {}, [], {}
+    val_len = max(2, min(30, len(dates) // 3))
+    val_start = len(dates) - val_len
+    for target, matrix in matrices.items():
+        series = {}
+        for j, label in enumerate(labels):
+            vec = matrix[j]
+            for horizon in HORIZONS:
+                step_origins = list(range(max(7, val_start - horizon), len(dates) - min(horizon, val_len) + 1, max(1, min(7, val_len // 2))))
+                if not step_origins:
+                    step_origins = [max(3, len(dates) - max(2, len(dates) // 3))]
+                eff_h = min(horizon, max(1, len(dates) - step_origins[-1]))
+                preds_sn, preds_ma, actuals = [], [], []
+                for o in step_origins:
+                    hist = vec[:o]
+                    if len(hist) < 2:
+                        continue
+                    sn_row = np.array([hist[-7 + (k % 7)] if len(hist) >= 7 else hist.mean() for k in range(eff_h)])
+                    win = min(14, len(hist))
+                    ma_row = np.full(eff_h, float(hist[-win:].mean()))
+                    preds_sn.append(sn_row)
+                    preds_ma.append(ma_row)
+                    actuals.append(vec[o:o + eff_h])
+                if actuals:
+                    y_arr = np.asarray(actuals)
+                    sn_arr = np.asarray(preds_sn)
+                    ma_arr = np.asarray(preds_ma)
+                    m_sn = metrics(y_arr, sn_arr)
+                    m_ma = metrics(y_arr, ma_arr)
+                    chosen = "seasonal_naive" if (len(dates) >= 14 and m_sn["mae"] <= m_ma["mae"]) else "moving_average"
+                    chosen_arr = sn_arr if chosen == "seasonal_naive" else ma_arr
+                    res = np.abs(y_arr - chosen_arr)
+                    rad = float(calibrate(res))
+                    cov = float((res <= rad).mean())
+                    val_scores = {"seasonal_naive": m_sn, "moving_average": m_ma}
+                else:
+                    chosen = "moving_average"
+                    rad = float(np.std(vec) * 1.64) if len(vec) else 0.0
+                    cov = 0.0
+                    m_empty = dict(mae=0.0, rmse=0.0, wape=None, mape=None, bias=0.0, observations=0)
+                    val_scores = {"seasonal_naive": m_empty, "moving_average": m_empty}
+                radii = [(horizon, rad)]
+                report = dict(
+                    target=target,
+                    scope=label,
+                    horizon=horizon,
+                    selected=chosen,
+                    validation=val_scores,
+                    test=val_scores,
+                    nominal_coverage=NOMINAL,
+                    test_coverage=cov,
+                    validation_residual_count=max(1, len(actuals) * eff_h),
+                    test_origins=max(1, len(actuals)),
+                    calibration_independent=False,
+                    calibration_origins=max(1, len(actuals)),
+                    short_window_fallback=True,
+                    selection_range=[str(dates[0]), str(dates[-1])],
+                    calibration_range=[str(dates[val_start]), str(dates[-1])],
+                )
+                series[(label, horizon)] = {"selected": chosen, "radii": radii, "report": report}
+                evaluation.append(report)
+        bundle[target] = dict(model=None, scales={label: 1.0 for label in labels}, series=series, drivers=[])
+    split = dict(
+        train=[str(dates[0]), str(dates[max(0, val_start - 1)])],
+        validation=[str(dates[val_start]), str(dates[-1])],
+        test=[str(dates[val_start]), str(dates[-1])],
+    )
+    return bundle, evaluation, split, examples
+
+
 def serve_forecast(bundle, target, scope, horizon, values, dates):
     info = bundle[target]
     entry = info["series"].get((scope,horizon))
@@ -117,7 +194,15 @@ def serve_forecast(bundle, target, scope, horizon, values, dates):
         raise ValueError("This scope and horizon are unavailable in the trained artifact.")
     start = dates[-1]+timedelta(days=1)
     model_name = entry["selected"]
-    rows = predict(info["model"],np.array([info["scales"][scope]]),np.array([values]),start,horizon)[model_name][0]
+    arr = np.asarray(values, dtype=float)
+    if info["model"] is None or model_name != "lightgbm" and len(arr) < LOOKBACK:
+        win = min(14, len(arr))
+        if model_name == "seasonal_naive" and len(arr) >= 7:
+            rows = np.array([arr[-7 + (lead % 7)] for lead in range(horizon)], dtype=float)
+        else:
+            rows = np.full(horizon, float(arr[-win:].mean()) if win else 0.0, dtype=float)
+    else:
+        rows = predict(info["model"],np.array([info["scales"][scope]]),np.array([values]),start,horizon)[model_name][0]
     prediction = []
     for step,point in enumerate(rows,1):
         radius = next(r for cutoff,r in entry["radii"] if step <= cutoff)

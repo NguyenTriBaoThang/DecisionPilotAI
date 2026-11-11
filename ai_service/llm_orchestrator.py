@@ -208,7 +208,7 @@ def selected_period(intent, info):
     return max(oldest,starts[intent.period]),latest
 
 
-def number(metric,value):
+def number(metric,value,currency="VND"):
     if value is None:
         return "unavailable for this scope"
     if metric in {"margin","conversion","inventory_availability"}:
@@ -216,64 +216,76 @@ def number(metric,value):
     if metric=="roas":
         return f"{value:.2f}×"
     if metric in {"revenue","gross_profit","aov","spend","cac"}:
-        return f"VND {value:,.0f}"
+        if currency == "VND" or float(value).is_integer():
+            return f"{currency} {value:,.0f}"
+        return f"{currency} {value:,.2f}"
     return f"{value:,.0f}"
 
 
 def query(conn, info, question):
-    choices = options(conn)
+    choices = options(conn, info)
+    currency = info.get("currency", "VND")
+    caps = info.get("capabilities") or {}
+    is_part = info.get("storage_mode") == "partitioned"
     intent,provider = route(question.question,question.context,choices,info)
     scope = intent.filters.dimensions()
-    trace = dict(tool=intent.action,provider=provider,dataset_id=info["dataset_id"],filters=scope,formulas={})
+    trace = dict(tool=intent.action,provider=provider,dataset_id=info["dataset_id"],company_id=info.get("company_id","comp-default"),filters=scope,formulas={})
     chart, evidence = None,{}
     metric = intent.metric
     if intent.action=="unsupported":
         return dict(intent=intent,chart=None,evidence={},trace=trace,
                     answer="I can query recorded sales, customers, campaigns, inventory, alerts and supported forecasts. Try asking for revenue this month or a product-demand forecast.")
-    services.checked_filters(conn,scope)
+    services.checked_filters(conn,scope,info=info)
     start,end = selected_period(intent,info)
-    trace.update(range=[str(start),str(end)],sources=["sales_transactions","products","customers"],formulas={metric:FORMULAS[metric]})
+    source_name = "tenant_transactions" if is_part else "sales_transactions"
+    trace.update(range=[str(start),str(end)],sources=[source_name,"products","customers"] if not is_part else ["tenant_transactions","tenant_products"],formulas={metric:FORMULAS[metric]})
     period = f"{start:%d %b %Y} to {end:%d %b %Y}"
     label = metric.replace("_"," ")
     if intent.action=="kpi":
         if metric in MARKET_METRICS:
             raise HTTPException(422,"Use the marketing analytics intent for campaign metrics.")
         if metric=="inventory_availability":
+            if is_part and not caps.get("has_inventory"):
+                raise HTTPException(422,"Inventory column was not mapped in this uploaded dataset.")
             if scope.keys()-{"product","category"}:
                 raise HTTPException(422,"Inventory availability is scoped by product, category and date.")
-            value = availability(conn,start,end,scope)
+            value = availability(conn,start,end,scope,info=info)
             evidence = {metric:value}
-            trace["sources"] = ["inventory_daily","products"]
+            trace["sources"] = ["tenant_inventory_daily","tenant_products"] if is_part else ["inventory_daily","products"]
         else:
-            evidence = sales_total(conn,start,end,scope)
+            evidence = sales_total(conn,start,end,scope,info=info)
             value = evidence[metric]
-        answer = f"Recorded {label} was {number(metric,value)} from {period}."
+        answer = f"Recorded {label} was {number(metric,value,currency)} from {period}."
     elif intent.action in {"rank","trend"}:
         if metric not in GROUP_METRICS:
             raise HTTPException(422,"Grouped charts support revenue, gross profit, order count and units.")
+        if metric == "gross_profit" and is_part and not caps.get("has_cost_or_profit", True):
+            raise HTTPException(422,"Cost or Profit column is required for gross profit breakdowns.")
         if intent.action=="rank":
-            rows = grouped(conn,start,end,scope,intent.dimension)
-            rows = sorted(rows,key=lambda r: (r[metric] if intent.ascending else -r[metric],r["name"]))[:10]
+            rows = grouped(conn,start,end,scope,intent.dimension,info=info)
+            rows = sorted(rows,key=lambda r: ((r[metric] or 0) if intent.ascending else -(r[metric] or 0),r["name"]))[:10]
             chart = dict(type="bar",x="name",y=metric,rows=rows)
-            answer = (f"{rows[0]['name']} ranked first for this {label} query at {number(metric,rows[0][metric])}."
+            answer = (f"{rows[0]['name']} ranked first for this {label} query at {number(metric,rows[0][metric],currency)}."
                       if rows else f"No matching records from {period}.")
         else:
-            rows = trend(conn,start,end,scope,intent.filters.grain)
+            rows = trend(conn,start,end,scope,intent.filters.grain,info=info)
             chart = dict(type="line",x="date",y=metric,rows=rows)
-            answer = f"Recorded {label} totaled {number(metric,sum(r[metric] for r in rows))} from {period}."
+            answer = f"Recorded {label} totaled {number(metric,sum((r[metric] or 0) for r in rows),currency)} from {period}."
         evidence = {"rows":rows}
     elif intent.action=="marketing":
+        if is_part and not caps.get("has_marketing"):
+            raise HTTPException(422,"Marketing Spend column was not mapped in this uploaded dataset.")
         if scope or metric not in MARKET_METRICS:
             raise HTTPException(422,"Campaign metrics are scoped by date and marketing channel.")
         if intent.marketing_channel and intent.marketing_channel not in choices["marketing_channels"]:
             raise HTTPException(422,"Choose a marketing channel from the current dataset.")
-        total,rows = marketing_summary(conn,start,end,intent.marketing_channel)
-        trace.update(sources=["marketing_campaigns","sales_transactions"],marketing_channel=intent.marketing_channel)
+        total,rows = marketing_summary(conn,start,end,intent.marketing_channel,info=info)
+        trace.update(sources=["tenant_marketing_daily","tenant_transactions"] if is_part else ["marketing_campaigns","sales_transactions"],marketing_channel=intent.marketing_channel)
         if intent.compare_previous:
             prior = previous_period(start,end,intent.period in {"this_month","last_month"})
             if prior[0] < date.fromisoformat(info["start"]):
                 raise HTTPException(422,"The campaign comparison period falls outside available data.")
-            _, previous = marketing_summary(conn,*prior,intent.marketing_channel)
+            _, previous = marketing_summary(conn,*prior,intent.marketing_channel,info=info)
             values = {row["name"]:row[metric] for row in previous}
             for row in rows:
                 prior_value = values.get(row["name"])
@@ -284,7 +296,7 @@ def query(conn, info, question):
             chart = dict(type="bar",x="name",y="change",rows=rows)
             biggest = next((row for row in rows if row["change"] is not None),None)
             answer = (f"{biggest['name']} had the largest decline in {label}: "
-                      f"{number(metric,biggest['previous'])} to {number(metric,biggest[metric])}."
+                      f"{number(metric,biggest['previous'],currency)} to {number(metric,biggest[metric],currency)}."
                       if biggest and biggest["change"] < 0 else
                       "No channel with comparable data recorded a decline in this metric.")
         else:
@@ -292,8 +304,8 @@ def query(conn, info, question):
                            (r[metric] or 0) * (1 if intent.ascending else -1),r["name"]))
             evidence = dict(total=total,rows=rows)
             chart = dict(type="bar",x="name",y=metric,rows=rows)
-            answer = (f"{intent.marketing_channel or 'All campaigns'} recorded {label} of {number(metric,total[metric])} from {period}."
-                     + (f" {rows[0]['name']} is {'lowest' if intent.ascending else 'highest'} at {number(metric,rows[0][metric])}."
+            answer = (f"{intent.marketing_channel or 'All campaigns'} recorded {label} of {number(metric,total[metric],currency)} from {period}."
+                     + (f" {rows[0]['name']} is {'lowest' if intent.ascending else 'highest'} at {number(metric,rows[0][metric],currency)}."
                         if len(rows)>1 and rows[0][metric] is not None else ""))
     elif intent.action=="explain":
         if metric not in {"revenue","gross_profit"}:
@@ -301,12 +313,12 @@ def query(conn, info, question):
         prior = previous_period(start,end,intent.period in {"this_month","last_month"})
         if prior[0]<date.fromisoformat(info["start"]):
             raise HTTPException(422,"The comparison period falls outside available data.")
-        evidence = decompose(conn,(start,end),prior,scope,metric)
-        rows = evidence["contributions"][intent.dimension][:8]
+        evidence = decompose(conn,(start,end),prior,scope,metric,info=info)
+        rows = evidence["contributions"].get(intent.dimension, [])[:8]
         chart = dict(type="bar",x="name",y="delta",rows=rows)
-        answer = f"{label.capitalize()} changed by {number(metric,evidence['delta'])} compared with {prior[0]} to {prior[1]}."
+        answer = f"{label.capitalize()} changed by {number(metric,evidence['delta'],currency)} compared with {prior[0]} to {prior[1]}."
         if rows:
-            answer += f" {rows[0]['name']} had the largest absolute contribution in the {intent.dimension} breakdown ({number(metric,rows[0]['delta'])})."
+            answer += f" {rows[0]['name']} had the largest absolute contribution in the {intent.dimension} breakdown ({number(metric,rows[0]['delta'],currency)})."
         answer += " Observed contributions do not establish causality."
     elif intent.action=="forecast":
         if scope.keys()-{"product","category"}:
@@ -315,16 +327,16 @@ def query(conn, info, question):
             raise HTTPException(422,"Choose either product or category for forecast.")
         evidence = services.forecast(conn,info,ForecastRequest(target=intent.forecast_target,horizon=intent.horizon,**scope))
         chart = dict(type="line",x="date",y="value",rows=evidence["prediction"])
-        trace.update(sources=["sales_transactions","inventory_daily","versioned forecast artifact"],
+        trace.update(sources=[source_name,"versioned forecast artifact"],
                      range=[evidence["prediction"][0]["date"],evidence["prediction"][-1]["date"]],formulas={})
         answer = (f"The {intent.horizon}-day {intent.forecast_target} forecast totals "
-                  f"{number('revenue' if intent.forecast_target=='revenue' else 'units',evidence['total'])}. "
+                  f"{number('revenue' if intent.forecast_target=='revenue' else 'units',evidence['total'],currency)}. "
                   f"{evidence['stockout_note']}")
     else:
         if scope:
             raise HTTPException(422,"Alert queries use the date range. Filter severity in Anomaly Center.")
         rows = services.alerts(conn,info,start,end)[:8]
         evidence = {"rows":rows}
-        trace.update(sources=["daily_sales","marketing_campaigns","inventory_daily"],formulas={})
+        trace.update(sources=[source_name],formulas={})
         answer = f"Found {len(rows)} prioritized alerts in this response for {period}."
     return dict(answer=answer,intent=intent,chart=chart,evidence=evidence,trace=trace)

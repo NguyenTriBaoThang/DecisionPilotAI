@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
-import { request, percent, type Row } from '../api'
+import { getActiveCompanyId, request, percent, type Row } from '../api'
 import { Card, ErrorState, SectionTitle, Table } from '../ui'
 
 type Quality = {
@@ -10,8 +10,12 @@ type Quality = {
   limitations: string[]
 }
 
-export function ModelQuality() {
-  const quality = useQuery({ queryKey: ['model-quality'], queryFn: () => request<Quality>('/models/quality') })
+export function ModelQuality({ datasetId }: { datasetId?: string }) {
+  const companyId = getActiveCompanyId()
+  const quality = useQuery({
+    queryKey: ['model-quality', companyId, datasetId],
+    queryFn: () => request<Quality>('/models/quality'),
+  })
 
   return (
     <Card>

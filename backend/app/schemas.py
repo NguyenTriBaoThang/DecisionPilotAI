@@ -1,10 +1,12 @@
-"""Request boundaries for exposed decision tools."""
+"""Request boundaries for exposed decision tools and enterprise data ingestion."""
 from datetime import date
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 Slug = Annotated[str, Field(min_length=1,max_length=100)]
+CurrencyCode = Literal["VND", "USD", "EUR", "GBP"]
+ConnectorType = Literal["file_upload", "postgresql", "sql_server", "mysql", "rest_api", "erp_crm_pos"]
 Horizon = Literal[7,30]
 Objective = Literal["profit","revenue","stockout","balanced"]
 Grain = Literal["daily","weekly","monthly"]
@@ -130,3 +132,54 @@ class QueryResponse(BaseModel):
     chart: dict | None = None
     evidence: dict
     trace: dict
+
+
+class CompanyCreateRequest(Strict):
+    name: Annotated[str, Field(min_length=2, max_length=120)]
+    slug: Annotated[str | None, Field(min_length=2, max_length=60, pattern=r"^[a-z0-9][a-z0-9_-]*$")] = None
+    activate: bool = True
+
+
+class PreviewRequest(Strict):
+    sheet_name: Annotated[str | None, Field(min_length=1, max_length=120)] = None
+    limit: Annotated[int, Field(ge=1, le=500)] = 50
+
+
+class ColumnMappingSaveRequest(Strict):
+    mappings: dict[str, Annotated[str, Field(min_length=1, max_length=120)]]
+    custom_fields: list[Annotated[str, Field(min_length=1, max_length=80)]] = Field(default_factory=list, max_length=50)
+    sheet_name: Annotated[str | None, Field(min_length=1, max_length=120)] = None
+    currency: CurrencyCode | None = None
+    confirmed: bool = True
+    save_template: bool = False
+    template_name: Annotated[str | None, Field(min_length=2, max_length=120)] = None
+    template_id: Annotated[str | None, Field(min_length=1, max_length=64)] = None
+
+
+class ValidateRequest(Strict):
+    sheet_name: Annotated[str | None, Field(min_length=1, max_length=120)] = None
+    mappings: dict[str, Annotated[str, Field(min_length=1, max_length=120)]] | None = None
+    custom_fields: list[Annotated[str, Field(min_length=1, max_length=80)]] | None = None
+    invalid_row_policy: Literal["skip_invalid", "fail_on_error"] = "skip_invalid"
+    duplicate_policy: Literal["keep_all", "deduplicate"] = "keep_all"
+    currency: CurrencyCode | None = None
+
+
+class ImportConfirmRequest(Strict):
+    confirmed: bool = True
+    sheet_name: Annotated[str | None, Field(min_length=1, max_length=120)] = None
+    invalid_row_policy: Literal["skip_invalid", "fail_on_error"] = "skip_invalid"
+    duplicate_policy: Literal["keep_all", "deduplicate"] = "keep_all"
+    currency: CurrencyCode | None = None
+    activate: bool = True
+
+
+class DataSourceCreateRequest(Strict):
+    name: Annotated[str, Field(min_length=2, max_length=120)]
+    source_type: ConnectorType
+    config: dict[str, Any] = Field(default_factory=dict)
+
+
+class DataSourceTestRequest(Strict):
+    source_type: ConnectorType
+    config: dict[str, Any] = Field(default_factory=dict)

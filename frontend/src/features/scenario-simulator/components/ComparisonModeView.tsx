@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Layers } from 'lucide-react'
 import { decimal, moneyCompact, percent, type Row, type Scenario } from '../../../api'
-import { Button, Card, SectionTitle, StatusBadge, Table } from '../../../ui'
+import { Button, Card, Empty, SectionTitle, StatusBadge, Table } from '../../../ui'
 import { Scenario3DLandscape } from '../../../components/Scenario3DLandscape'
 
 interface ComparisonModeViewProps {
@@ -10,46 +10,15 @@ interface ComparisonModeViewProps {
 
 export function ComparisonModeView({ scenarioData }: ComparisonModeViewProps) {
   const [metricKey, setMetricKey] = useState<'profit' | 'revenue' | 'demand'>('profit')
-  const variants: Row[] = scenarioData
-    ? [scenarioData.baseline, ...scenarioData.alternatives]
-    : [
-        {
-          name: 'Baseline (0% Discount)',
-          demand: 180,
-          fulfilled: 180,
-          revenue: 144000000,
-          gross_profit: 64800000,
-          profit: 64800000,
-          margin: 0.45,
-          risk: null,
-        },
-        {
-          name: 'Scenario A (5% Discount)',
-          demand: 228,
-          fulfilled: 228,
-          revenue: 173280000,
-          gross_profit: 72960000,
-          profit: 72960000,
-          profit_delta: 8160000,
-          margin: 0.421,
-          risk: null,
-        },
-        {
-          name: 'Scenario B (10% Discount)',
-          demand: 276,
-          fulfilled: 250,
-          revenue: 180000000,
-          gross_profit: 70000000,
-          profit: 70000000,
-          profit_delta: 5200000,
-          margin: 0.388,
-          risk: 26,
-        },
-      ]
-
-  const recommendedName = scenarioData
-    ? String(scenarioData.recommended.name)
-    : 'Scenario A (5% Discount)'
+  if (!scenarioData) {
+    return (
+      <Card>
+        <Empty text="Run a scenario simulation in Planning Studio to compare baseline and alternative outcomes side-by-side." />
+      </Card>
+    )
+  }
+  const variants: Row[] = [scenarioData.baseline, ...scenarioData.alternatives]
+  const recommendedName = String(scenarioData.recommended.name)
 
   return (
     <div className="space-y-6">

@@ -19,6 +19,7 @@ import {
   moneyCompact,
   percent,
   request,
+  type Dataset,
   type KPI,
   type Options,
   type Row,
@@ -28,6 +29,7 @@ import {
   Button,
   Card,
   Chart,
+  Empty,
   ErrorState,
   Loading,
   PageHeader,
@@ -53,7 +55,7 @@ const tabList: { id: SimulatorTab; title: string; icon: typeof CircleDollarSign 
   { id: 'recommendations', title: 'AI Recommendations', icon: Sparkles },
 ]
 
-export function ScenarioSimulator3D({ options }: { options: Options }) {
+export function ScenarioSimulator3D({ dataset, options }: { dataset?: Dataset; options: Options }) {
   const [search] = useSearchParams()
   const [preset] = useState(() =>
     search.get('autorun') === '1' && search.get('tab') === 'marketing' && search.get('channel')
@@ -61,16 +63,20 @@ export function ScenarioSimulator3D({ options }: { options: Options }) {
       : null
   )
   const [recId] = useState(() => search.get('rec') || undefined)
-  const [activeTab, setActiveTab] = useState<SimulatorTab>(preset ? 'marketing' : 'pricing')
+  const initialHasProducts = options.products.length > 0
+  const initialHasMarketing = options.marketing_channels.length > 0
+  const [activeTab, setActiveTab] = useState<SimulatorTab>(
+    preset ? 'marketing' : initialHasProducts ? 'pricing' : initialHasMarketing ? 'marketing' : 'overview'
+  )
   const [controlTab, setControlTab] = useState<'overview' | 'pricing' | 'marketing' | 'inventory'>(
-    preset ? 'marketing' : 'pricing'
+    preset ? 'marketing' : initialHasProducts ? 'pricing' : initialHasMarketing ? 'marketing' : 'overview'
   )
   const [viewMode, setViewMode] = useState<'studio' | 'comparison'>('studio')
   const [metricKey, setMetricKey] = useState<'profit' | 'revenue' | 'demand'>('profit')
   const [isFullscreen, setIsFullscreen] = useState(false)
 
   const kpiQuery = useQuery({
-    queryKey: ['simulator-baseline-kpi'],
+    queryKey: ['simulator-baseline-kpi', dataset?.dataset_id],
     queryFn: () => request<KPI>('/kpi/summary?grain=daily'),
   })
 
@@ -79,11 +85,6 @@ export function ScenarioSimulator3D({ options }: { options: Options }) {
   })
 
   useEffect(() => {
-    const defaultProduct =
-      options.products.find((p) => p.product_name === 'SmartDesk Mini')?.product_id ||
-      options.products[0]?.product_id ||
-      'P001'
-
     if (preset) {
       simulateMutation.mutate({
         type: 'marketing',
@@ -93,16 +94,32 @@ export function ScenarioSimulator3D({ options }: { options: Options }) {
       })
       return
     }
-    simulateMutation.mutate({
-      type: 'price',
-      horizon: 30,
-      objective: 'profit',
-      parameters: {
-        product: defaultProduct,
-        discounts: [0, 0.05, 0.1],
-      },
-    })
-  }, [])
+    const defaultProduct =
+      options.products.find((p) => p.product_name === 'SmartDesk Mini')?.product_id ||
+      options.products[0]?.product_id
+
+    if (defaultProduct) {
+      simulateMutation.mutate({
+        type: 'price',
+        horizon: 30,
+        objective: 'profit',
+        parameters: {
+          product: defaultProduct,
+          discounts: [0, 0.05, 0.1],
+        },
+      })
+      return
+    }
+    const defaultChannel = options.marketing_channels[0]
+    if (defaultChannel) {
+      simulateMutation.mutate({
+        type: 'marketing',
+        horizon: 30,
+        objective: 'profit',
+        parameters: { channel: defaultChannel, changes: [-0.15, 0.15, 0.3] },
+      })
+    }
+  }, [dataset?.dataset_id])
 
   const handleSelectTab = (tabId: SimulatorTab) => {
     setActiveTab(tabId)
@@ -331,9 +348,13 @@ export function ScenarioSimulator3D({ options }: { options: Options }) {
                     />
                   </Card>
                 </>
-              ) : (
+              ) : simulateMutation.isPending ? (
                 <Card>
                   <Loading labelText="Running scenario studio…" />
+                </Card>
+              ) : (
+                <Card>
+                  <Empty text="Select a product SKU or marketing channel in the control panel and run a simulation to inspect outcomes." />
                 </Card>
               )}
             </div>
