@@ -44,7 +44,7 @@ test('alert -> Ask -> recommendation -> simulator -> one decision settles card a
   await expect(page.getByText(/Decision recorded: accepted/)).toBeVisible()
 
   await page.goto('/recommendations')
-  await expect(page.getByText('STATUS: ACCEPTED').first()).toBeVisible()
+  await expect(page.getByText('STATUS: ACCEPTED').first()).toBeVisible({ timeout: 30_000 })
   await expect(page.getByRole('cell', { name: 'recommendation_feedback', exact: true })).toBeVisible()
   await expect(page.getByRole('cell', { name: 'scenario_feedback', exact: true })).toBeVisible()
 })

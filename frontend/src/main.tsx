@@ -227,7 +227,11 @@ function AppShell({ session }: { session: Session }) {
           onOpenSearch={() => setSearchOpen(true)}
         />
 
-        <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 space-y-6 max-w-[1440px] w-full mx-auto">
+        <main
+          className={`flex-1 px-4 sm:px-6 py-5 space-y-5 w-full mx-auto ${
+            pathname === '/scenarios' ? 'max-w-[1720px]' : 'lg:px-8 py-6 space-y-6 max-w-[1440px]'
+          }`}
+        >
           {ds.isLoading && <Loading />}
           <ErrorState
             error={fatalDatasetError || opts.error}
@@ -240,6 +244,14 @@ function AppShell({ session }: { session: Session }) {
           {!ds.isLoading && !ds.data && (
             <Routes key={`empty:${companyId}`}>
               <Route path="/ask" element={<Ask canEdit={session.role !== 'viewer'} />} />
+              <Route
+                path="/scenarios"
+                element={
+                  <Suspense fallback={<Loading />}>
+                    <ScenarioSimulator3D session={session} />
+                  </Suspense>
+                }
+              />
               <Route
                 path="/knowledge-map"
                 element={
@@ -279,7 +291,7 @@ function AppShell({ session }: { session: Session }) {
                 element={
                   opts.data ? (
                     <Suspense fallback={<Loading />}>
-                      <ScenarioSimulator3D dataset={ds.data} options={opts.data} />
+                      <ScenarioSimulator3D dataset={ds.data} options={opts.data} session={session} />
                     </Suspense>
                   ) : (
                     <Loading />

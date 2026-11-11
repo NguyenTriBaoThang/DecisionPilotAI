@@ -374,7 +374,7 @@ test('navigates Enterprise Knowledge Map in light mode, traces real lineage, run
   ]) {
     await expect(page.getByText(kpi, { exact: true }).first()).toBeVisible()
   }
-  await expect(page.getByText('LightGBM Forecaster').first()).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByRole('button', { name: /LightGBM Forecaster/i }).first()).toBeVisible({ timeout: 15_000 })
   await expect(page.getByText(/Churn Prediction/i)).toHaveCount(0)
   await expect(page.getByText(/Classification Model/i)).toHaveCount(0)
 
@@ -417,5 +417,102 @@ test('navigates Enterprise Knowledge Map in light mode, traces real lineage, run
   // Switch back to Default Enterprise Workspace and confirm seeded nodes return cleanly
   await page.getByRole('button', { name: 'Company Workspace' }).click()
   await page.getByRole('button', { name: /Default Enterprise Workspace/i }).click()
-  await expect(page.getByText('LightGBM Forecaster').first()).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByRole('button', { name: /LightGBM Forecaster/i }).first()).toBeVisible({ timeout: 15_000 })
+})
+
+test('runs Interactive 3D Business Scenario Simulator in light mode, compares scenarios, plays data flow, generates advisor rec, and isolates empty tenant', async ({ page }) => {
+  await page.goto('/')
+  await page.getByLabel('Access token', { exact: true }).fill('e2e-admin-token-for-isolated-tests-only')
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await expect(page.getByRole('link', { name: 'Scenario Simulator', exact: true })).toBeVisible()
+
+  // Confirm Enterprise Light Mode default
+  expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe('light')
+
+  // 1. Open Scenario Simulator
+  await page.getByRole('link', { name: 'Scenario Simulator', exact: true }).click()
+  await expect(page).toHaveURL(/\/scenarios$/)
+  await expect(page.getByTestId('digital-twin-studio')).toBeVisible({ timeout: 20_000 })
+
+  // 2. Inspect Data Readiness & Honest AI Models
+  await page.getByRole('tab', { name: 'Data & Score', exact: true }).click()
+  await expect(page.getByTestId('twin-data-readiness-panel')).toContainText('/100')
+  await expect(page.getByTestId('twin-data-readiness-panel')).toContainText(/not forecast accuracy/i)
+
+  await page.getByRole('tab', { name: 'AI Models', exact: true }).click()
+  await expect(page.getByTestId('twin-ai-models-panel')).toContainText('Classification (Churn / Propensity)')
+  await expect(page.getByTestId('twin-ai-models-panel')).toContainText('NOT INTEGRATED')
+
+  // 3. Create a What-if Revenue Growth scenario
+  await page.getByRole('button', { name: /New What-if Scenario/i }).click()
+  const modal = page.getByTestId('create-twin-scenario-modal')
+  await expect(modal).toBeVisible()
+  await modal.getByLabel('Scenario Name').fill('E2E Digital Twin Revenue Plan')
+  const createRes = page.waitForResponse(
+    (res) => res.url().includes('/v1/twin/scenarios') && !res.url().includes('/runs') && res.request().method() === 'POST'
+  )
+  await page.getByTestId('submit-create-twin-scenario').click()
+  expect((await createRes).status()).toBe(201)
+
+  // 4. Adjust Marketing Budget variable & execute real backend simulation run
+  const varInput = page.locator('#twin-var-marketing_budget_change_pct')
+  await expect(varInput).toBeVisible()
+  await varInput.fill('25')
+  const runRes = page.waitForResponse(
+    (res) => res.url().includes('/runs') && res.request().method() === 'POST'
+  )
+  await page.getByTestId('twin-apply-run-btn').click()
+  expect((await runRes).ok()).toBeTruthy()
+  await expect(page.getByTestId('twin-run-status-pill')).toContainText('COMPLETED', { timeout: 20_000 })
+  await expect(page.getByTestId('twin-results-list')).toContainText('Revenue Forecast')
+
+  // 5. Switch to 2D SVG Architecture & interact with Zone + play timeline steps
+  await page.getByRole('button', { name: 'Switch to 2D Canvas' }).click()
+  await expect(page.getByTestId('digital-twin-canvas-2d')).toBeVisible()
+  await page.getByTestId('twin-zone-inventory').click()
+  await expect(page.getByTestId('twin-selection-detail')).toContainText('Inventory Zone')
+  await page.getByRole('button', { name: 'Switch to 3D Canvas' }).click()
+
+  await page.getByRole('button', { name: 'Step Forward Flow' }).click()
+  await expect(page.getByTestId('twin-step-counter')).toContainText(/Step 1 \/ \d+/)
+  await page.getByRole('button', { name: 'Reset View' }).click()
+  await expect(page.getByTestId('twin-step-counter')).toContainText(/Step 0 \/ \d+/)
+
+  // 6. Open Multi-Scenario Comparison modal
+  const cmpRes = page.waitForResponse(
+    (res) => res.url().includes('/v1/twin/compare') && res.request().method() === 'POST'
+  )
+  await page.getByTestId('open-multi-compare-btn').click()
+  expect((await cmpRes).ok()).toBeTruthy()
+  await expect(page.getByTestId('multi-scenario-compare-modal')).toContainText('TOP PICK:')
+  await page.getByRole('button', { name: 'Close comparison dialog' }).click()
+
+  // 7. Generate Grounded AI Recommendation for completed Digital Twin run
+  await page.getByRole('button', { name: 'AI Recommendations', exact: true }).click()
+  const recRes = page.waitForResponse(
+    (res) => res.url().includes('/recommend') && res.request().method() === 'POST'
+  )
+  await page.getByTestId('twin-generate-rec-btn').click()
+  expect((await recRes).ok()).toBeTruthy()
+  await expect(page.getByTestId('twin-ai-recommendation-panel')).toContainText('Executive Recommendation')
+  await expect(page.getByTestId('twin-ai-recommendation-panel')).toContainText(/Disclosed Model Limitations/i)
+
+  // 8. Provision brand-new empty company workspace & verify honest 0/100 empty Twin state (zero leak)
+  await page.getByRole('button', { name: 'Company Workspace' }).click()
+  await page.getByPlaceholder('e.g. Acme Retail Ltd.').fill('Empty Twin Corp')
+  const emptyCompRes = page.waitForResponse(
+    (res) => res.url().includes('/api/v1/companies') && res.request().method() === 'POST'
+  )
+  await page.getByRole('button', { name: 'Add', exact: true }).click()
+  expect((await emptyCompRes).ok()).toBeTruthy()
+  await expect(page.getByRole('heading', { name: 'Empty Company Workspace' })).toBeVisible()
+
+  await page.getByRole('link', { name: 'Scenario Simulator', exact: true }).click()
+  await expect(page.getByTestId('twin-empty-workspace-state')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByTestId('empty-readiness-badge')).toContainText('0/100')
+
+  // 9. Switch back to Default Enterprise Workspace and confirm Digital Twin returns cleanly
+  await page.getByRole('button', { name: 'Company Workspace' }).click()
+  await page.getByRole('button', { name: /Default Enterprise Workspace/i }).click()
+  await expect(page.getByTestId('digital-twin-studio')).toBeVisible({ timeout: 20_000 })
 })

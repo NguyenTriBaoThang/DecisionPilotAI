@@ -1659,4 +1659,428 @@ export async function consumeLineageStream(
   }
 }
 
+// --- Interactive 3D Business Scenario Simulator (Digital Twin) Types & Clients ---
+
+export type TwinScenarioType =
+  | 'baseline'
+  | 'revenue_growth'
+  | 'marketing_optimization'
+  | 'pricing_strategy'
+  | 'inventory_optimization'
+  | 'customer_retention'
+  | 'cost_reduction'
+  | 'supply_chain_disruption'
+  | 'custom'
+
+export type TwinObjective = 'profit' | 'revenue' | 'stockout' | 'margin' | 'resilience' | 'balanced'
+
+export type TwinAIModelInfo = {
+  id: string
+  name: string
+  version: string | null
+  status: 'integrated' | 'degraded' | 'partial' | 'not_integrated' | 'unavailable'
+  kind: string
+  input: string
+  output: string
+  note: string
+}
+
+export type TwinZone = {
+  id: string
+  name: string
+  department: string
+  description: string
+  position: [number, number, number]
+  color: string
+  accent: string
+  node_ids: string[]
+  baseline?: {
+    zone_id: string
+    supported: boolean
+    metrics: Record<string, unknown>
+    missing_reason?: string | null
+    channels?: Row[]
+    segments?: Row[]
+    models?: TwinAIModelInfo[]
+  }
+}
+
+export type TwinNode = {
+  id: string
+  zone_id: string
+  label: string
+  kind: 'input' | 'metric' | 'process' | 'assumption' | 'ai_model' | 'output' | string
+}
+
+export type TwinEdge = {
+  id: string
+  source: string
+  target: string
+  label: string
+}
+
+export type TwinDataReadiness = {
+  score: number
+  tier: 'high' | 'moderate' | 'low' | 'not_ready' | string
+  days_observed: number
+  quality_score: number | null
+  quality_dimensions?: Record<string, number>
+  invalid_rows?: number
+  missing_values?: number
+  duplicate_records?: number
+  missing_capabilities: string[]
+  supported_scenarios: string[]
+  unsupported_reasons: string[]
+  checks: { name: string; passed: boolean; category: string }[]
+  storage_mode?: string
+  disclaimer: string
+}
+
+export type TwinScenarioVariable = {
+  id: string
+  domain: string
+  variable_name: string
+  label: string
+  baseline_value: number | null
+  scenario_value: number | null
+  unit: string
+  min_value: number | null
+  max_value: number | null
+  validation_rule: string
+  source_or_assumption: string
+  supported: boolean
+  metadata?: Record<string, unknown>
+}
+
+export type TwinSimulationEvent = {
+  id: string
+  company_id: string
+  simulation_run_id: string
+  step_order: number
+  event_type: string
+  zone_id: string | null
+  node_id: string | null
+  source_node_id: string | null
+  target_node_id: string | null
+  edge_id: string | null
+  timestamp: string | null
+  duration_ms: number | null
+  status: string
+  record_count: number | null
+  metadata: Record<string, unknown>
+}
+
+export type TwinSimulationResult = {
+  id: string
+  simulation_run_id: string
+  metric_name: string
+  domain: string
+  label: string
+  baseline_value: number | null
+  scenario_value: number | null
+  abs_difference: number | null
+  pct_difference: number | null
+  unit: string
+  uncertainty_metadata: {
+    is_available: boolean
+    interval_lower: number | null
+    interval_upper: number | null
+    nominal_coverage?: number | null
+    reason?: string
+  }
+  evidence_references: {
+    model_name?: string
+    model_version?: string
+    data_source?: string
+    formula?: string
+    timestamp?: string
+  }
+}
+
+export type TwinRecommendation = {
+  run_id: string
+  scenario_id: string
+  scenario_name: string
+  scenario_type: string
+  language: 'en' | 'vi'
+  synthesis_mode: string
+  recommendation: string
+  summary: string
+  supporting_metrics: Array<{
+    metric_name: string
+    label: string
+    domain: string
+    baseline_value: number | null
+    scenario_value: number | null
+    abs_difference: number | null
+    pct_difference: number | null
+    unit: string
+    uncertainty_available: boolean
+  }>
+  supporting_data: Record<string, unknown>
+  related_models: TwinAIModelInfo[]
+  risks: string[]
+  assumptions: string[]
+  limitations: string[]
+  citations: Array<{
+    citation_id: string
+    document_id: string
+    source_file: string
+    section?: string | null
+    page_number?: number | null
+    snippet: string
+    rerank_score?: number
+  }>
+  generated_at: string
+}
+
+export type TwinSimulationRun = {
+  id: string
+  company_id: string
+  scenario_id: string
+  scenario_name?: string | null
+  scenario_type?: TwinScenarioType
+  dataset_id: string | null
+  status: 'preparing' | 'queued' | 'running' | 'completed' | 'failed' | 'cancelled'
+  legacy_simulation_id?: string | null
+  started_at: string | null
+  completed_at: string | null
+  duration_ms: number | null
+  model_versions: Record<string, string>
+  input_references: Record<string, unknown>
+  output_references: Record<string, unknown>
+  data_readiness: TwinDataReadiness
+  warnings: string[]
+  assumptions: string[]
+  recommendation: TwinRecommendation | null
+  error_details: string | null
+  created_by: string
+  pipeline_graph?: { nodes: TwinNode[]; edges: TwinEdge[] }
+  events?: TwinSimulationEvent[]
+  results?: TwinSimulationResult[]
+}
+
+export type TwinScenario = {
+  id: string
+  company_id: string
+  dataset_id: string | null
+  scenario_type: TwinScenarioType
+  name: string
+  description: string | null
+  baseline_reference: string | null
+  objective: TwinObjective
+  horizon_days: 7 | 30 | 90
+  is_baseline: boolean
+  constraints: {
+    min_margin?: number | null
+    max_stockout_risk_units?: number | null
+    max_spend_increase_pct?: number | null
+    max_cost_pct?: number | null
+  }
+  configuration: Record<string, unknown>
+  data_sources: Record<string, unknown>
+  models: TwinAIModelInfo[]
+  created_by: string
+  created_at: string | null
+  updated_at: string | null
+  variables: TwinScenarioVariable[]
+  latest_run: TwinSimulationRun | null
+  runs?: TwinSimulationRun[]
+  pipeline_graph?: { nodes: TwinNode[]; edges: TwinEdge[] }
+}
+
+export type TwinWorkspacePayload = {
+  company_id: string
+  dataset_ready: boolean
+  dataset: {
+    dataset_id: string
+    title: string
+    currency: string
+    start: string
+    end: string
+    storage_mode?: string
+    capabilities: Record<string, boolean>
+  } | null
+  data_readiness: TwinDataReadiness
+  baseline_scenario_id?: string
+  baseline: {
+    company_id: string
+    dataset_id: string
+    dataset_title: string
+    currency: string
+    horizon_days: number
+    window_start: string
+    window_end: string
+    default_product: { product_id: string; product_name: string; category: string } | null
+    default_channel: string | null
+    zones: Record<string, TwinZone['baseline']>
+    ai_models: TwinAIModelInfo[]
+    options: Options
+  } | null
+  zones: TwinZone[]
+  nodes: TwinNode[]
+  edges: TwinEdge[]
+  ai_models: TwinAIModelInfo[]
+  variable_templates: Record<string, Omit<TwinScenarioVariable, 'id'>[]>
+  scenarios: TwinScenario[]
+  recent_runs: TwinSimulationRun[]
+}
+
+export type TwinCompareResponse = {
+  company_id: string
+  objective: TwinObjective
+  constraints: Record<string, number | null>
+  ranking_method: string
+  recommended_scenario_id: string | null
+  comparison: Array<{
+    rank: number
+    scenario_id: string
+    name: string
+    scenario_type: TwinScenarioType
+    is_baseline: boolean
+    run_id: string
+    revenue: number | null
+    profit: number | null
+    cost: number | null
+    margin_pct: number | null
+    demand: number | null
+    closing_inventory: number | null
+    stockout_risk: number | null
+    customers: number | null
+    marketing_spend: number | null
+    fulfillment_pct: number | null
+    feasible: boolean
+    violations: string[]
+    warnings: string[]
+  }>
+  sensitivity: {
+    scenario_id: string
+    variable_name: string
+    points: Array<{
+      parameter: string
+      label: string
+      delta_step: number
+      estimated_revenue: number | null
+      estimated_profit: number | null
+    }>
+  }
+}
+
+export const getTwinWorkspace = (opts: { dataset_id?: string; horizon_days?: number } = {}) => {
+  const qs = params({
+    dataset_id: opts.dataset_id,
+    horizon_days: opts.horizon_days != null ? String(opts.horizon_days) : undefined,
+  })
+  return request<TwinWorkspacePayload>('/v1/twin/workspace' + (qs ? '?' + qs : ''))
+}
+
+export const ensureTwinBaseline = (forceRefresh = false) =>
+  request<TwinScenario>('/v1/twin/scenarios/baseline' + (forceRefresh ? '?force_refresh=true' : ''), {})
+
+export const listTwinScenarios = (datasetId?: string) =>
+  request<{ company_id: string; items: TwinScenario[]; count: number }>(
+    '/v1/twin/scenarios' + (datasetId ? '?' + params({ dataset_id: datasetId }) : '')
+  )
+
+export const createTwinScenario = (payload: {
+  name: string
+  description?: string
+  scenario_type: TwinScenarioType
+  objective?: TwinObjective
+  horizon_days?: 7 | 30 | 90
+  dataset_id?: string
+  constraints?: Record<string, number | null>
+  configuration?: Record<string, unknown>
+  variables_overrides?: Record<string, number | null>
+}) => request<TwinScenario>('/v1/twin/scenarios', payload)
+
+export const getTwinScenario = (scenarioId: string) =>
+  request<TwinScenario>(`/v1/twin/scenarios/${encodeURIComponent(scenarioId)}`)
+
+export const updateTwinScenario = (
+  scenarioId: string,
+  payload: {
+    name?: string
+    description?: string
+    objective?: TwinObjective
+    horizon_days?: 7 | 30 | 90
+    constraints?: Record<string, number | null>
+    configuration?: Record<string, unknown>
+  }
+) => requestWithMethod<TwinScenario>(`/v1/twin/scenarios/${encodeURIComponent(scenarioId)}`, 'PATCH', payload)
+
+export const deleteTwinScenario = (scenarioId: string) =>
+  requestWithMethod<{ deleted: boolean; scenario_id: string }>(
+    `/v1/twin/scenarios/${encodeURIComponent(scenarioId)}`,
+    'DELETE'
+  )
+
+export const patchTwinScenarioVariables = (
+  scenarioId: string,
+  variables: Array<{
+    variable_name: string
+    scenario_value?: number | null
+    baseline_value?: number | null
+    source_or_assumption?: string
+  }>
+) =>
+  requestWithMethod<TwinScenario>(
+    `/v1/twin/scenarios/${encodeURIComponent(scenarioId)}/variables`,
+    'PATCH',
+    { variables }
+  )
+
+export const startTwinSimulationRun = (
+  scenarioId: string,
+  payload: {
+    execution_mode?: 'async' | 'sync'
+    inject_failure?: boolean
+    focus_scope?: Record<string, unknown>
+    step_delay_ms?: number
+  } = { execution_mode: 'sync' }
+) => request<TwinSimulationRun>(`/v1/twin/scenarios/${encodeURIComponent(scenarioId)}/runs`, payload)
+
+export const getTwinSimulationRun = (runId: string) =>
+  request<TwinSimulationRun>(`/v1/twin/runs/${encodeURIComponent(runId)}`)
+
+export const cancelTwinSimulationRun = (runId: string) =>
+  request<TwinSimulationRun>(`/v1/twin/runs/${encodeURIComponent(runId)}/cancel`, {})
+
+export const retryTwinSimulationRun = (runId: string) =>
+  request<TwinSimulationRun>(`/v1/twin/runs/${encodeURIComponent(runId)}/retry`, {})
+
+export const compareTwinScenarios = (payload: {
+  scenario_ids: string[]
+  objective?: TwinObjective
+  constraints?: Record<string, number | null>
+  sensitivity_variable?: string
+}) => request<TwinCompareResponse>('/v1/twin/compare', payload)
+
+export const generateTwinRecommendation = (
+  runId: string,
+  payload: { language?: 'en' | 'vi'; custom_focus?: string } = {}
+) => request<TwinRecommendation>(`/v1/twin/runs/${encodeURIComponent(runId)}/recommend`, payload)
+
+export async function downloadTwinRunExport(runId: string, format: 'json' | 'csv' = 'json'): Promise<void> {
+  const headers = buildAuthHeaders()
+  const response = await fetch(`/api/v1/twin/runs/${encodeURIComponent(runId)}/export?format=${format}`, {
+    headers,
+    signal: AbortSignal.timeout(30_000),
+  })
+  if (!response.ok) {
+    const data = await response.json().catch(() => null)
+    throw new ApiError(typeof data?.detail === 'string' ? data.detail : 'Unable to export simulation report.', response.status)
+  }
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `digital-twin-run-${runId}.${format}`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
+
 

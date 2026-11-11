@@ -1,4 +1,4 @@
-import { useId, useMemo, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
+import { useId, useMemo, useState, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode } from 'react'
 import {
   AlertCircle,
   ArrowDown,
@@ -276,7 +276,8 @@ export function StatusBadge({
   children,
   tone = 'muted',
   className,
-}: {
+  ...props
+}: HTMLAttributes<HTMLSpanElement> & {
   children: ReactNode
   tone?: string
   className?: string
@@ -284,6 +285,7 @@ export function StatusBadge({
   const c = badgeToneMap[tone] || badgeToneMap.muted
   return (
     <span
+      {...props}
       style={{ background: c.bg, borderColor: c.border, color: c.text }}
       className={cn(
         'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold tracking-wide',

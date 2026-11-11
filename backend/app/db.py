@@ -693,6 +693,113 @@ business_insights = sa.Table(
 )
 sa.Index("ix_business_insights_comp_ds", business_insights.c.company_id, business_insights.c.dataset_id)
 
+# ---------------------------------------------------------------------------
+# Interactive 3D Business Scenario Simulator (Enterprise Digital Twin)
+# ---------------------------------------------------------------------------
+
+twin_scenarios = sa.Table(
+    "twin_scenarios", metadata,
+    C("id", sa.String(64), primary_key=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("dataset_id", sa.String(64), nullable=True, index=True),
+    C("scenario_type", sa.String(48), nullable=False),
+    C("name", sa.String(180), nullable=False),
+    C("description", sa.Text, nullable=True),
+    C("baseline_reference", sa.String(64), nullable=True),
+    C("objective", sa.String(48), nullable=False, server_default="balanced"),
+    C("horizon_days", sa.Integer, nullable=False, server_default="30"),
+    C("is_baseline", sa.Boolean, nullable=False, server_default=sa.false()),
+    C("constraints_json", sa.JSON, nullable=False),
+    C("configuration_json", sa.JSON, nullable=False),
+    C("data_sources_json", sa.JSON, nullable=False),
+    C("models_json", sa.JSON, nullable=False),
+    C("created_by", sa.String(100), nullable=False, server_default="system"),
+    C("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    C("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+)
+sa.Index("ix_twin_scenarios_comp_ds", twin_scenarios.c.company_id, twin_scenarios.c.dataset_id)
+
+twin_scenario_variables = sa.Table(
+    "twin_scenario_variables", metadata,
+    C("id", sa.String(64), primary_key=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("scenario_id", sa.ForeignKey("twin_scenarios.id", ondelete="CASCADE"), nullable=False, index=True),
+    C("domain", sa.String(40), nullable=False),
+    C("variable_name", sa.String(80), nullable=False),
+    C("label", sa.String(120), nullable=False),
+    C("baseline_value", sa.Float, nullable=True),
+    C("scenario_value", sa.Float, nullable=True),
+    C("unit", sa.String(32), nullable=False),
+    C("min_value", sa.Float, nullable=True),
+    C("max_value", sa.Float, nullable=True),
+    C("validation_rule", sa.String(200), nullable=False),
+    C("source_or_assumption", sa.String(200), nullable=False),
+    C("supported", sa.Boolean, nullable=False, server_default=sa.true()),
+    C("metadata_json", sa.JSON, nullable=False),
+)
+sa.Index("ix_twin_vars_scen_domain", twin_scenario_variables.c.scenario_id, twin_scenario_variables.c.domain)
+
+twin_simulation_runs = sa.Table(
+    "twin_simulation_runs", metadata,
+    C("id", sa.String(64), primary_key=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("scenario_id", sa.ForeignKey("twin_scenarios.id", ondelete="CASCADE"), nullable=False, index=True),
+    C("dataset_id", sa.String(64), nullable=True, index=True),
+    C("status", sa.String(32), nullable=False, server_default="preparing"),
+    C("legacy_simulation_id", sa.String(64), nullable=True),
+    C("started_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    C("completed_at", sa.DateTime(timezone=True), nullable=True),
+    C("duration_ms", sa.Float, nullable=True),
+    C("model_versions_json", sa.JSON, nullable=False),
+    C("input_references_json", sa.JSON, nullable=False),
+    C("output_references_json", sa.JSON, nullable=False),
+    C("data_readiness_json", sa.JSON, nullable=False),
+    C("warnings_json", sa.JSON, nullable=False),
+    C("assumptions_json", sa.JSON, nullable=False),
+    C("recommendation_json", sa.JSON, nullable=True),
+    C("error_details", sa.Text, nullable=True),
+    C("created_by", sa.String(100), nullable=False, server_default="system"),
+)
+sa.Index("ix_twin_runs_comp_scen", twin_simulation_runs.c.company_id, twin_simulation_runs.c.scenario_id, twin_simulation_runs.c.started_at)
+
+twin_simulation_events = sa.Table(
+    "twin_simulation_events", metadata,
+    C("id", sa.String(80), primary_key=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("simulation_run_id", sa.ForeignKey("twin_simulation_runs.id", ondelete="CASCADE"), nullable=False, index=True),
+    C("step_order", sa.Integer, nullable=False, server_default="0"),
+    C("event_type", sa.String(80), nullable=False),
+    C("zone_id", sa.String(48), nullable=True),
+    C("node_id", sa.String(64), nullable=True),
+    C("source_node_id", sa.String(64), nullable=True),
+    C("target_node_id", sa.String(64), nullable=True),
+    C("edge_id", sa.String(80), nullable=True),
+    C("timestamp", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    C("duration_ms", sa.Float, nullable=True),
+    C("status", sa.String(32), nullable=False),
+    C("record_count", sa.Integer, nullable=True),
+    C("metadata_json", sa.JSON, nullable=False),
+)
+sa.Index("ix_twin_events_run_step", twin_simulation_events.c.simulation_run_id, twin_simulation_events.c.step_order)
+
+twin_simulation_results = sa.Table(
+    "twin_simulation_results", metadata,
+    C("id", sa.String(80), primary_key=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("simulation_run_id", sa.ForeignKey("twin_simulation_runs.id", ondelete="CASCADE"), nullable=False, index=True),
+    C("metric_name", sa.String(80), nullable=False),
+    C("domain", sa.String(40), nullable=False),
+    C("label", sa.String(120), nullable=False),
+    C("baseline_value", sa.Float, nullable=True),
+    C("scenario_value", sa.Float, nullable=True),
+    C("abs_difference", sa.Float, nullable=True),
+    C("pct_difference", sa.Float, nullable=True),
+    C("unit", sa.String(32), nullable=False),
+    C("uncertainty_metadata_json", sa.JSON, nullable=False),
+    C("evidence_references_json", sa.JSON, nullable=False),
+)
+sa.Index("ix_twin_results_run_metric", twin_simulation_results.c.simulation_run_id, twin_simulation_results.c.metric_name)
+
 
 def make_engine(url=None):
     url = url or os.getenv("DATABASE_URL")

@@ -28,6 +28,7 @@ from backend.app.lineage.router import build_lineage_router
 from backend.app.multimodal import service as multimodal_service
 from backend.app.multimodal.router import build_multimodal_router
 from backend.app.rag.router import build_rag_router
+from backend.app.simulator.router import build_simulator_router
 from backend.app.schemas import Feedback, Filters, ForecastRequest, Question, QueryResponse, ScenarioRequest, ScenarioFeedback
 from backend.app.security import authorize_company, credentials, identify
 from scripts.pipeline import LIMIT_BYTES, SnapshotConflict, load_snapshot, read_upload
@@ -143,12 +144,15 @@ def create_app(engine=None, storage: ObjectStorage | None = None):
     multimodal_router = build_multimodal_router(engine, storage=store, job_queue=job_queue)
     rag_router = build_rag_router(engine)
     lineage_router = build_lineage_router(engine)
+    simulator_router = build_simulator_router(engine)
     app.include_router(ingestion_router, prefix="/v1")
     app.include_router(ingestion_router, prefix="/api/v1", include_in_schema=False)
     app.include_router(multimodal_router, prefix="/v1")
     app.include_router(multimodal_router, prefix="/api/v1", include_in_schema=False)
     app.include_router(rag_router, prefix="/v1")
     app.include_router(rag_router, prefix="/api/v1", include_in_schema=False)
+    app.include_router(simulator_router, prefix="/v1")
+    app.include_router(simulator_router, prefix="/api/v1", include_in_schema=False)
     app.include_router(lineage_router)
     app.include_router(lineage_router, prefix="/api", include_in_schema=False)
 
@@ -446,6 +450,8 @@ def create_app(engine=None, storage: ObjectStorage | None = None):
                       "rag_ingested",
                       "rag_deleted",
                       "prompt_injection_blocked",
+                      "twin_scenario_created",
+                      "twin_simulation_run",
                   ] | None=None,
                   before: Annotated[int | None, Query(ge=1)]=None):
         cid, _ = _tenant_ids(request)

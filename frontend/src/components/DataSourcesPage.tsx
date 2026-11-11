@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useInRouterContext } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, Database, FileSpreadsheet, GitBranch, HardDrive, Layers, RefreshCw, ShieldCheck, UploadCloud } from 'lucide-react'
@@ -25,7 +25,22 @@ export function DataSourcesPage({
   const [file, setFile] = useState<File | null>(null)
   const [confirmed, setConfirmed] = useState(false)
   const [resumeDatasetId, setResumeDatasetId] = useState<string | null>(null)
-  const [ingestionMode, setIngestionMode] = useState<'tabular' | 'multimodal'>('tabular')
+  const [ingestionMode, setIngestionMode] = useState<'tabular' | 'multimodal'>(() => {
+    try {
+      const saved = sessionStorage.getItem(`dp-ingestion-mode:${companyId}`)
+      return saved === 'multimodal' ? 'multimodal' : 'tabular'
+    } catch {
+      return 'tabular'
+    }
+  })
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(`dp-ingestion-mode:${companyId}`, ingestionMode)
+    } catch {
+      // Ignore storage access errors.
+    }
+  }, [companyId, ingestionMode])
   const [notice, setNotice] = useState(() => sessionStorage.getItem('dp-import-notice') || '')
 
   const upload = useMutation({
