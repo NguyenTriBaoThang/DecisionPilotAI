@@ -10,7 +10,7 @@ export function InteractiveSimulatorDemo() {
   const baseUnits = 420
   const basePrice = 1000000 // 1,000,000 VND
   const baseCogs = 600000 // 600,000 VND
-  const elasticity = -1.42 // Price elasticity of demand
+  const elasticity = -1.1 // P001 catalog elasticity (illustrative)
   const mktElasticity = 0.35 // Marketing spend coefficient
 
   const simulation = useMemo(() => {
@@ -88,7 +88,7 @@ export function InteractiveSimulatorDemo() {
       </div>
 
       <p className="dim" style={{ fontSize: '0.88rem', marginBottom: '20px' }}>
-        Adjust strategic business levers below to observe real-time microeconomic demand shifts calculated using empirical price elasticity (ε = -1.42) and advertising response saturation curves.
+        Adjust strategic business levers below to observe real-time microeconomic demand shifts from a price-sensitivity value (ε = -1.1) and a diminishing-returns advertising response. This is an illustrative calculator, not the production simulator.
       </p>
 
       {/* Sliders Grid */}

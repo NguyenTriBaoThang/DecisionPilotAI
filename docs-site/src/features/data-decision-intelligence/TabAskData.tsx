@@ -9,8 +9,8 @@ export function TabAskData() {
   const pipelineSteps = [
     { step: '01', title: 'User Question Ingestion', desc: 'Natural language input via web or voice in Vietnamese or English.' },
     { step: '02', title: 'Intent Recognition & Routing', desc: 'Classifies domain intent (KPI summary, diagnostics, leaderboard, or regional).' },
-    { step: '03', title: 'Safe Read-Only SQL Synthesis', desc: 'Synthesizes parameterized SQL strictly bounded to verified business tables.' },
-    { step: '04', title: 'AST Validation Sandbox', desc: 'Rejects DROP, ALTER, UPDATE, or unbounded multi-statement injections.' },
+    { step: '03', title: 'Fixed Read-Only Analytics Tool', desc: 'Runs a tested, read-only tool bounded to verified business tables; no model-written SQL.' },
+    { step: '04', title: 'Refusal Rules', desc: 'Refuses questions that contain SQL or ask for unsupported metrics.' },
     { step: '05', title: 'Deterministic DB Execution', desc: 'PostgreSQL / SQLite calculates aggregates with zero mathematical hallucination.' },
     { step: '06', title: 'Grounded Narrative & Visuals', desc: 'Generates evidence-backed prose and auto-renders interactive charts.' },
   ]
@@ -191,7 +191,7 @@ export function TabAskData() {
           {/* Synthesized SQL & Trace */}
           <div>
             <span style={{ fontSize: '0.75rem', fontFamily: 'var(--mono)', textTransform: 'uppercase', color: 'var(--indigo)', fontWeight: 700, display: 'block', marginBottom: '6px' }}>
-              Synthesized Read-Only SQL Query (Verified by AST Sandbox)
+              Equivalent Read-Only SQL (illustrative)
             </span>
             <CodeBlock code={selectedQuery.sql} label="sql" />
           </div>
@@ -213,10 +213,10 @@ export function TabAskData() {
         <div className="card">
           <div className="card-title">
             <Terminal size={18} className="violet" />
-            AST Query Sanitization &amp; Refusal Protocol
+            Refusal Protocol
           </div>
           <p className="card-desc">
-            Queries undergo Abstract Syntax Tree (AST) validation before connecting to the read-only database pool. Destructive statements (<code>DROP</code>, <code>DELETE</code>, <code>INSERT</code>, <code>UPDATE</code>, <code>ALTER</code>) are blocked. If a question falls outside active database tables or violates security bounds, the engine triggers an explicit refusal protocol.
+            Questions are routed to fixed, read-only analytics tools. Questions that contain SQL statements (<code>DROP</code>, <code>DELETE</code>, <code>INSERT</code>, <code>UPDATE</code>, <code>SELECT ... FROM</code>) or fall outside the supported business data trigger an explicit refusal.
           </p>
         </div>
       </div>

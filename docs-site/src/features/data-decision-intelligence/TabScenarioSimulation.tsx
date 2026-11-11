@@ -11,7 +11,7 @@ export function TabScenarioSimulation() {
   const basePrice = 1_000_000
   const baseUnits = 420
   const unitCOGS = 600_000
-  const elasticity = -1.42 // From repository artifacts/scenario_backtest.json for P001
+  const elasticity = -1.1 // P001 catalog elasticity (illustrative calculator)
 
   // Dynamic pricing calculation
   const discountRate = discountPct / 100
@@ -35,7 +35,7 @@ export function TabScenarioSimulation() {
   const [spendMultiplier, setSpendMultiplier] = useState<number>(1.2) // 1.2x
   const baseFbSpend = 26_000_000
   const currentFbSpend = baseFbSpend * spendMultiplier
-  // Hill function: Rev = Vmax * S^n / (K^n + S^n)
+  // Illustrative saturation curve for the docs demo (the production simulator uses ratio^alpha)
   // Calibrated so at 1.0x spend (26M), Rev = 107.1M (ROAS = 4.12)
   const vMax = 180_000_000
   const kHalf = 22_000_000
@@ -76,7 +76,7 @@ export function TabScenarioSimulation() {
           &ldquo;Explore strategies, evaluate trade-offs, and make evidence-based decisions.&rdquo;
         </p>
         <p style={{ color: '#CBD5E1', fontSize: '0.95rem', maxWidth: '850px', lineHeight: 1.6 }}>
-          Executive leaders frequently make irreversible pricing, marketing, and inventory commitments relying on gut instinct, only to trigger margin collapse or warehouse stockouts. DecisionPilot AI provides a mathematical simulation sandbox combining empirical price elasticity, Hill saturation curves, and lead-time inventory models to stress-test scenarios before capital is committed.
+          Executive leaders frequently make irreversible pricing, marketing, and inventory commitments relying on gut instinct, only to trigger margin collapse or warehouse stockouts. DecisionPilot AI provides a mathematical simulation sandbox combining a price-sensitivity model, a diminishing-returns advertising model, and lead-time inventory constraints to stress-test scenarios before capital is committed.
         </p>
       </div>
 
@@ -149,12 +149,12 @@ export function TabScenarioSimulation() {
           <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: '12px', padding: '24px' }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '20px' }}>
               <div>
-                <span className="badge badge-cyan" style={{ marginBottom: '6px' }}>LOG-LOG ELASTICITY MODEL</span>
+                <span className="badge badge-cyan" style={{ marginBottom: '6px' }}>PRICE ELASTICITY MODEL (ILLUSTRATIVE)</span>
                 <h4 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#FFFFFF', margin: '4px 0 0 0' }}>
                   SKU P001 (SmartDesk Mini) Price Elasticity Simulator
                 </h4>
                 <p style={{ fontSize: '0.82rem', color: 'var(--muted)', margin: '4px 0 0 0' }}>
-                  Empirical elasticity coefficient &epsilon; = -1.42 (elastic demand). Baseline price: 1,000,000 ₫ &bull; Unit COGS: 600,000 ₫.
+                  Catalog elasticity &epsilon; = -1.1 for this SKU; the calculator below is an illustration, not the production simulator. Baseline price: 1,000,000 ₫ &bull; Unit COGS: 600,000 ₫.
                 </p>
               </div>
 
@@ -510,12 +510,12 @@ export function TabScenarioSimulation() {
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.82rem' }}>
             <a
-              href="https://github.com/NguyenTriBaoThang/DecisionPilotAI/blob/main/ai_service/simulation.py"
+              href="https://github.com/NguyenTriBaoThang/DecisionPilotAI/blob/main/ai_service/scenario.py"
               target="_blank"
               rel="noreferrer"
               style={{ color: 'var(--indigo)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}
             >
-              <Cpu size={14} /> <code>ai_service/simulation.py</code> &rarr;
+              <Cpu size={14} /> <code>ai_service/scenario.py</code> &rarr;
             </a>
             <a
               href="https://github.com/NguyenTriBaoThang/DecisionPilotAI/blob/main/artifacts/scenario_backtest.json"

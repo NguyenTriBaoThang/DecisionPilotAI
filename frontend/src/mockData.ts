@@ -339,7 +339,7 @@ export const mockRecommendations: { rows: Recommendation[]; dataset_id: string }
 
 export const mockQueryResponse: QueryResult = {
   answer:
-    'October gross revenue decreased by 11.2% (VND 182.4M) compared to September. The primary drivers were: (1) Meta Ads efficiency declined with ROAS falling from 3.8x to 2.2x; (2) Sales of SmartDesk Mini in HCMC contracted by 24% due to local competitive price resistance.',
+    'Sample data for the static demo: revenue fell versus the prior period. The main drivers were Facebook Ads efficiency (ROAS fell from 6.53x to 0.76x) and lower sales of SmartDesk Mini. The full application computes this from the database.',
   chart: {
     type: 'bar',
     x: 'product_name',

@@ -27,7 +27,7 @@ export function Section09Simulator() {
 
       <h3>Microeconomic Foundations</h3>
       <p>
-        The simulation engine (<code>ai_service/simulation.py</code>) calculates projected changes by modeling three interacting business dimensions:
+        The simulation engine (<code>ai_service/scenario.py</code>) calculates projected changes by modeling three interacting business dimensions:
       </p>
 
       <div className="grid-3" style={{ margin: '20px 0' }}>
@@ -37,7 +37,7 @@ export function Section09Simulator() {
             1. Price Elasticity (ΔP &rarr; ΔQ)
           </div>
           <p className="card-desc">
-            Empirical log-log regression estimates SKU-level elasticity. When price drops by 5% on an elastic product like SmartDesk Mini (ε = -1.42), projected units increase by +7.1%, expanding total revenue and gross profit.
+            Each SKU carries a price-sensitivity (elasticity) value from the catalog, which an operator can override. Demand responds linearly to the percentage price change: for SmartDesk Mini (ε = -1.1) a 5% price cut raises projected units by about 5.5%, and the simulator then shows the effect on revenue, profit and stock.
           </p>
         </div>
 
@@ -47,7 +47,7 @@ export function Section09Simulator() {
             2. Marketing Saturation Curve
           </div>
           <p className="card-desc">
-            Ad spending does not scale linearly. The simulator uses a Hill saturation equation to account for diminishing returns and ad fatigue when channel budget multipliers exceed 1.5x.
+            Ad spending does not scale linearly. Attributed revenue scales with the budget ratio raised to a power below 1 (default 0.65), so each extra dong returns less than the previous one.
           </p>
         </div>
 

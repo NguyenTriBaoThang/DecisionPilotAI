@@ -3,21 +3,19 @@ import { Cpu, LineChart, AlertTriangle, Scale, Brain } from 'lucide-react'
 
 export function Section06AI() {
   const elasticityFormula = `
-// 1. Price Elasticity of Demand (Log-Log Regression)
-ln(Q_t) = alpha + epsilon * ln(P_t) + beta * Weekend_t + gamma * Holiday_t + e_t
+// 1. Price response (linear in the percentage price change)
+Q_new = Q_base * max(0, 1 + epsilon * (P_new / P_base - 1))
 
 where:
-  epsilon < 0 is the empirical price elasticity coefficient.
-  If |epsilon| > 1.0 (elastic): Price cut increases total revenue.
-  If |epsilon| < 1.0 (inelastic): Price increase maximizes revenue.
+  epsilon < 0 is the price-sensitivity value (catalog assumption; operator can override).
+  P001 SmartDesk Mini: epsilon = -1.1. A sensitivity of epsilon +/- 0.3 is shown with every result.
 
-// 2. Marketing Hill Response Curve (Diminishing Marginal Returns)
-Attributed_Revenue(Spend) = (V_max * Spend^n) / (K^n + Spend^n)
+// 2. Advertising response (diminishing returns)
+Attributed_Revenue(new) = Attributed_Revenue(base) * (Spend_new / Spend_base) ^ alpha
 
 where:
-  V_max = Maximum revenue ceiling obtainable from the channel
-  K = Half-saturation spend parameter
-  n = Hill slope factor (typically 1.1 to 1.5)`
+  alpha in [0.2, 0.95], default 0.65. Smaller alpha means faster saturation.
+  Results are conditional estimates, not verified causal effects.`
 
   const featureEngineering = `
 // 14 Engineered Chronological Forecasting Features (ai_service/forecasting.py)
@@ -81,7 +79,7 @@ where:
 
       <h3>Microeconomic Equations for Scenario Simulation</h3>
       <p>
-        Rather than relying on ungrounded generative predictions, the simulation engine (<code>ai_service/simulation.py</code>) solves empirical microeconomic equations:
+        Rather than relying on ungrounded generative predictions, the simulation engine (<code>ai_service/scenario.py</code>) applies simple, documented response equations:
       </p>
 
       <CodeBlock code={elasticityFormula.trim()} label="Microeconomic Equations" />

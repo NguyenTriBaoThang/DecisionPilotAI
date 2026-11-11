@@ -58,8 +58,8 @@ export function Section02Workspaces() {
       summary: 'Futuristic holographic sandbox to test pricing adjustments, marketing campaigns, and inventory buffers before spending capital.',
       metrics: ['Price Delta % (-20% to +20%)', 'Marketing Multiplier (0.5x to 2.5x)', 'Projected Revenue & Profit', 'Stockout Risk Probability'],
       features: [
-        'Real-time demand re-estimation using empirical log-log price elasticity',
-        'Hill marketing response curve simulating diminishing returns on advertising',
+        'Demand re-estimation from a price-sensitivity (elasticity) value, with a sensitivity band',
+        'Concave ad-spend response simulating diminishing returns on advertising',
         'Interactive Three.js 3D data sphere reflecting simulated business health visually',
       ],
     },

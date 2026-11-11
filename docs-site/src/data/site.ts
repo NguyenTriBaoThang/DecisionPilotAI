@@ -84,7 +84,7 @@ export const NAV_SECTIONS: NavSection[] = [
     id: 'benchmarks',
     num: '08',
     title: 'Model Evaluation & Benchmarks',
-    blurb: 'Empirical verification: 11.24% WAPE, 92.4% anomaly precision, and holdout scenario replay.',
+    blurb: 'Measured on synthetic data: 24.1% revenue WAPE, Facebook-spend anomaly precision 100% / recall 82%, and holdout scenario replay.',
     group: 'AI & Analytics',
   },
   {

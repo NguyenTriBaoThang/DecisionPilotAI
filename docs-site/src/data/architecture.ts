@@ -48,9 +48,9 @@ export const ARCH_NODES: ArchNode[] = [
     id: 'llm-orchestrator',
     tier: 'Tier 3: Orchestration',
     label: 'Natural Language Query Orchestrator',
-    sub: 'Contextual SQL synthesis & validation',
-    responsibility: 'Translates Vietnamese/English executive questions into strictly read-only parameterized SQL, verifies safety rules, executes and formats answers.',
-    technology: 'Python, AST parser, rule-based sanitizer',
+    sub: 'Intent routing & fixed read-only tools',
+    responsibility: 'Classifies Vietnamese/English questions (local rules; Gemini/OpenAI optional), refuses unsafe or unsupported ones, and answers through fixed read-only analytics tools.',
+    technology: 'Python, rule-based router, optional LLM intent extraction',
     location: 'ai_service/llm_orchestrator.py',
   },
   {
@@ -83,11 +83,11 @@ export const ARCH_NODES: ArchNode[] = [
   {
     id: 'scenario-simulator',
     tier: 'Tier 4: AI/ML',
-    label: 'Microeconomic Simulation Engine',
+    label: 'What-If Simulation Engine',
     sub: 'Price elasticity & marketing response modeling',
-    responsibility: 'Computes demand response from price adjustments (ΔP → ΔQ), marketing spend saturation curves, and inventory safety stock.',
-    technology: 'Log-log regression, Hill marketing curves',
-    location: 'ai_service/simulation.py',
+    responsibility: 'Computes demand response from price adjustments (ΔP → ΔQ), diminishing-returns advertising response, and inventory safety stock.',
+    technology: 'Linear elasticity response, power-law ad response',
+    location: 'ai_service/scenario.py',
   },
   {
     id: 'relational-db',

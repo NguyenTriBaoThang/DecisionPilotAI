@@ -226,7 +226,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     "profit_pct": 6.07,
     "units_pct": 17.14
   },
-  "elasticity_coefficient": -1.42,
+  "elasticity_coefficient": -1.1,
   "recommended": true
 }`,
   },
@@ -246,7 +246,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
       "impact_profit_vnd": 10200000,
       "confidence": 0.88,
       "status": "pending",
-      "supporting_evidence": "Hệ số co giãn giá P001 là -1.42 (co giãn cao). Dự báo nhu cầu sẽ tăng +17.1%, bù đắp hoàn toàn tỷ lệ giảm giá 5% và mang lại 10.2 triệu ₫ lợi nhuận ròng bổ sung.",
+      "supporting_evidence": "Ví dụ minh họa: hệ số co giãn giá P001 theo danh mục là -1.1 (giả định). Giảm giá 5% dự kiến tăng nhu cầu khoảng 5.5%; đây là ước tính có điều kiện, cần kiểm chứng bằng thử nghiệm có đối chứng.",
       "risks": "Cần đảm bảo tồn kho tối thiểu 120 chiếc để tránh rủi ro đứt hàng khi lượng đặt tăng nhanh."
     }
   ],
