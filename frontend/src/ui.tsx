@@ -97,15 +97,18 @@ export function Button({
   )
 }
 
+export interface CardProps extends HTMLAttributes<HTMLElement> {
+  children: ReactNode
+  className?: string
+  padding?: boolean
+}
+
 export function Card({
   children,
   className,
   padding = true,
-}: {
-  children: ReactNode
-  className?: string
-  padding?: boolean
-}) {
+  ...props
+}: CardProps) {
   return (
     <section
       className={cn(
@@ -113,6 +116,7 @@ export function Card({
         padding && 'p-5',
         className
       )}
+      {...props}
     >
       {children}
     </section>

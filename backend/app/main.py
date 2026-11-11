@@ -19,7 +19,10 @@ from pydantic import ValidationError
 from ai_service.llm_orchestrator import query
 from backend.app import services
 from backend.app.analytics import dataset_info, options
-from backend.app.db import audit, companies, datasets, make_engine, read_connection, simulations
+from backend.app.db import audit, companies, datasets, make_engine, read_connection, simulations, xai_recommendations
+from backend.app.governance import service as governance_service
+from backend.app.governance.hash_chain import append_audited_event, redact_secrets
+from backend.app.governance.router import build_governance_router
 from backend.app.ingestion import service as ingestion_service
 from backend.app.ingestion.router import build_ingestion_router
 from backend.app.ingestion.storage import ObjectStorage, get_object_storage
@@ -57,9 +60,13 @@ def _tenant_ids(request: Request) -> tuple[str, str | None]:
 def history(conn, limit, kind=None, before=None, company_id="comp-default"):
     statement = sa.select(audit).where(audit.c.company_id == company_id).order_by(audit.c.id.desc()).limit(limit)
     if kind == "decisions":
-        statement = statement.where(audit.c.kind.in_(["recommendation_feedback", "scenario_feedback"]))
+        statement = statement.where(
+            audit.c.kind.in_(
+                ["recommendation_feedback", "scenario_feedback", "recommendation_action", "recommendation_outcome"]
+            )
+        )
     elif kind:
-        statement = statement.where(audit.c.kind==kind)
+        statement = statement.where(audit.c.kind == kind)
     if before is not None:
         statement = statement.where(audit.c.id < before)
     rows = [dict(row) for row in conn.execute(statement).mappings()]
@@ -67,6 +74,7 @@ def history(conn, limit, kind=None, before=None, company_id="comp-default"):
         occurred_at = row["occurred_at"]
         if occurred_at.tzinfo is None:
             row["occurred_at"] = occurred_at.replace(tzinfo=timezone.utc)
+        row["payload"] = redact_secrets(row.get("payload") or {})
     return rows
 
 
@@ -145,6 +153,7 @@ def create_app(engine=None, storage: ObjectStorage | None = None):
     rag_router = build_rag_router(engine)
     lineage_router = build_lineage_router(engine)
     simulator_router = build_simulator_router(engine)
+    governance_router = build_governance_router(engine)
     app.include_router(ingestion_router, prefix="/v1")
     app.include_router(ingestion_router, prefix="/api/v1", include_in_schema=False)
     app.include_router(multimodal_router, prefix="/v1")
@@ -153,6 +162,8 @@ def create_app(engine=None, storage: ObjectStorage | None = None):
     app.include_router(rag_router, prefix="/api/v1", include_in_schema=False)
     app.include_router(simulator_router, prefix="/v1")
     app.include_router(simulator_router, prefix="/api/v1", include_in_schema=False)
+    app.include_router(governance_router, prefix="/v1")
+    app.include_router(governance_router, prefix="/api/v1", include_in_schema=False)
     app.include_router(lineage_router)
     app.include_router(lineage_router, prefix="/api", include_in_schema=False)
 
@@ -220,8 +231,17 @@ def create_app(engine=None, storage: ObjectStorage | None = None):
             info = dataset_info(conn, company_id=cid, dataset_id=ds_id)
             result = query(conn,info,question)
         with engine.begin() as conn:
-            conn.execute(audit.insert().values(company_id=info["company_id"],kind="query",subject=result["trace"]["tool"],
-                                               payload={**jsonable_encoder(result["trace"]), "actor": request.state.identity["actor"], "dataset_id": info["dataset_id"]}))
+            append_audited_event(
+                conn,
+                company_id=info["company_id"],
+                kind="query",
+                subject=result["trace"]["tool"],
+                payload={
+                    **jsonable_encoder(result["trace"]),
+                    "actor": request.state.identity["actor"],
+                    "dataset_id": info["dataset_id"],
+                },
+            )
         lineage_service.record_runtime_event(
             engine,
             company_id=info["company_id"],
@@ -342,21 +362,62 @@ def create_app(engine=None, storage: ObjectStorage | None = None):
             if body.recommendation_id:
                 recommendation = next((r for r in services.recommendations(conn, info) if r["id"] == body.recommendation_id), None)
                 if recommendation is None:
+                    xrow = conn.execute(
+                        sa.select(xai_recommendations.c.legacy_payload_json).where(
+                            xai_recommendations.c.company_id == cid,
+                            xai_recommendations.c.dataset_id == body.dataset_id,
+                            sa.or_(
+                                xai_recommendations.c.rec_key == body.recommendation_id,
+                                xai_recommendations.c.id == body.recommendation_id,
+                            ),
+                        )
+                    ).mappings().first()
+                    if xrow:
+                        recommendation = xrow["legacy_payload_json"]
+                if recommendation is None:
                     raise HTTPException(404, "Recommendation is no longer available.")
             latest = latest_decision(conn, "scenario_feedback", body.simulation_id, body.dataset_id, company_id=cid)
             if latest and latest.payload["decision"] == body.decision:
                 event_id = latest.id
             else:
-                event_id = conn.execute(audit.insert().values(company_id=cid, kind="scenario_feedback", subject=body.simulation_id,
-                    payload={**body.model_dump(exclude={"recommendation_id"}), "actor": actor,
-                             "request": run["payload"]["request"], "recommended": run["payload"]["result"]["recommended"]})).inserted_primary_key[0]
+                event_id, _ = append_audited_event(
+                    conn,
+                    company_id=cid,
+                    kind="scenario_feedback",
+                    subject=body.simulation_id,
+                    payload={
+                        **body.model_dump(exclude={"recommendation_id"}),
+                        "actor": actor,
+                        "request": run["payload"]["request"],
+                        "recommended": run["payload"]["result"]["recommended"],
+                    },
+                )
             if recommendation:
                 # Same transaction: the recommendation card and the scenario decision never disagree.
                 linked = latest_decision(conn, "recommendation_feedback", body.recommendation_id, body.dataset_id, company_id=cid)
                 if not (linked and linked.payload["decision"] == body.decision):
-                    conn.execute(audit.insert().values(company_id=cid, kind="recommendation_feedback", subject=body.recommendation_id,
-                        payload={"dataset_id": body.dataset_id, "decision": body.decision, "actor": actor,
-                                 "recommendation": recommendation, "simulation_id": body.simulation_id}))
+                    linked_eid, _ = append_audited_event(
+                        conn,
+                        company_id=cid,
+                        kind="recommendation_feedback",
+                        subject=body.recommendation_id,
+                        payload={
+                            "dataset_id": body.dataset_id,
+                            "decision": body.decision,
+                            "actor": actor,
+                            "recommendation": recommendation,
+                            "simulation_id": body.simulation_id,
+                        },
+                    )
+                    governance_service.sync_legacy_feedback_decision(
+                        conn,
+                        company_id=cid,
+                        dataset_id=body.dataset_id,
+                        rec_key=body.recommendation_id,
+                        decision=body.decision,
+                        actor=actor,
+                        audit_event_id=linked_eid,
+                    )
         lineage_service.record_runtime_event(
             engine,
             company_id=cid,
@@ -403,14 +464,44 @@ def create_app(engine=None, storage: ObjectStorage | None = None):
                 raise HTTPException(409,"The dataset changed. Review the latest recommendation.")
             recommendation = next((r for r in services.recommendations(conn,info) if r["id"] == body.recommendation_id), None)
             if recommendation is None:
+                xrow = conn.execute(
+                    sa.select(xai_recommendations.c.legacy_payload_json).where(
+                        xai_recommendations.c.company_id == cid,
+                        xai_recommendations.c.dataset_id == body.dataset_id,
+                        sa.or_(
+                            xai_recommendations.c.rec_key == body.recommendation_id,
+                            xai_recommendations.c.id == body.recommendation_id,
+                        ),
+                    )
+                ).mappings().first()
+                if xrow:
+                    recommendation = xrow["legacy_payload_json"]
+            if recommendation is None:
                 raise HTTPException(404,"Recommendation is no longer available.")
             latest = latest_decision(conn, "recommendation_feedback", body.recommendation_id, body.dataset_id, company_id=cid)
             if latest and latest.payload["decision"]==body.decision:
                 return {"id":latest.id,"decision":body.decision,"status":"recorded"}
-            result = conn.execute(audit.insert().values(company_id=cid, kind="recommendation_feedback",subject=body.recommendation_id,
-                payload={"dataset_id":body.dataset_id,"decision":body.decision,
-                         "actor": actor, "recommendation": recommendation}))
-            rec_event_id = result.inserted_primary_key[0]
+            rec_event_id, _ = append_audited_event(
+                conn,
+                company_id=cid,
+                kind="recommendation_feedback",
+                subject=body.recommendation_id,
+                payload={
+                    "dataset_id": body.dataset_id,
+                    "decision": body.decision,
+                    "actor": actor,
+                    "recommendation": recommendation,
+                },
+            )
+            governance_service.sync_legacy_feedback_decision(
+                conn,
+                company_id=cid,
+                dataset_id=body.dataset_id,
+                rec_key=body.recommendation_id,
+                decision=body.decision,
+                actor=actor,
+                audit_event_id=rec_event_id,
+            )
         lineage_service.record_runtime_event(
             engine,
             company_id=cid,
@@ -438,6 +529,10 @@ def create_app(engine=None, storage: ObjectStorage | None = None):
                       "recommendation_feedback",
                       "scenario_feedback",
                       "decisions",
+                      "recommendation_action",
+                      "recommendation_outcome",
+                      "recommendation_generated",
+                      "risk_resolved",
                       "company_created",
                       "dataset_deleted",
                       "data_source_registered",

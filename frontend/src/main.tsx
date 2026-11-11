@@ -15,7 +15,7 @@ import {
 import { PreferencesProvider, usePageTranslations, usePreferences, useT } from './preferences'
 import { ErrorState, Loading, ToastProvider } from './ui'
 import { Dashboard } from './Dashboard'
-import { Alerts, Ask, ForecastPage, Recommendations, type ChatMessage } from './WorkspacePages'
+import { Alerts, Ask, ForecastPage, type ChatMessage } from './WorkspacePages'
 import { Sidebar, BrandLogo, navGroups } from './components/layout/Sidebar'
 import { Topbar } from './components/layout/Topbar'
 import { GlobalSearchDialog } from './components/layout/GlobalSearchDialog'
@@ -41,6 +41,21 @@ const EnterpriseKnowledgeMap = lazy(() =>
     default: module.EnterpriseKnowledgeMap,
   }))
 )
+const RecommendationsCenter = lazy(() =>
+  import('./features/recommendations-audit/RecommendationsCenter').then((module) => ({
+    default: module.RecommendationsCenter,
+  }))
+)
+const RecommendationDetailView = lazy(() =>
+  import('./features/recommendations-audit/RecommendationDetailView').then((module) => ({
+    default: module.RecommendationDetailView,
+  }))
+)
+const AuditGovernanceCenter = lazy(() =>
+  import('./features/recommendations-audit/AuditGovernanceCenter').then((module) => ({
+    default: module.AuditGovernanceCenter,
+  }))
+)
 
 const client = new QueryClient({
   defaultOptions: { queries: { staleTime: 60_000, retry: 1, refetchOnWindowFocus: false } },
@@ -50,6 +65,8 @@ const routeTitles: Record<string, string> = {
   ...Object.fromEntries(navGroups.flatMap((g) => g.items.map((item) => [item.to, item.title]))),
   '/anomalies': 'Anomaly Center',
   '/forecast': 'Forecast Center',
+  '/recommendations': 'Recommendations & XAI',
+  '/audit': 'Audit & Governance',
   '/knowledge-map': 'Enterprise Knowledge Map',
   '/docs': 'Documentation',
 }
@@ -151,7 +168,9 @@ function AppShell({ session }: { session: Session }) {
     )
   }
 
-  const activeTitle = routeTitles[pathname] || 'Executive Dashboard'
+  const activeTitle =
+    routeTitles[pathname] ||
+    (pathname.startsWith('/recommendations/') ? 'Recommendation XAI Detail' : 'Executive Dashboard')
   const isEmptyWorkspace =
     !ds.isLoading && !ds.data && ds.error instanceof ApiError && (ds.error.status === 503 || ds.error.status === 404)
   const fatalDatasetError = isEmptyWorkspace ? null : ds.error
@@ -253,6 +272,30 @@ function AppShell({ session }: { session: Session }) {
                 }
               />
               <Route
+                path="/recommendations"
+                element={
+                  <Suspense fallback={<Loading />}>
+                    <RecommendationsCenter />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/recommendations/:recId"
+                element={
+                  <Suspense fallback={<Loading />}>
+                    <RecommendationDetailView />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/audit"
+                element={
+                  <Suspense fallback={<Loading />}>
+                    <AuditGovernanceCenter />
+                  </Suspense>
+                }
+              />
+              <Route
                 path="/knowledge-map"
                 element={
                   <Suspense fallback={<Loading />}>
@@ -298,7 +341,30 @@ function AppShell({ session }: { session: Session }) {
                   )
                 }
               />
-              <Route path="/recommendations" element={<Recommendations dataset={ds.data} />} />
+              <Route
+                path="/recommendations"
+                element={
+                  <Suspense fallback={<Loading />}>
+                    <RecommendationsCenter dataset={ds.data} />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/recommendations/:recId"
+                element={
+                  <Suspense fallback={<Loading />}>
+                    <RecommendationDetailView dataset={ds.data} />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/audit"
+                element={
+                  <Suspense fallback={<Loading />}>
+                    <AuditGovernanceCenter dataset={ds.data} />
+                  </Suspense>
+                }
+              />
               <Route
                 path="/knowledge-map"
                 element={

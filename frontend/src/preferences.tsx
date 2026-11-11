@@ -767,6 +767,228 @@ export const translations: Record<string, { vi: string; en: string }> = {
   'Step Backward': { vi: 'Lùi 1 bước', en: 'Step Backward' },
   'Reset Flow': { vi: 'Đặt lại luồng', en: 'Reset Flow' },
   'Traceability Graph': { vi: 'Đồ thị Truy xuất', en: 'Traceability Graph' },
+
+  // Enterprise XAI Recommendations & Cryptographic Audit Governance
+  'Recommendations & XAI': { vi: 'Khuyến nghị & XAI', en: 'Recommendations & XAI' },
+  'Audit & Governance': { vi: 'Kiểm toán & Quản trị', en: 'Audit & Governance' },
+  'Recommendation XAI Detail': { vi: 'Chi tiết Khuyến nghị XAI', en: 'Recommendation XAI Detail' },
+  'ENTERPRISE EXPLAINABLE AI DECISION INTELLIGENCE': {
+    vi: 'TRÍ TUỆ RA QUYẾT ĐỊNH GIẢI THÍCH ĐƯỢC (XAI) DOANH NGHIỆP',
+    en: 'ENTERPRISE EXPLAINABLE AI DECISION INTELLIGENCE',
+  },
+  'Recommendations & Decision Intelligence': {
+    vi: 'Khuyến nghị & Trí tuệ Ra quyết định XAI',
+    en: 'Recommendations & Decision Intelligence',
+  },
+  'Inspect machine learning & anomaly evidence, TreeSHAP feature attribution, confidence factors, counterfactual sweeps, and approve governed actions with cryptographic audit logging.': {
+    vi: 'Kiểm tra bằng chứng ML và bất thường, phân tích TreeSHAP, yếu tố độ tin cậy, phân tích phản thực và phê duyệt hành động có nhật ký kiểm toán mật mã.',
+    en: 'Inspect machine learning & anomaly evidence, TreeSHAP feature attribution, confidence factors, counterfactual sweeps, and approve governed actions with cryptographic audit logging.',
+  },
+  'Open Audit & Governance Center': { vi: 'Mở Trung tâm Kiểm toán & Quản trị', en: 'Open Audit & Governance Center' },
+  'Open Full Audit Center': { vi: 'Mở Toàn bộ Trung tâm Kiểm toán', en: 'Open Full Audit Center' },
+  'Total Recs': { vi: 'Tổng khuyến nghị', en: 'Total Recs' },
+  'New': { vi: 'Mới', en: 'New' },
+  'Pending Review': { vi: 'Chờ duyệt', en: 'Pending Review' },
+  'Implemented': { vi: 'Đã triển khai', en: 'Implemented' },
+  '% Sufficient Evidence': { vi: '% Đủ bằng chứng', en: '% Sufficient Evidence' },
+  '% Post-Impl Effective': { vi: '% Hiệu quả sau triển khai', en: '% Post-Impl Effective' },
+  'Chưa đánh giá': { vi: 'Chưa đánh giá', en: 'Not yet evaluated' },
+  'Separate from Implemented': { vi: 'Tách biệt với Đã triển khai', en: 'Separate from Implemented' },
+  'Recommendations by Category': { vi: 'Khuyến nghị theo Nhóm nghiệp vụ', en: 'Recommendations by Category' },
+  '7 enterprise domains (Sales, Cost, Marketing, Customer, Inventory, Ops, Risk)': {
+    vi: '7 nhóm nghiệp vụ (Bán hàng, Chi phí, Marketing, Khách hàng, Tồn kho, Vận hành, Rủi ro)',
+    en: '7 enterprise domains (Sales, Cost, Marketing, Customer, Inventory, Ops, Risk)',
+  },
+  'Active Recs': { vi: 'Khuyến nghị', en: 'Active Recs' },
+  'Recommendations by Workflow Status': { vi: 'Khuyến nghị theo Trạng thái Xử lý', en: 'Recommendations by Workflow Status' },
+  'Pending, Review Requested, Approved, Implemented, Rejected, Expired': {
+    vi: 'Chờ xử lý, Yêu cầu duyệt, Đã phê duyệt, Đã triển khai, Từ chối, Hết hạn',
+    en: 'Pending, Review Requested, Approved, Implemented, Rejected, Expired',
+  },
+  'Status': { vi: 'Trạng thái', en: 'Status' },
+  'Recommendations by Priority': { vi: 'Khuyến nghị theo Mức ưu tiên', en: 'Recommendations by Priority' },
+  'Critical, High, Medium and Low severity triage': {
+    vi: 'Phân loại mức Nghiêm trọng, Cao, Trung bình và Thấp',
+    en: 'Critical, High, Medium and Low severity triage',
+  },
+  'Triage': { vi: 'Ưu tiên', en: 'Triage' },
+  'Recommendations by Confidence Level': { vi: 'Khuyến nghị theo Độ tin cậy', en: 'Recommendations by Confidence Level' },
+  'High, Medium, Low & Insufficient Evidence (Uncalibrated multi-factor index)': {
+    vi: 'Cao, Trung bình, Thấp & Thiếu bằng chứng (Chỉ số đa yếu tố chưa hiệu chuẩn)',
+    en: 'High, Medium, Low & Insufficient Evidence (Uncalibrated multi-factor index)',
+  },
+  'Filter': { vi: 'Bộ lọc', en: 'Filter' },
+  'Search title, SKU, channel, ID…': { vi: 'Tìm tiêu đề, SKU, kênh, ID…', en: 'Search title, SKU, channel, ID…' },
+  'All statuses': { vi: 'Tất cả trạng thái', en: 'All statuses' },
+  'Review Requested': { vi: 'Đã yêu cầu rà soát', en: 'Review Requested' },
+  'Accepted (Approved/Implemented)': { vi: 'Đã chấp thuận (Duyệt/Triển khai)', en: 'Accepted (Approved/Implemented)' },
+  'All confidence levels': { vi: 'Tất cả mức tin cậy', en: 'All confidence levels' },
+  'Low': { vi: 'Thấp', en: 'Low' },
+  'Medium': { vi: 'Trung bình', en: 'Medium' },
+  'Critical & High': { vi: 'Nghiêm trọng & Cao', en: 'Critical & High' },
+  'Count': { vi: 'Số lượng', en: 'Count' },
+  'Tracking KPI': { vi: 'KPI Theo dõi', en: 'Tracking KPI' },
+  'Inspect XAI Detail (A–I)': { vi: 'Xem Chi tiết XAI (Mục A–I)', en: 'Inspect XAI Detail (A–I)' },
+  'No Dataset Imported Yet': { vi: 'Chưa có Bộ dữ liệu Doanh nghiệp', en: 'No Dataset Imported Yet' },
+  'Explainable AI recommendations require verified business transactions, inventory, or marketing records.': {
+    vi: 'Khuyến nghị AI giải thích được yêu cầu dữ liệu giao dịch, tồn kho hoặc tiếp thị đã xác thực.',
+    en: 'Explainable AI recommendations require verified business transactions, inventory, or marketing records.',
+  },
+  'This company workspace currently contains zero active datasets. Upload CSV/XLSX business records or run Ingestion to generate strictly grounded XAI recommendations.': {
+    vi: 'Không gian doanh nghiệp này chưa có bộ dữ liệu nào. Vui lòng tải tệp CSV/XLSX hoặc chạy Ingestion để tạo khuyến nghị XAI có căn cứ.',
+    en: 'This company workspace currently contains zero active datasets. Upload CSV/XLSX business records or run Ingestion to generate strictly grounded XAI recommendations.',
+  },
+  'Go to Data Sources': { vi: 'Đi tới Nguồn dữ liệu', en: 'Go to Data Sources' },
+  'Recommendation decision saved': { vi: 'Đã lưu quyết định khuyến nghị', en: 'Recommendation decision saved' },
+  'Logged to the cryptographic append-only decision audit trail.': {
+    vi: 'Đã ghi vào nhật ký kiểm toán mật mã chỉ ghi nối tiếp.',
+    en: 'Logged to the cryptographic append-only decision audit trail.',
+  },
+  'Failed to record decision': { vi: 'Không thể ghi nhận quyết định', en: 'Failed to record decision' },
+
+  // Detail A-I & XAI Explorer
+  'Back to Recommendations & XAI Center': { vi: 'Quay lại Trung tâm Khuyến nghị & XAI', en: 'Back to Recommendations & XAI Center' },
+  'View 14-Step Audit Trace': { vi: 'Xem Dấu vết Kiểm toán 14 Bước', en: 'View 14-Step Audit Trace' },
+  'Trace in Knowledge Map': { vi: 'Truy vết trên Knowledge Map', en: 'Trace in Knowledge Map' },
+  'Section A1 · Detected Problem / Opportunity': { vi: 'Mục A1 · Vấn đề / Cơ hội phát hiện', en: 'Section A1 · Detected Problem / Opportunity' },
+  'Section A2 · Proposed Action': { vi: 'Mục A2 · Hành động đề xuất', en: 'Section A2 · Proposed Action' },
+  'Section A3 · Business Goal & Window': { vi: 'Mục A3 · Mục tiêu & Cửa sổ dữ liệu', en: 'Section A3 · Business Goal & Window' },
+  'Section B · Why Triggered & Invalidation Guardrails': {
+    vi: 'Mục B · Lý do kích hoạt & Điều kiện mất hiệu lực',
+    en: 'Section B · Why Triggered & Invalidation Guardrails',
+  },
+  'Quantitative thresholds compared against prior periods or structural limits, plus explicit conditions that invalidate this advice.': {
+    vi: 'Các ngưỡng định lượng so với kỳ trước hoặc giới hạn tồn kho, kèm điều kiện cụ thể làm khuyến nghị mất hiệu lực.',
+    en: 'Quantitative thresholds compared against prior periods or structural limits, plus explicit conditions that invalidate this advice.',
+  },
+  'When This Recommendation Becomes Invalid (Stop / Ignore Conditions):': {
+    vi: 'Khi nào khuyến nghị này không còn hiệu lực (Điều kiện dừng / bỏ qua):',
+    en: 'When This Recommendation Becomes Invalid (Stop / Ignore Conditions):',
+  },
+  'Section C · Observed Data Evidence & Cross-Tab Heatmap': {
+    vi: 'Mục C · Bằng chứng Dữ liệu Thực tế & Ma trận Nhiệt SQL',
+    en: 'Section C · Observed Data Evidence & Cross-Tab Heatmap',
+  },
+  'Explainable AI (XAI) & Driver Attribution': {
+    vi: 'Trí tuệ Nhân tạo Giải thích được (XAI) & Phân tích Yếu tố Ảnh hưởng',
+    en: 'Explainable AI (XAI) & Driver Attribution',
+  },
+  'Statistical Association & Model Attribution — Not Causal Proof': {
+    vi: 'Tương quan Thống kê & Giải thích Mô hình — Không phải Bằng chứng Nhân quả',
+    en: 'Statistical Association & Model Attribution — Not Causal Proof',
+  },
+  'Feature Importance': { vi: 'Độ quan trọng Đặc trưng', en: 'Feature Importance' },
+  'Local vs Global': { vi: 'Giải thích Cục bộ vs Toàn cục', en: 'Local vs Global' },
+  'Counterfactuals': { vi: 'Phân tích Phản thực (Counterfactual)', en: 'Counterfactuals' },
+  'SHAP Local Waterfall (Latest Day Attribution)': {
+    vi: 'SHAP Local Waterfall (Đóng góp ngày gần nhất)',
+    en: 'SHAP Local Waterfall (Latest Day Attribution)',
+  },
+  'Global Mean |SHAP| & Beeswarm Spread': {
+    vi: 'Global Mean |SHAP| & Phân bố Beeswarm',
+    en: 'Global Mean |SHAP| & Beeswarm Spread',
+  },
+  'SHAP Feature Dependence Plot': {
+    vi: 'Biểu đồ Phụ thuộc Đặc trưng SHAP (Dependence)',
+    en: 'SHAP Feature Dependence Plot',
+  },
+  'Section E · Model Performance vs. Recommendation Confidence (Strictly Separated)': {
+    vi: 'Mục E · Hiệu năng Mô hình vs. Độ tin cậy Khuyến nghị (Tách biệt Nghiêm ngặt)',
+    en: 'Section E · Model Performance vs. Recommendation Confidence (Strictly Separated)',
+  },
+  '1. Historical Model Validation Performance': {
+    vi: '1. Hiệu năng Kiểm định Mô hình Lịch sử (Model Performance)',
+    en: '1. Historical Model Validation Performance',
+  },
+  '2. Recommendation Confidence Breakdown': {
+    vi: '2. Phân rã Độ tin cậy Khuyến nghị (Confidence Score)',
+    en: '2. Recommendation Confidence Breakdown',
+  },
+  'Data Quality Index (weight 0.30)': { vi: 'Chất lượng dữ liệu (trọng số 0,30)', en: 'Data Quality Index (weight 0.30)' },
+  'Evidence Completeness (weight 0.25)': { vi: 'Độ đầy đủ bằng chứng (trọng số 0,25)', en: 'Evidence Completeness (weight 0.25)' },
+  'Model Validation Strength (weight 0.25)': { vi: 'Độ vững kiểm định mô hình (trọng số 0,25)', en: 'Model Validation Strength (weight 0.25)' },
+  'Sensitivity Stability (weight 0.20)': { vi: 'Độ ổn định độ nhạy (trọng số 0,20)', en: 'Sensitivity Stability (weight 0.20)' },
+  'Calibration Disclosure': { vi: 'Công bố Hiệu chuẩn', en: 'Calibration Disclosure' },
+  'Sections F & G · Expected Impact (Baseline vs Scenario)': {
+    vi: 'Mục F & G · Tác động Dự kiến (Hiện tại vs Kịch bản)',
+    en: 'Sections F & G · Expected Impact (Baseline vs Scenario)',
+  },
+  'Section H · Evaluated Alternatives (A / B / C)': {
+    vi: 'Mục H · So sánh Phương án Thay thế (A / B / C)',
+    en: 'Section H · Evaluated Alternatives (A / B / C)',
+  },
+  'Section I · Governed Action Plan, Human Workflow & Post-Implementation Outcome': {
+    vi: 'Mục I · Kế hoạch Hành động, Quy trình Phê duyệt & Kết quả Sau triển khai',
+    en: 'Section I · Governed Action Plan, Human Workflow & Post-Implementation Outcome',
+  },
+  'Request Review': { vi: 'Yêu cầu rà soát', en: 'Request Review' },
+  'Mark Implemented': { vi: 'Đánh dấu Đã triển khai', en: 'Mark Implemented' },
+  'Save Plan / Add Comment': { vi: 'Lưu kế hoạch / Thêm ghi chú', en: 'Save Plan / Add Comment' },
+  'Post-Implementation Outcome Evaluation (Closed-Loop Feedback)': {
+    vi: 'Đánh giá Kết quả Sau triển khai (Vòng phản hồi khép kín)',
+    en: 'Post-Implementation Outcome Evaluation (Closed-Loop Feedback)',
+  },
+  '14-Step Decision Audit Trace': { vi: 'Dấu vết Kiểm toán Quyết định 14 Bước', en: '14-Step Decision Audit Trace' },
+
+  // Audit Governance Center
+  'TAMPER-EVIDENT CRYPTOGRAPHIC GOVERNANCE': {
+    vi: 'QUẢN TRỊ MẬT MÃ CHỐNG SỬA ĐỔI',
+    en: 'TAMPER-EVIDENT CRYPTOGRAPHIC GOVERNANCE',
+  },
+  'Audit Trail, Model Governance & Risk Center': {
+    vi: 'Trung tâm Kiểm toán Quyết định, Quản trị Mô hình & Rủi ro',
+    en: 'Audit Trail, Model Governance & Risk Center',
+  },
+  'SHA-256 hash-chained decision ledger, append-only SQL trigger enforcement, PSI model drift monitoring, and full 14-step lineage traceability.': {
+    vi: 'Sổ cái quyết định liên kết băm SHA-256, trigger SQL chỉ ghi nối tiếp, giám sát trôi mô hình PSI và truy xuất phả hệ 14 bước.',
+    en: 'SHA-256 hash-chained decision ledger, append-only SQL trigger enforcement, PSI model drift monitoring, and full 14-step lineage traceability.',
+  },
+  'Export CSV': { vi: 'Xuất CSV', en: 'Export CSV' },
+  'SHA-256 Hash-Chain Verified': { vi: 'Chuỗi băm SHA-256 Đã Xác minh', en: 'SHA-256 Hash-Chain Verified' },
+  'Verify Hash-Chain Integrity': { vi: 'Kiểm tra Tính toàn vẹn Chuỗi băm', en: 'Verify Hash-Chain Integrity' },
+  'Verified Chained Events': { vi: 'Sự kiện trong chuỗi đã xác minh', en: 'Verified Chained Events' },
+  'Empty Governance Ledger': { vi: 'Sổ cái Quản trị Trống', en: 'Empty Governance Ledger' },
+  'No datasets imported and zero audit events recorded for this tenant workspace.': {
+    vi: 'Chưa có bộ dữ liệu hoặc sự kiện kiểm toán nào được ghi nhận cho doanh nghiệp này.',
+    en: 'No datasets imported and zero audit events recorded for this tenant workspace.',
+  },
+  'Total Audited Events': { vi: 'Tổng sự kiện kiểm toán', en: 'Total Audited Events' },
+  'Model / Tool Runs': { vi: 'Lượt chạy Mô hình / Công cụ', en: 'Model / Tool Runs' },
+  'Recs Generated': { vi: 'Khuyến nghị đã tạo', en: 'Recs Generated' },
+  'Blocked / Guardrail Stops': { vi: 'Lượt bị Chặn / Guardrail', en: 'Blocked / Guardrail Stops' },
+  'Data Quality Warnings': { vi: 'Cảnh báo Chất lượng DL', en: 'Data Quality Warnings' },
+  'Open Model Alerts': { vi: 'Cảnh báo Mô hình mở', en: 'Open Model Alerts' },
+  'Insufficient Evidence': { vi: 'Chưa đủ bằng chứng', en: 'Insufficient Evidence' },
+  '1. Audit Event Distribution (8 Buckets)': {
+    vi: '1. Phân bố Sự kiện Kiểm toán (8 nhóm tách biệt)',
+    en: '1. Audit Event Distribution (8 Buckets)',
+  },
+  '2. Decision Workflow Status': {
+    vi: '2. Trạng thái Quy trình Ra quyết định',
+    en: '2. Decision Workflow Status',
+  },
+  '3. Model Performance Trend (Forecast WAPE vs Baseline)': {
+    vi: '3. Xu hướng Hiệu năng Mô hình (WAPE Dự báo vs Cơ sở)',
+    en: '3. Model Performance Trend (Forecast WAPE vs Baseline)',
+  },
+  '4. Data Quality Partition (Non-Overlapping)': {
+    vi: '4. Phân hoạch Chất lượng Dữ liệu (Không trùng lặp)',
+    en: '4. Data Quality Partition (Non-Overlapping)',
+  },
+  '5. Risk & Compliance Severity Distribution': {
+    vi: '5. Phân bố Mức độ Rủi ro & Tuân thủ',
+    en: '5. Risk & Compliance Severity Distribution',
+  },
+  '6. Recommendation Funnel vs Post-Impl Outcome': {
+    vi: '6. Phễu Khuyến nghị vs Kết quả Sau triển khai',
+    en: '6. Recommendation Funnel vs Post-Impl Outcome',
+  },
+  'Decision & System Audit Log': { vi: 'Nhật ký Quyết định & Hệ thống', en: 'Decision & System Audit Log' },
+  'Model Governance & PSI Drift': { vi: 'Quản trị Mô hình & Trôi DL (PSI)', en: 'Model Governance & PSI Drift' },
+  'Risk & Compliance Alerts': { vi: 'Cảnh báo Rủi ro & Tuân thủ', en: 'Risk & Compliance Alerts' },
+  '14-Step Trace': { vi: 'Dấu vết 14 Bước', en: '14-Step Trace' },
+  'Acknowledge': { vi: 'Tiếp nhận xử lý', en: 'Acknowledge' },
+  'Mark Resolved': { vi: 'Đánh dấu Đã xử lý', en: 'Mark Resolved' },
 }
 
 export function translate(text: string, language: Preferences['language']): string {

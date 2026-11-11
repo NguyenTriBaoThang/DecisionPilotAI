@@ -39,33 +39,6 @@ test('sign in, save preferences, review a scenario, and verify its audit event',
   await page.screenshot({ path: testInfo.outputPath('data-sources-light.png'), fullPage: true })
 })
 
-test('imports a different snapshot through the browser and invalidates the old model', async ({ page }) => {
-  await page.goto('/')
-  await page.getByLabel('Access token', { exact: true }).fill('e2e-admin-token-for-isolated-tests-only')
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await page.getByRole('link', { name: 'Data Sources', exact: true }).click()
-  const headers = { Authorization: 'Bearer e2e-admin-token-for-isolated-tests-only' }
-  const original = await (await page.request.get('/api/dataset', { headers })).json()
-  const bundle = await page.request.get('http://127.0.0.1:8765/e2e/snapshot', { headers })
-  expect(bundle.ok()).toBeTruthy()
-  await page.getByLabel('Business snapshot file').setInputFiles({ name: 'business.zip', mimeType: 'application/zip', buffer: await bundle.body() })
-  await page.getByLabel('Security Import Token (X-Import-Token)').fill('e2e-import-only')
-  await expect(page.getByRole('button', { name: 'Replace snapshot', exact: true })).toBeDisabled()
-  await page.getByRole('checkbox').check()
-  const replacement = page.waitForResponse(response => response.url().includes('/api/import?') && response.request().method() === 'POST')
-  await page.getByRole('button', { name: 'Replace snapshot', exact: true }).click()
-  const result = await replacement
-  expect(new URL(result.url()).searchParams.get('expected_dataset_id')).toBe(original.dataset_id)
-  expect(result.ok()).toBeTruthy()
-  const imported = await result.json()
-  expect(imported.dataset_id).not.toBe(original.dataset_id)
-  await expect(page.getByText('TRAINING REQUIRED', { exact: true })).toBeVisible()
-  await expect(page.getByText('No matching trained artifact', { exact: true })).toBeVisible()
-  await expect(page.getByRole('status')).toContainText('Snapshot imported successfully')
-  const health = await (await page.request.get('/api/health', { headers })).json()
-  expect(health.model_ready).toBe(false)
-})
-
 test('creates an isolated company workspace, runs 4-step enterprise CSV ingestion, and isolates tenant analytics', async ({ page }) => {
   await page.goto('/')
   await page.getByLabel('Access token', { exact: true }).fill('e2e-admin-token-for-isolated-tests-only')
@@ -258,7 +231,7 @@ test('streams Enterprise RAG Copilot answers with doc ingest, citations, convers
   await page.goto('/')
   await page.getByLabel('Access token', { exact: true }).fill('e2e-admin-token-for-isolated-tests-only')
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await expect(page.getByRole('link', { name: 'Ask Business Data', exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Ask Business Data', exact: true }).first()).toBeVisible()
 
   // 1. Provision isolated company without CSV data to test Document Knowledge Mode
   await page.getByRole('button', { name: 'Company Workspace' }).click()
@@ -400,6 +373,7 @@ test('navigates Enterprise Knowledge Map in light mode, traces real lineage, run
   await expect(page.getByText(/Step 0 \/ \d+/)).toBeVisible()
 
   // Provision brand-new empty workspace & confirm strict multi-tenant lineage isolation
+  await page.getByRole('link', { name: 'Executive Dashboard', exact: true }).click()
   await page.getByRole('button', { name: 'Company Workspace' }).click()
   await page.getByPlaceholder('e.g. Acme Retail Ltd.').fill('Empty Lineage Tenant')
   const createCompanyRes = page.waitForResponse(
@@ -424,20 +398,20 @@ test('runs Interactive 3D Business Scenario Simulator in light mode, compares sc
   await page.goto('/')
   await page.getByLabel('Access token', { exact: true }).fill('e2e-admin-token-for-isolated-tests-only')
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await expect(page.getByRole('link', { name: 'Scenario Simulator', exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: '3D Scenario Simulator', exact: true })).toBeVisible()
 
   // Confirm Enterprise Light Mode default
   expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe('light')
 
   // 1. Open Scenario Simulator
-  await page.getByRole('link', { name: 'Scenario Simulator', exact: true }).click()
+  await page.getByRole('link', { name: '3D Scenario Simulator', exact: true }).click()
   await expect(page).toHaveURL(/\/scenarios$/)
   await expect(page.getByTestId('digital-twin-studio')).toBeVisible({ timeout: 20_000 })
 
   // 2. Inspect Data Readiness & Honest AI Models
   await page.getByRole('tab', { name: 'Data & Score', exact: true }).click()
   await expect(page.getByTestId('twin-data-readiness-panel')).toContainText('/100')
-  await expect(page.getByTestId('twin-data-readiness-panel')).toContainText(/not forecast accuracy/i)
+  await expect(page.getByTestId('twin-data-readiness-panel')).toContainText(/NOT .*forecast accuracy/i)
 
   await page.getByRole('tab', { name: 'AI Models', exact: true }).click()
   await expect(page.getByTestId('twin-ai-models-panel')).toContainText('Classification (Churn / Propensity)')
@@ -469,7 +443,7 @@ test('runs Interactive 3D Business Scenario Simulator in light mode, compares sc
   // 5. Switch to 2D SVG Architecture & interact with Zone + play timeline steps
   await page.getByRole('button', { name: 'Switch to 2D Canvas' }).click()
   await expect(page.getByTestId('digital-twin-canvas-2d')).toBeVisible()
-  await page.getByTestId('twin-zone-inventory').click()
+  await page.getByTestId('twin-zone-inventory').click({ position: { x: 28, y: 16 } })
   await expect(page.getByTestId('twin-selection-detail')).toContainText('Inventory Zone')
   await page.getByRole('button', { name: 'Switch to 3D Canvas' }).click()
 
@@ -498,6 +472,7 @@ test('runs Interactive 3D Business Scenario Simulator in light mode, compares sc
   await expect(page.getByTestId('twin-ai-recommendation-panel')).toContainText(/Disclosed Model Limitations/i)
 
   // 8. Provision brand-new empty company workspace & verify honest 0/100 empty Twin state (zero leak)
+  await page.getByRole('link', { name: 'Executive Dashboard', exact: true }).click()
   await page.getByRole('button', { name: 'Company Workspace' }).click()
   await page.getByPlaceholder('e.g. Acme Retail Ltd.').fill('Empty Twin Corp')
   const emptyCompRes = page.waitForResponse(
@@ -507,7 +482,7 @@ test('runs Interactive 3D Business Scenario Simulator in light mode, compares sc
   expect((await emptyCompRes).ok()).toBeTruthy()
   await expect(page.getByRole('heading', { name: 'Empty Company Workspace' })).toBeVisible()
 
-  await page.getByRole('link', { name: 'Scenario Simulator', exact: true }).click()
+  await page.getByRole('link', { name: '3D Scenario Simulator', exact: true }).click()
   await expect(page.getByTestId('twin-empty-workspace-state')).toBeVisible({ timeout: 15_000 })
   await expect(page.getByTestId('empty-readiness-badge')).toContainText('0/100')
 
@@ -515,4 +490,150 @@ test('runs Interactive 3D Business Scenario Simulator in light mode, compares sc
   await page.getByRole('button', { name: 'Company Workspace' }).click()
   await page.getByRole('button', { name: /Default Enterprise Workspace/i }).click()
   await expect(page.getByTestId('digital-twin-studio')).toBeVisible({ timeout: 20_000 })
+})
+
+test('operates XAI Recommendations (A-I), Native TreeSHAP, Workflow + Outcome Feedback, SHA-256 Hash-Chain Audit & Empty Tenant Isolation', async ({ page }) => {
+  await page.goto('/')
+  await page.getByLabel('Access token', { exact: true }).fill('e2e-admin-token-for-isolated-tests-only')
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await expect(page.getByRole('link', { name: 'Recommendations & XAI', exact: true })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe('light')
+
+  // 1. Navigate to Recommendations & XAI Center
+  await page.getByRole('link', { name: 'Recommendations & XAI', exact: true }).click()
+  await expect(page).toHaveURL(/\/recommendations$/)
+  await expect(page.getByText('Total Recs', { exact: true })).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByText('% Post-Impl Effective', { exact: true })).toBeVisible()
+  await expect(page.getByText('Not yet evaluated', { exact: true }).first()).toBeVisible()
+  await expect(page.getByText('Recommendations by Category', { exact: true })).toBeVisible()
+  await expect(page.getByText('Recommendations by Workflow Status', { exact: true })).toBeVisible()
+  await expect(page.getByText('Recommendations by Priority', { exact: true })).toBeVisible()
+  await expect(page.getByText('Recommendations by Confidence Level', { exact: true })).toBeVisible()
+
+  // 2. Open Full XAI Detail (Sections A-I) for inventory:P001
+  const invCard = page.getByTestId('rec-card-inventory:P001')
+  await expect(invCard).toBeVisible()
+  await invCard.getByRole('link', { name: /Inspect XAI Detail/i }).click()
+  await expect(page).toHaveURL(/\/recommendations\/inventory%3AP001$/)
+
+  await expect(page.getByTestId('section-a-summary')).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByTestId('section-b-why')).toBeVisible()
+  await expect(page.getByTestId('section-c-evidence')).toBeVisible()
+  await expect(page.getByTestId('xai-explorer-card')).toBeVisible()
+  await expect(page.getByTestId('causal-disclaimer')).toBeVisible()
+  await expect(page.getByTestId('section-e-separation')).toBeVisible()
+  await expect(page.getByTestId('section-fg-impact')).toBeVisible()
+  await expect(page.getByTestId('section-h-alternatives')).toBeVisible()
+  await expect(page.getByTestId('section-i-workflow')).toBeVisible()
+
+  // Verify strict separation in Section E (is_calibrated: false)
+  await expect(page.getByTestId('section-e-separation')).toContainText('is_calibrated: false')
+
+  // 3. Explore SHAP Explorer & Counterfactuals tabs
+  await page.getByRole('button', { name: 'SHAP Explorer', exact: true }).click()
+  await expect(page.getByTestId('shap-active-panel')).toBeVisible()
+  await expect(page.getByTestId('shap-active-panel')).toContainText('Base E[f(X)]')
+  await expect(page.getByTestId('shap-active-panel')).toContainText('SHAP Local Waterfall')
+
+  await page.getByRole('button', { name: /^Counterfactuals/i }).click()
+  await expect(page.getByText('Counterfactual Lever', { exact: true })).toBeVisible()
+
+  // 4. Execute Governed Workflow State Machine & Post-Impl Outcome Feedback
+  const reqRevRes = page.waitForResponse((res) => res.url().includes('/action') && res.request().method() === 'POST')
+  await page.getByRole('button', { name: 'Request Review', exact: true }).click()
+  expect((await reqRevRes).ok()).toBeTruthy()
+  await expect(page.getByText('CURRENT STATE: REVIEW_REQUESTED')).toBeVisible()
+
+  const appRes = page.waitForResponse((res) => res.url().includes('/action') && res.request().method() === 'POST')
+  await page.getByRole('button', { name: 'Approve', exact: true }).click()
+  expect((await appRes).ok()).toBeTruthy()
+  await expect(page.getByText('CURRENT STATE: APPROVED')).toBeVisible()
+
+  const implRes = page.waitForResponse((res) => res.url().includes('/action') && res.request().method() === 'POST')
+  await page.getByRole('button', { name: 'Mark Implemented', exact: true }).click()
+  expect((await implRes).ok()).toBeTruthy()
+  await expect(page.getByText('CURRENT STATE: IMPLEMENTED')).toBeVisible()
+
+  // Record Post-Impl Outcome separately
+  await page.getByLabel('Observed Value').fill('99')
+  const outRes = page.waitForResponse((res) => res.url().includes('/outcome') && res.request().method() === 'POST')
+  await page.getByRole('button', { name: 'Record Post-Impl Outcome', exact: true }).click()
+  expect((await outRes).ok()).toBeTruthy()
+  await expect(page.getByText('LATEST OUTCOME: SUCCESSFUL')).toBeVisible()
+
+  // Open 14-Step Decision Audit Trace Drawer
+  await page.getByRole('button', { name: 'View 14-Step Audit Trace', exact: true }).click()
+  const traceDrawer = page.getByTestId('decision-trace-drawer')
+  await expect(traceDrawer).toBeVisible()
+  await expect(traceDrawer).toContainText('Step 14:')
+  await traceDrawer.locator('button').first().click()
+
+  // 5. Open Audit & Governance Center -> SHA-256 Hash-Chain Verify, 6 charts, Models (17 features), Risks
+  await page.getByRole('link', { name: 'Audit & Governance', exact: true }).click()
+  await expect(page).toHaveURL(/\/audit$/)
+  await expect(page.getByTestId('hash-chain-banner')).toContainText('SHA-256 Hash-Chain Verified', { timeout: 20_000 })
+
+  const verifyRes = page.waitForResponse((res) => res.url().includes('/audit/integrity') && res.request().method() === 'GET')
+  await page.getByRole('button', { name: 'Verify Hash-Chain Integrity', exact: true }).click()
+  expect((await verifyRes).ok()).toBeTruthy()
+
+  await expect(page.getByTestId('audit-charts-grid')).toBeVisible()
+  await expect(page.getByTestId('chart-model-performance-trend')).toBeVisible()
+  await expect(page.getByTestId('chart-outcome-comparison')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Model Governance & PSI Drift', exact: true }).click()
+  await expect(page.getByRole('button', { name: /Feature Schema \(17\)/i }).first()).toBeVisible()
+
+  await page.getByRole('button', { name: 'Risk & Compliance Alerts', exact: true }).click()
+  await page.getByRole('button', { name: 'Decision & System Audit Log', exact: true }).click()
+
+  // 6. Isolate Empty Company Workspace on /recommendations and /audit (Zero Cross-Tenant Leak)
+  await page.getByRole('link', { name: 'Executive Dashboard', exact: true }).click()
+  await page.getByRole('button', { name: 'Company Workspace' }).click()
+  await page.getByPlaceholder('e.g. Acme Retail Ltd.').fill('Empty Governance Tenant')
+  const emptyGovCompRes = page.waitForResponse(
+    (res) => res.url().includes('/api/v1/companies') && res.request().method() === 'POST'
+  )
+  await page.getByRole('button', { name: 'Add', exact: true }).click()
+  expect((await emptyGovCompRes).ok()).toBeTruthy()
+  await expect(page.getByRole('heading', { name: 'Empty Company Workspace' })).toBeVisible()
+
+  await page.getByRole('link', { name: 'Recommendations & XAI', exact: true }).click()
+  await expect(page.getByTestId('recs-empty-state')).toBeVisible({ timeout: 15_000 })
+
+  await page.getByRole('link', { name: 'Audit & Governance', exact: true }).click()
+  await expect(page.getByTestId('audit-empty-state')).toBeVisible({ timeout: 15_000 })
+
+  // Switch back cleanly to Default Enterprise Workspace
+  await page.getByRole('button', { name: 'Company Workspace' }).click()
+  await page.getByRole('button', { name: /Default Enterprise Workspace/i }).click()
+  await expect(page.getByTestId('hash-chain-banner')).toBeVisible({ timeout: 15_000 })
+})
+
+// Destructive comp-default snapshot replacement runs last so prior E2E tests validate the full 730d LightGBM dataset.
+test('imports a different snapshot through the browser and invalidates the old model', async ({ page }) => {
+  await page.goto('/')
+  await page.getByLabel('Access token', { exact: true }).fill('e2e-admin-token-for-isolated-tests-only')
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await page.getByRole('link', { name: 'Data Sources', exact: true }).click()
+  const headers = { Authorization: 'Bearer e2e-admin-token-for-isolated-tests-only' }
+  const original = await (await page.request.get('/api/dataset', { headers })).json()
+  const bundle = await page.request.get('http://127.0.0.1:8765/e2e/snapshot', { headers })
+  expect(bundle.ok()).toBeTruthy()
+  await page.getByLabel('Business snapshot file').setInputFiles({ name: 'business.zip', mimeType: 'application/zip', buffer: await bundle.body() })
+  await page.getByLabel('Security Import Token (X-Import-Token)').fill('e2e-import-only')
+  await expect(page.getByRole('button', { name: 'Replace snapshot', exact: true })).toBeDisabled()
+  await page.getByRole('checkbox').check()
+  const replacement = page.waitForResponse(response => response.url().includes('/api/import?') && response.request().method() === 'POST')
+  await page.getByRole('button', { name: 'Replace snapshot', exact: true }).click()
+  const result = await replacement
+  expect(new URL(result.url()).searchParams.get('expected_dataset_id')).toBe(original.dataset_id)
+  expect(result.ok()).toBeTruthy()
+  const imported = await result.json()
+  expect(imported.dataset_id).not.toBe(original.dataset_id)
+  await expect(page.getByText('TRAINING REQUIRED', { exact: true })).toBeVisible()
+  await expect(page.getByText('No matching trained artifact', { exact: true })).toBeVisible()
+  await expect(page.getByRole('status')).toContainText('Snapshot imported successfully')
+  const health = await (await page.request.get('/api/health', { headers })).json()
+  expect(health.model_ready).toBe(false)
 })

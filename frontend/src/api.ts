@@ -2082,5 +2082,616 @@ export async function downloadTwinRunExport(runId: string, format: 'json' | 'csv
   URL.revokeObjectURL(url)
 }
 
+// --- Enterprise XAI Recommendations & Cryptographic Audit Governance Types + Clients ---
+
+export type DistributionSlice = {
+  key: string
+  label: string
+  label_vi?: string
+  count: number
+  share: number
+}
+
+export type XAIRecommendationOutcome = {
+  id?: string
+  recommendation_id?: string
+  evaluation_status: 'not_evaluated' | 'successful' | 'unsuccessful' | 'inconclusive' | string
+  kpi_name?: string
+  baseline_value?: number | null
+  target_value?: number | null
+  observed_value?: number | null
+  observed_delta_pct?: number | null
+  observation_window_days?: number | null
+  methodology?: string
+  notes?: string | null
+  evaluated_by?: string
+  evaluated_at?: string | null
+  note?: string
+}
+
+export type XAIRecommendationSummary = Recommendation & {
+  record_id: string
+  rec_key: string
+  dataset_id: string
+  category_code: string
+  category_label: string
+  workflow_status: 'pending' | 'review_requested' | 'approved' | 'implemented' | 'rejected' | 'expired' | string
+  is_new: boolean
+  confidence_level: 'High' | 'Medium' | 'Low' | 'Insufficient Evidence' | string
+  confidence_score: number | null
+  confidence_is_calibrated: boolean
+  sufficient_evidence: boolean
+  shap_available: boolean
+  model_performance_status?: string | null
+  owner?: string | null
+  deadline?: string | null
+  tracking_kpi?: string | null
+  outcome_status?: string
+  outcome?: XAIRecommendationOutcome | null
+  lineage_node_id?: string | null
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export type RecommendationsOverviewResponse = {
+  empty_workspace: boolean
+  company_id: string
+  dataset_id: string | null
+  dataset_title?: string
+  currency?: string
+  kpis: {
+    total_recommendations: number
+    new_count: number
+    pending_review_count: number
+    approved_count: number
+    implemented_count: number
+    rejected_count: number
+    sufficient_evidence_pct: number | null
+    post_impl_effective_pct: number | null
+    evaluated_implemented_count: number
+  }
+  charts: {
+    by_category: DistributionSlice[]
+    by_status: DistributionSlice[]
+    by_priority: DistributionSlice[]
+    by_confidence: DistributionSlice[]
+  }
+  rows: XAIRecommendationSummary[]
+}
+
+export type FeatureImportanceEntry = {
+  feature: string
+  label: string
+  label_vi?: string
+  importance: number
+  normalized_pct?: number
+  mae_increase?: number
+  direction?: 'positive' | 'negative' | 'neutral' | string
+  current_value?: Scalar
+  reference_value?: Scalar
+  unit?: string
+  note?: string
+}
+
+export type ShapWaterfallStep = {
+  feature: string
+  label: string
+  label_vi?: string
+  feature_value?: number | null
+  shap_value: number
+  abs_shap: number
+  cumulative_after: number
+  direction: 'positive' | 'negative' | string
+}
+
+export type ShapGlobalSummaryItem = {
+  feature: string
+  label: string
+  label_vi?: string
+  mean_abs_shap: number
+  mean_signed_shap: number
+  direction: 'positive' | 'negative' | string
+  beeswarm_points?: Array<{ feature_value: number; shap_value: number }>
+}
+
+export type ShapDependenceSeries = {
+  feature: string
+  label: string
+  points: Array<{ feature_value: number; shap_value: number }>
+}
+
+export type CounterfactualRow = {
+  parameter: string
+  scenario_label: string
+  predicted_revenue?: number | null
+  predicted_profit?: number | null
+  revenue_delta?: number | null
+  profit_delta?: number | null
+  predicted_demand?: number | null
+  unfulfilled_risk?: number | null
+  purchase_commitment?: number | null
+  arrival_date?: string | null
+  is_recommended?: boolean
+}
+
+export type ConfidenceBreakdown = {
+  score: number
+  level: string
+  is_calibrated: boolean
+  calibration_note: string
+  formula: string
+  components: {
+    data_quality_0_100: number
+    evidence_completeness_0_100: number
+    model_validation_0_100: number
+    sensitivity_stability_0_100: number | null
+  }
+  limitations: string[]
+}
+
+export type ModelPerformanceBundle = {
+  available?: boolean
+  status_label?: string
+  model_version?: string
+  separation_disclosure?: string
+  forecast?: {
+    available: boolean
+    reason?: string
+    target?: string
+    scope?: string
+    horizon?: number
+    selected_model?: string
+    baseline_model?: string
+    model_version?: string
+    mae?: number | null
+    rmse?: number | null
+    mape?: number | null
+    wape?: number | null
+    bias?: number | null
+    r2_pseudo?: number | null
+    baseline_test_mae?: number | null
+    baseline_test_wape?: number | null
+    test_coverage?: number | null
+    nominal_coverage?: number
+    short_window_fallback?: boolean
+    status?: string
+  }
+  anomaly?: {
+    available: boolean
+    metric?: string
+    status?: string
+    precision?: number | null
+    recall?: number | null
+    f1?: number | null
+    confusion_matrix?: { tp: number; fp: number; fn: number; tn?: number | null } | null
+    reason?: string
+  }
+}
+
+export type XAIPayload = {
+  domain?: string
+  available?: boolean
+  shap_available: boolean
+  shap_unavailable_reason?: string | null
+  explainability_mode?: string
+  feature_importance: {
+    available: boolean
+    method?: string
+    domain_drivers?: FeatureImportanceEntry[]
+    gain?: FeatureImportanceEntry[]
+    split?: FeatureImportanceEntry[]
+    permutation?: FeatureImportanceEntry[]
+    forecast_model_gain?: FeatureImportanceEntry[]
+  }
+  shap?: {
+    available: boolean
+    method?: string
+    target?: string
+    scope?: string
+    base_value?: number
+    predicted_value?: number
+    additivity_error?: number
+    sample_count?: number
+    waterfall_local?: ShapWaterfallStep[]
+    global_summary?: ShapGlobalSummaryItem[]
+    dependence?: ShapDependenceSeries[]
+    note?: string
+    reason?: string
+  }
+  forecast_shap?: XAIPayload['shap']
+  local_explanation?: { title?: string; summary: string }
+  global_explanation?: { summary: string }
+  counterfactuals?: CounterfactualRow[]
+  causal_disclaimer?: string
+  alternative_explanation?: string
+}
+
+export type HeatmapData = {
+  title: string
+  row_dimension: string
+  col_dimension: string
+  rows: string[]
+  cols: string[]
+  cells: Array<{
+    row: string
+    col: string
+    revenue: number
+    gross_profit: number | null
+    margin: number | null
+    orders: number
+    intensity: number
+  }>
+}
+
+export type RecommendationDetailResponse = {
+  id: string
+  rec_key: string
+  company_id: string
+  dataset_id: string
+  section_a_summary: {
+    title: string
+    category_code: string
+    category_label: string
+    problem_statement: string
+    recommended_action: string
+    goal: string
+    priority: string
+    status: string
+    legacy_decision: string
+    score: number
+    created_at: string | null
+    updated_at: string | null
+    expires_at: string | null
+    creator: string
+    data_scope: Record<string, unknown>
+  }
+  section_b_why: {
+    triggers?: Array<{
+      metric: string
+      current_value: Scalar
+      comparison_value: Scalar
+      delta_pct: number | null
+      window: string
+      source: string
+      detection_method: string
+    }>
+    invalidation_conditions?: string[]
+  }
+  section_c_evidence: {
+    window?: string[]
+    prior_window?: string[] | null
+    data_timestamp?: string
+    kpi_cards?: Record<string, number | null>
+    trend_chart?: { title: string; rows: Row[]; interpretation: string }
+    comparison_chart?: { title: string; rows: Row[]; interpretation: string }
+    mix_chart?: { title: string; rows: Row[]; interpretation: string }
+    heatmap?: HeatmapData
+  }
+  section_d_xai: XAIPayload
+  section_e_model_and_confidence: {
+    model_performance: ModelPerformanceBundle
+    recommendation_confidence: ConfidenceBreakdown
+    strict_separation_note: string
+  }
+  section_f_g_impact: {
+    available?: boolean
+    reason?: string
+    note?: string
+    currency?: string
+    horizon_days?: number
+    baseline_vs_scenario?: Array<{
+      metric: string
+      baseline: number | null
+      scenario: number | null
+      delta: number | null
+      unit: string
+    }>
+    assumptions?: string[]
+  }
+  section_h_alternatives: {
+    options?: Array<{
+      option: string
+      name: string
+      revenue?: number | null
+      profit_delta?: number | null
+      stockout_risk_units?: number | null
+      purchase_commitment?: number | null
+      spend?: number | null
+      roas?: number | null
+      effort?: string
+      risk_note?: string
+      selected?: boolean
+    }>
+    selection_rationale?: string
+  }
+  section_i_action_plan_and_workflow: {
+    owner: string | null
+    deadline: string | null
+    resources_needed: string | null
+    tracking_kpi: string | null
+    success_criteria: string | null
+    stop_criteria: string | null
+    execution_steps: string[]
+    assumptions: string[]
+    risks: string[]
+    action_history: Array<{
+      id: number
+      action_type: string
+      previous_status: string | null
+      new_status: string | null
+      actor: string
+      actor_role: string
+      comment: string | null
+      occurred_at: string | null
+    }>
+    latest_outcome: XAIRecommendationOutcome
+    outcome_history: XAIRecommendationOutcome[]
+  }
+  lineage_node_id?: string | null
+  trace_available: boolean
+}
+
+export type DecisionTraceStep = {
+  step: number
+  stage: string
+  stage_vi: string
+  value: string
+  detail: string
+}
+
+export type DecisionTraceResponse = {
+  recommendation_id: string
+  rec_key: string
+  dataset_id: string
+  status: string
+  lineage_node_id?: string | null
+  knowledge_map_url: string
+  steps: DecisionTraceStep[]
+  action_history: RecommendationDetailResponse['section_i_action_plan_and_workflow']['action_history']
+  outcome_history: XAIRecommendationOutcome[]
+}
+
+export type AuditIntegrityReport = {
+  company_id: string
+  chain_valid: boolean
+  chained_events: number
+  pre_chain_events: number
+  total_audit_events: number
+  broken_links: Array<Record<string, unknown>>
+  payload_mismatches: Array<Record<string, unknown>>
+  latest_seq_no: number | null
+  latest_hash: string | null
+  append_only_protection: boolean
+  verified_at: string
+}
+
+export type AuditOverviewResponse = {
+  empty_workspace: boolean
+  company_id: string
+  dataset_id: string | null
+  dataset_title?: string | null
+  kpis: {
+    total_ai_decisions: number
+    total_model_runs: number
+    recommendations_generated: number
+    approved_count: number
+    rejected_count: number
+    implemented_count: number
+    failed_or_blocked_runs: number
+    data_quality_warnings: number
+    model_alerts: number
+    insufficient_evidence_decisions: number
+  }
+  integrity: AuditIntegrityReport
+  charts: {
+    event_distribution: DistributionSlice[]
+    decision_status: DistributionSlice[]
+    model_performance_trend: {
+      forecast_available: boolean
+      metric_family?: string
+      forecast_series: Array<{
+        period: string
+        horizon: number
+        split: string
+        selected_model: string
+        wape_pct: number | null
+        mae: number
+        baseline_wape_pct: number | null
+        coverage_pct: number
+      }>
+      anomaly_available: boolean
+      anomaly_series: Array<{
+        metric: string
+        status: string
+        precision_pct: number | null
+        recall_pct: number | null
+        f1_pct: number | null
+      }>
+    }
+    data_quality: {
+      total: number
+      overall_score?: number
+      source: string
+      slices: DistributionSlice[]
+    }
+    risk_distribution: DistributionSlice[]
+    outcome_comparison: Array<{
+      stage: string
+      stage_vi?: string
+      count: number
+    }>
+  }
+}
+
+export type AuditEventRow = {
+  id: number
+  occurred_at: string | null
+  kind: string
+  bucket: string
+  subject: string
+  actor: string
+  dataset_id?: string | null
+  payload: Record<string, unknown>
+  hash_chain: {
+    seq_no: number
+    entry_hash: string
+    prev_hash: string
+  } | null
+}
+
+export type ModelEvaluationRecord = {
+  id: string
+  company_id: string
+  dataset_id: string
+  model_name: string
+  model_version: string
+  task_type: string
+  training_dataset_ref: string
+  eval_dataset_ref: string
+  train_date_start: string | null
+  train_date_end: string | null
+  metrics_json: Record<string, unknown>
+  baseline_comparison_json: Record<string, unknown>
+  feature_schema_json: Array<{ name: string; label: string; dtype: string; required: boolean }>
+  drift_status_json: {
+    available?: boolean
+    status?: string
+    psi?: number | null
+    mean_z_shift?: number | null
+    drift_detected?: boolean
+    recent_window_days?: number
+    baseline_window_days?: number
+    reason?: string
+  }
+  owner: string
+  status: string
+  evaluated_at: string | null
+}
+
+export type AuditRiskAlertItem = {
+  id: string
+  company_id: string
+  dataset_id?: string | null
+  risk_key: string
+  severity: 'critical' | 'high' | 'medium' | 'low' | string
+  category: string
+  title: string
+  description: string
+  evidence_json: Record<string, unknown>
+  affected_entity_id?: string | null
+  affected_entity_type?: string | null
+  remediation: string
+  status: 'open' | 'acknowledged' | 'resolved' | string
+  resolved_by?: string | null
+  resolution_note?: string | null
+  detected_at: string | null
+  resolved_at: string | null
+}
+
+export const getRecommendationsOverview = (
+  filters: { category?: string; status?: string; priority?: string; confidence?: string; search?: string } = {}
+) => {
+  const qs = params(filters)
+  return request<RecommendationsOverviewResponse>('/v1/recommendations' + (qs ? '?' + qs : ''))
+}
+
+export const getRecommendationDetail = (recId: string) =>
+  request<RecommendationDetailResponse>(`/v1/recommendations/${encodeURIComponent(recId)}`)
+
+export const postRecommendationAction = (
+  recId: string,
+  payload: {
+    action: 'approve' | 'reject' | 'request_review' | 'mark_implemented' | 'comment' | 'update_plan'
+    comment?: string
+    owner?: string
+    deadline?: string
+    resources_needed?: string
+    tracking_kpi?: string
+    success_criteria?: string
+    stop_criteria?: string
+  }
+) => request<{ id: string; rec_key: string; action: string; status: string; entry_hash: string }>(
+  `/v1/recommendations/${encodeURIComponent(recId)}/action`,
+  payload
+)
+
+export const postRecommendationOutcome = (
+  recId: string,
+  payload: {
+    evaluation_status: 'not_evaluated' | 'successful' | 'unsuccessful' | 'inconclusive'
+    kpi_name: string
+    baseline_value?: number | null
+    target_value?: number | null
+    observed_value?: number | null
+    observation_window_days?: number | null
+    methodology: string
+    notes?: string
+  }
+) => request<{ id: string; evaluation_status: string; observed_delta_pct: number | null; entry_hash: string }>(
+  `/v1/recommendations/${encodeURIComponent(recId)}/outcome`,
+  payload
+)
+
+export const getRecommendationTrace = (recId: string) =>
+  request<DecisionTraceResponse>(`/v1/recommendations/${encodeURIComponent(recId)}/trace`)
+
+export const getAuditOverview = () => request<AuditOverviewResponse>('/v1/audit/overview')
+
+export const getAuditEvents = (opts: { kind?: string; limit?: number; before?: number } = {}) => {
+  const qs = params({
+    kind: opts.kind,
+    limit: opts.limit != null ? String(opts.limit) : undefined,
+    before: opts.before != null ? String(opts.before) : undefined,
+  })
+  return request<{ rows: AuditEventRow[]; next_before: number | null }>('/v1/audit/events' + (qs ? '?' + qs : ''))
+}
+
+export const getAuditModels = () =>
+  request<{
+    empty_workspace: boolean
+    company_id?: string
+    dataset_id?: string
+    models: ModelEvaluationRecord[]
+    feature_schema: Array<{ name: string; label: string; dtype: string; required: boolean }>
+  }>('/v1/audit/models')
+
+export const getAuditRisks = (status?: 'all' | 'open' | 'acknowledged' | 'resolved') =>
+  request<{ company_id: string; items: AuditRiskAlertItem[] }>(
+    '/v1/audit/risks' + (status ? '?' + params({ status }) : '')
+  )
+
+export const postResolveAuditRisk = (
+  riskId: string,
+  payload: { status: 'open' | 'acknowledged' | 'resolved'; note?: string }
+) => request<{ id: string; status: string; entry_hash: string }>(
+  `/v1/audit/risks/${encodeURIComponent(riskId)}/resolve`,
+  payload
+)
+
+export const getAuditIntegrity = () => request<AuditIntegrityReport>('/v1/audit/integrity')
+
+export async function downloadAuditExport(format: 'csv' | 'json' = 'csv', kind?: string): Promise<void> {
+  const headers = buildAuthHeaders()
+  const qs = params({ format, kind })
+  const response = await fetch(`/api/v1/audit/export?${qs}`, {
+    headers,
+    signal: AbortSignal.timeout(30_000),
+  })
+  if (!response.ok) {
+    const data = await response.json().catch(() => null)
+    throw new ApiError(typeof data?.detail === 'string' ? data.detail : 'Unable to export audit log.', response.status)
+  }
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `audit_trail_${getActiveCompanyId()}.${format}`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
+
 
 

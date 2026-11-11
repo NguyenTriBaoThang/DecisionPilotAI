@@ -800,6 +800,150 @@ twin_simulation_results = sa.Table(
 )
 sa.Index("ix_twin_results_run_metric", twin_simulation_results.c.simulation_run_id, twin_simulation_results.c.metric_name)
 
+# ---------------------------------------------------------------------------
+# Enterprise Explainable AI (XAI) Recommendations & Tamper-Evident Audit
+# ---------------------------------------------------------------------------
+
+xai_recommendations = sa.Table(
+    "xai_recommendations", metadata,
+    C("id", sa.String(100), primary_key=True),
+    C("rec_key", sa.String(100), nullable=False, index=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("dataset_id", sa.String(64), nullable=False, index=True),
+    C("title", sa.String(220), nullable=False),
+    C("category_code", sa.String(48), nullable=False, index=True),
+    C("category_label", sa.String(100), nullable=False),
+    C("priority", sa.String(24), nullable=False, index=True),
+    C("status", sa.String(32), nullable=False, server_default="pending", index=True),
+    C("problem_statement", sa.Text, nullable=False),
+    C("recommended_action", sa.Text, nullable=False),
+    C("goal", sa.Text, nullable=False),
+    C("creator", sa.String(120), nullable=False),
+    C("owner", sa.String(120), nullable=True),
+    C("deadline", sa.Date, nullable=True),
+    C("resources_needed", sa.Text, nullable=True),
+    C("tracking_kpi", sa.String(120), nullable=True),
+    C("success_criteria", sa.Text, nullable=True),
+    C("stop_criteria", sa.Text, nullable=True),
+    C("confidence_level", sa.String(32), nullable=False, index=True),
+    C("confidence_score", sa.Float, nullable=True),
+    C("confidence_components_json", sa.JSON, nullable=False),
+    C("why_json", sa.JSON, nullable=False),
+    C("model_performance_json", sa.JSON, nullable=False),
+    C("xai_json", sa.JSON, nullable=False),
+    C("evidence_json", sa.JSON, nullable=False),
+    C("expected_impact_json", sa.JSON, nullable=False),
+    C("alternatives_json", sa.JSON, nullable=False),
+    C("action_plan_json", sa.JSON, nullable=False),
+    C("assumptions_json", sa.JSON, nullable=False),
+    C("risks_json", sa.JSON, nullable=False),
+    C("data_scope_json", sa.JSON, nullable=False),
+    C("legacy_payload_json", sa.JSON, nullable=False),
+    C("simulation_id", sa.String(64), nullable=True),
+    C("lineage_node_id", sa.String(80), nullable=True),
+    C("score", sa.Integer, nullable=False, server_default="50"),
+    C("is_new", sa.Boolean, nullable=False, server_default=sa.true()),
+    C("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    C("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    C("expires_at", sa.DateTime(timezone=True), nullable=True),
+)
+sa.Index("ix_xai_recs_comp_ds_key", xai_recommendations.c.company_id, xai_recommendations.c.dataset_id, xai_recommendations.c.rec_key, unique=True)
+sa.Index("ix_xai_recs_comp_status", xai_recommendations.c.company_id, xai_recommendations.c.status)
+
+recommendation_actions = sa.Table(
+    "recommendation_actions", metadata,
+    C("id", sa.Integer, primary_key=True),
+    C("recommendation_id", sa.ForeignKey("xai_recommendations.id", ondelete="CASCADE"), nullable=False, index=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("dataset_id", sa.String(64), nullable=False, index=True),
+    C("action_type", sa.String(40), nullable=False),
+    C("previous_status", sa.String(32), nullable=True),
+    C("new_status", sa.String(32), nullable=True),
+    C("actor", sa.String(100), nullable=False),
+    C("actor_role", sa.String(32), nullable=False, server_default="analyst"),
+    C("comment", sa.Text, nullable=True),
+    C("details_json", sa.JSON, nullable=False),
+    C("audit_event_id", sa.Integer, nullable=True, index=True),
+    C("occurred_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+)
+sa.Index("ix_rec_actions_rec_time", recommendation_actions.c.recommendation_id, recommendation_actions.c.occurred_at)
+
+recommendation_outcomes = sa.Table(
+    "recommendation_outcomes", metadata,
+    C("id", sa.String(80), primary_key=True),
+    C("recommendation_id", sa.ForeignKey("xai_recommendations.id", ondelete="CASCADE"), nullable=False, index=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("dataset_id", sa.String(64), nullable=False, index=True),
+    C("evaluation_status", sa.String(32), nullable=False, server_default="not_evaluated"),
+    C("kpi_name", sa.String(120), nullable=False),
+    C("baseline_value", sa.Float, nullable=True),
+    C("target_value", sa.Float, nullable=True),
+    C("observed_value", sa.Float, nullable=True),
+    C("observed_delta_pct", sa.Float, nullable=True),
+    C("observation_window_days", sa.Integer, nullable=True),
+    C("methodology", sa.Text, nullable=False),
+    C("notes", sa.Text, nullable=True),
+    C("evidence_json", sa.JSON, nullable=False),
+    C("evaluated_by", sa.String(100), nullable=False),
+    C("evaluated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+)
+sa.Index("ix_rec_outcomes_comp_status", recommendation_outcomes.c.company_id, recommendation_outcomes.c.evaluation_status)
+
+model_evaluations = sa.Table(
+    "model_evaluations", metadata,
+    C("id", sa.String(80), primary_key=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("dataset_id", sa.String(64), nullable=False, index=True),
+    C("model_name", sa.String(120), nullable=False),
+    C("model_version", sa.String(80), nullable=False),
+    C("task_type", sa.String(48), nullable=False),
+    C("training_dataset_ref", sa.String(160), nullable=False),
+    C("eval_dataset_ref", sa.String(160), nullable=False),
+    C("train_date_start", sa.Date, nullable=True),
+    C("train_date_end", sa.Date, nullable=True),
+    C("metrics_json", sa.JSON, nullable=False),
+    C("baseline_comparison_json", sa.JSON, nullable=False),
+    C("feature_schema_json", sa.JSON, nullable=False),
+    C("drift_status_json", sa.JSON, nullable=False),
+    C("owner", sa.String(100), nullable=False, server_default="ai-pipeline"),
+    C("status", sa.String(32), nullable=False, server_default="evaluated"),
+    C("evaluated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+)
+sa.Index("ix_model_evals_comp_ds_time", model_evaluations.c.company_id, model_evaluations.c.dataset_id, model_evaluations.c.evaluated_at)
+
+audit_hash_chain = sa.Table(
+    "audit_hash_chain", metadata,
+    C("seq_no", sa.Integer, primary_key=True),
+    C("audit_event_id", sa.ForeignKey("audit_events.id"), nullable=False, unique=True),
+    C("company_id", sa.String(64), nullable=False, index=True),
+    C("prev_hash", sa.String(64), nullable=False),
+    C("payload_sha256", sa.String(64), nullable=False),
+    C("entry_hash", sa.String(64), nullable=False, unique=True),
+    C("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+)
+
+audit_risk_alerts = sa.Table(
+    "audit_risk_alerts", metadata,
+    C("id", sa.String(100), primary_key=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("dataset_id", sa.String(64), nullable=True, index=True),
+    C("risk_key", sa.String(120), nullable=False, index=True),
+    C("severity", sa.String(24), nullable=False, index=True),
+    C("category", sa.String(48), nullable=False),
+    C("title", sa.String(200), nullable=False),
+    C("description", sa.Text, nullable=False),
+    C("evidence_json", sa.JSON, nullable=False),
+    C("affected_entity_id", sa.String(120), nullable=True),
+    C("affected_entity_type", sa.String(48), nullable=True),
+    C("remediation", sa.Text, nullable=False),
+    C("status", sa.String(32), nullable=False, server_default="open", index=True),
+    C("resolved_by", sa.String(100), nullable=True),
+    C("resolution_note", sa.Text, nullable=True),
+    C("detected_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    C("resolved_at", sa.DateTime(timezone=True), nullable=True),
+)
+sa.Index("ix_audit_risks_comp_status", audit_risk_alerts.c.company_id, audit_risk_alerts.c.status)
+
 
 def make_engine(url=None):
     url = url or os.getenv("DATABASE_URL")

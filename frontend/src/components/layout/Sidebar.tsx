@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   MessageSquareText,
   Settings,
+  ShieldCheck,
   SlidersHorizontal,
   TrendingUp,
   X,
@@ -50,7 +51,8 @@ export const navGroups: NavGroup[] = [
   {
     label: 'GOVERNANCE',
     items: [
-      { to: '/recommendations', title: 'Recommendations & Audit', icon: Compass },
+      { to: '/recommendations', title: 'Recommendations & XAI', icon: Compass },
+      { to: '/audit', title: 'Audit & Governance', icon: ShieldCheck },
       { to: '/knowledge-map', title: 'Enterprise Knowledge Map', icon: GitBranch },
     ],
   },
