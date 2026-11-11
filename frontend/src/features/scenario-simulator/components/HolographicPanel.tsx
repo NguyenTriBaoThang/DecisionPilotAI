@@ -55,6 +55,7 @@ export function HolographicPanel({
 
   return (
     <div
+      id={'sim-panel-' + id}
       onClick={() => onClickTab(id)}
       className={`rounded-2xl border backdrop-blur-xl p-5 cursor-pointer overflow-hidden group select-none ${transformClasses} ${positionStyle}`}
       style={{

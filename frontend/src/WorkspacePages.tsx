@@ -1,4 +1,4 @@
-import { useState, type Dispatch, type SetStateAction } from 'react'
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ModelQuality } from './components/ModelQuality'
+import { investigateHref } from './investigate'
 import {
   type Alert,
   type Audit,
@@ -160,6 +161,18 @@ export function Ask({
       query.mutate(question)
     }
   }
+
+  // Deep link from an alert: /ask?q=... sends the question once, then clears the parameter.
+  const [search, setSearch] = useSearchParams()
+  const autoSent = useRef(false)
+  useEffect(() => {
+    const q = search.get('q')
+    if (q && !autoSent.current) {
+      autoSent.current = true
+      setSearch({}, { replace: true })
+      send(q)
+    }
+  }, [])
 
   return (
     <>
@@ -333,7 +346,7 @@ export function Ask({
               </button>
             ))}
           </div>
-          <Source>{isVi ? 'Phân tích Xác định · Công cụ Kiểm thực CSDL' : 'Deterministic Analytics · AST Validated Tools'}</Source>
+          <Source>{isVi ? 'Phân tích Xác định · Công cụ Kiểm thực CSDL' : 'Deterministic Analytics · Fixed Read-Only Tools'}</Source>
         </Card>
       </div>
 
@@ -544,6 +557,13 @@ export function Alerts({ dataset }: { dataset: Dataset }) {
                 <div>
                   <strong className="text-white block font-semibold mb-0.5">Recommended Action:</strong>
                   <p className="text-slate-300 leading-relaxed">{selected.action}</p>
+                  <Link
+                    to={investigateHref(selected.metric)}
+                    className="inline-flex items-center gap-1.5 mt-2 font-semibold text-cyan-400 hover:text-cyan-300"
+                  >
+                    <span>Investigate with AI Copilot</span>
+                    <ArrowRight size={14} />
+                  </Link>
                 </div>
               </div>
 
@@ -1174,7 +1194,16 @@ export function Recommendations() {
             </details>
 
             {/* Human Decision Buttons */}
-            <div className="pt-2 flex items-center gap-3">
+            <div className="pt-2 flex items-center gap-3 flex-wrap">
+              {row.id === 'marketing:facebook' && (
+                <Link
+                  to={'/scenarios?tab=marketing&channel=Facebook%20Ads&autorun=1&rec=' + encodeURIComponent(row.id)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20"
+                >
+                  <SlidersHorizontal size={16} />
+                  <span>Try first in simulator</span>
+                </Link>
+              )}
               <Button
                 className="primary px-4 py-2 text-xs flex items-center gap-2"
                 disabled={feedback.isPending || row.decision === 'accepted' || !session.data || session.data.role === 'viewer'}

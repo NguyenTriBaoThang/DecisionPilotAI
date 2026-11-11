@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Boxes,
@@ -78,7 +79,15 @@ const tabConfigs: TabConfig[] = [
 export function ScenarioSimulator3D({ options }: { options: Options }) {
   const { t, language } = useT()
   const isVi = language === 'vi'
-  const [activeTab, setActiveTab] = useState<SimulatorTab>('pricing')
+  // Deep link from a recommendation: /scenarios?tab=marketing&channel=...&autorun=1&rec=<recommendation id>
+  const [search] = useSearchParams()
+  const [preset] = useState(() =>
+    search.get('autorun') === '1' && search.get('tab') === 'marketing' && search.get('channel')
+      ? { channel: search.get('channel') as string, pct: -15, changes: [-0.15, 0.15, 0.3] }
+      : null,
+  )
+  const [recId] = useState(() => search.get('rec') || undefined)
+  const [activeTab, setActiveTab] = useState<SimulatorTab>(preset ? 'marketing' : 'pricing')
   const [mode, setMode] = useState<InteractionMode>('focus')
   const [isFullscreen, setIsFullscreen] = useState(false)
 
@@ -99,6 +108,16 @@ export function ScenarioSimulator3D({ options }: { options: Options }) {
       options.products[0]?.product_id ||
       'P001'
 
+    if (preset) {
+      // Same inputs as the recommendation card, so both screens show the same numbers.
+      simulateMutation.mutate({
+        type: 'marketing',
+        horizon: 30,
+        objective: 'profit',
+        parameters: { channel: preset.channel, changes: preset.changes },
+      })
+      return
+    }
     simulateMutation.mutate({
       type: 'price',
       horizon: 30,
@@ -109,6 +128,13 @@ export function ScenarioSimulator3D({ options }: { options: Options }) {
       },
     })
   }, [])
+
+  // Deep-linked runs scroll the result into view (the 3D sphere fills the first screen).
+  useEffect(() => {
+    if (preset && simulateMutation.data) {
+      document.getElementById('sim-panel-' + activeTab)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [simulateMutation.data?.simulation_id])
 
   // Navigation handlers
   const tabIndex = tabConfigs.findIndex((t) => t.id === activeTab)
@@ -368,6 +394,7 @@ export function ScenarioSimulator3D({ options }: { options: Options }) {
               <MarketingScenarioTab
                 options={options}
                 onSimulateMarketing={handleSimulateMarketing}
+                preset={preset ?? undefined}
                 isLoading={simulateMutation.isPending}
                 scenarioData={simulateMutation.data?.type === 'marketing' ? simulateMutation.data : undefined}
               />
@@ -404,6 +431,7 @@ export function ScenarioSimulator3D({ options }: { options: Options }) {
               <RecommendationsTab
                 scenarioData={simulateMutation.data}
                 key={simulateMutation.data?.simulation_id || 'empty'}
+                recommendationId={recId}
                 isSimulating={simulateMutation.isPending || simulateMutation.isError}
               />
             </HolographicPanel>

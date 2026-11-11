@@ -273,3 +273,33 @@ def test_quality_discloses_limitations_and_sustained_detector_is_causal(client):
     prefix = detect('revenue', values.iloc[:110], None)
     assert full.flag.iloc[:110].equals(prefix.flag)
     assert full.sustained_flag.iloc[106:110].any()
+
+
+def test_llm_intent_filters_are_mapped_or_rejected():
+    from ai_service.llm_orchestrator import valid_intent
+    from backend.app.schemas import Filters, Intent
+    choices = dict(products=[dict(product_id="P001", product_name="SmartDesk Mini")], categories=["Electronics"],
+                   regions=["HCMC"], channels=["Online"], segments=["Returning"])
+    named = Intent(action="forecast", filters=Filters(product="SmartDesk Mini"))
+    assert valid_intent(named, choices) and named.filters.product == "P001"
+    assert not valid_intent(Intent(action="kpi", filters=Filters(product="Nope")), choices)
+    assert not valid_intent(Intent(action="kpi", filters=Filters(region="Mars")), choices)
+    ranked = Intent(action="rank", metric="roas", dimension="marketing", ascending=True)
+    assert valid_intent(ranked, choices) and ranked.action == "marketing"
+
+
+def test_scenario_decision_can_settle_its_recommendation_in_one_transaction(client):
+    http, engine = client
+    sim = http.post('/simulate', json={'type': 'marketing', 'parameters': {'channel': 'Facebook Ads', 'changes': [-.15]}}).json()
+    # "rejected" always differs from any earlier "accepted" in this shared session database.
+    body = {'simulation_id': sim['simulation_id'], 'dataset_id': sim['dataset_id'], 'decision': 'rejected'}
+    assert http.post('/scenarios/feedback', json={**body, 'recommendation_id': 'nope'}).status_code == 404
+    first = http.post('/scenarios/feedback', json={**body, 'recommendation_id': 'marketing:facebook'})
+    assert first.status_code == 200
+    assert http.post('/scenarios/feedback', json={**body, 'recommendation_id': 'marketing:facebook'}).json()['id'] == first.json()['id']
+    card = next(r for r in http.get('/recommendations').json()['rows'] if r['id'] == 'marketing:facebook')
+    assert card['decision'] == 'rejected'
+    with engine.connect() as conn:
+        rows = conn.execute(sa.select(audit.c.payload).where(audit.c.kind == 'recommendation_feedback',
+                                                             audit.c.subject == 'marketing:facebook')).all()
+    assert sum(r.payload.get('simulation_id') == sim['simulation_id'] for r in rows) == 1
