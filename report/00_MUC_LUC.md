@@ -16,7 +16,7 @@ Phương pháp: đọc README, COMPETITION_SUBMISSION, 10 báo cáo audit, artif
 | [08_doi_chieu_tieu_chi.md](08_doi_chieu_tieu_chi.md) | Dự án so với từng tiêu chí chấm điểm |
 | [09_viec_can_lam.md](09_viec_can_lam.md) | Việc cần làm trước 13/11 và trước pitch 19/11 |
 | [10_luong_test.md](10_luong_test.md) + [smoke_test.sh](smoke_test.sh) | Luồng test toàn bộ ứng dụng (tự động, thủ công, bảo mật, demo) |
-| [11_ket_qua_test_playwright.md](11_ket_qua_test_playwright.md) | Kết quả test giao diện bằng Playwright + lỗi tìm thấy (có ảnh trong `screenshots/`) |
+| [11_ket_qua_test_playwright.md](11_ket_qua_test_playwright.md) | Kết quả test giao diện bằng Playwright + lỗi tìm thấy (ảnh test ở `screenshots/test-run/`, ảnh theo kịch bản demo ở `screenshots/demo-flow/`) |
 | [12_dan_y_slide.md](12_dan_y_slide.md) | Dàn ý slide 11 trang (EN) theo cấu trúc BTC, có nguồn số liệu |
 | [13_kich_ban_demo.md](13_kich_ban_demo.md) | Kịch bản demo 2 phút, checklist quay, câu hỏi Q&A và cách trả lời trung thực |
 | [../CONTEXT.md](../CONTEXT.md) | Bảng thuật ngữ đời thường dùng trong demo/slide |

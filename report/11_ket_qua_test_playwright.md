@@ -1,6 +1,6 @@
 # 11 · Kết quả test giao diện bằng Playwright (11/11/2026)
 
-Môi trường: Docker Compose, http://localhost:8090, `LLM_PROVIDER=gemini` (gemini-2.5-flash), dữ liệu tổng hợp. Ảnh chụp ở [screenshots/](screenshots/).
+Môi trường: Docker Compose, http://localhost:8090, `LLM_PROVIDER=gemini` (gemini-2.5-flash), dữ liệu tổng hợp. Ảnh chụp ở [screenshots/test-run/](screenshots/test-run/) (ảnh của lần test này, không phải bộ ảnh chuẩn cho slide; bộ chuẩn nằm ở [screenshots/demo-flow/](screenshots/demo-flow/)).
 
 ## Kết quả theo màn hình
 | # | Màn hình | Kết quả | Ảnh |

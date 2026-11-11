@@ -20,13 +20,23 @@ Thuật ngữ đời thường: xem [CONTEXT.md](../CONTEXT.md). Mọi số bên
 
 Số dùng trong lời thoại: doanh thu T9 3,38 tỷ ₫ (−30,6%); Facebook ROAS 0,76×, Email 12,9×; tiết kiệm chi phí 33,4 triệu ₫ (222,5 → 189,1 triệu), doanh thu −11,2 triệu (111,9 → 100,7 triệu), lỗ ước tính 177,1 → 148,3 triệu (+28,8 triệu). Nguồn: `/api/kpi/summary`, `/api/query`, `/api/simulate` (Facebook, mặc định).
 
+## Ảnh chụp theo đúng kịch bản (`screenshots/demo-flow/`)
+| Cảnh | File |
+|---|---|
+| 1 Dashboard | `scene1_dashboard.png` |
+| 2 Alert → Ask (câu EN tự gửi + câu VI gõ tay) | `scene2_ask.png` (cả hai) · `scene2_ask_vi_clean.png` (chỉ câu VI, dùng cho slide) |
+| 3 Khuyến nghị → Simulator | `scene3a_recommendation.png` · `scene3b_simulator_result.png` · `scene3c_simulator_3d_cameo.png` |
+| 4 Duyệt + nhật ký | `scene4a_accept_scenario.png` · `scene4b_card_accepted.png` · `scene4c_decision_log.png` |
+
+Chụp ngày 11/11/2026 từ dữ liệu sạch (`demo_reset.sh`), UI English, cửa sổ 1440×900, Gemini bật (`gemini-3.1-flash-lite`). Khi Gemini bật, câu tiếng Việt trả lời "Facebook Ads is lowest at 0.76×"; với luật cục bộ câu trả lời là "Facebook Ads had the largest decline in roas: 6.53× to 0.76×". Cả hai đều đúng, chọn một khi quay.
+
 ## Slide "How AI Helps" phủ đủ 4 năng lực của đề (video không nhắc Forecast)
 | Năng lực | Ảnh | Câu của Lan |
 |---|---|---|
-| Hỏi dữ liệu | `screenshots/12_alert_to_ask.png` | "Which channel is lowest?" |
-| Phân tích biến động | `screenshots/05_anomalies.png` | "Facebook spend is 84% above normal." |
-| Dự báo | `screenshots/06_forecast_run.png` | "What will next month look like, and how sure are we?" |
-| So sánh kịch bản | `screenshots/13_rec_to_simulator.png` | "What if I cut the budget 15%?" |
+| Hỏi dữ liệu | `screenshots/demo-flow/scene2_ask_vi_clean.png` | "Which channel is lowest?" |
+| Phân tích biến động | `screenshots/demo-flow/capability_anomaly.png` | "Facebook spend is 84% above normal." |
+| Dự báo | `screenshots/demo-flow/capability_forecast.png` (SKU P001, LightGBM) | "What will next month look like, and how sure are we?" |
+| So sánh kịch bản | `screenshots/demo-flow/scene3b_simulator_result.png` | "What if I cut the budget 15%?" |
 
 ## Q&A: các câu dễ bị hỏi và câu trả lời trung thực
 1. **Dữ liệu thật hay giả?** Giả (practice data), có chủ ý cài sự kiện để kiểm thử. Chưa pilot với shop thật; bước tiếp theo là chạy trên dữ liệu ẩn danh của một shop.
