@@ -1,4 +1,4 @@
-"""Safe, streaming-friendly parsers for CSV, XLSX, XLS, and JSON enterprise business datasets."""
+"""Safe, streaming-friendly parsers for CSV, XLSX, XLS, JSON, and XML enterprise business datasets."""
 from __future__ import annotations
 
 import csv
@@ -13,12 +13,13 @@ from typing import Any
 from xml.etree.ElementTree import ParseError
 from zipfile import BadZipFile, ZipFile
 
+import defusedxml.ElementTree as DefusedET
 from openpyxl import load_workbook
 from openpyxl.utils.exceptions import InvalidFileException
 import xlrd
 
 
-SUPPORTED_EXTENSIONS = {"csv", "xlsx", "xls", "json"}
+SUPPORTED_EXTENSIONS = {"csv", "xlsx", "xls", "json", "xml"}
 MAX_FILE_BYTES = int(os.getenv("INGESTION_MAX_FILE_BYTES", 50 * 1024 * 1024))
 MAX_UNCOMPRESSED_XLSX_BYTES = int(os.getenv("INGESTION_MAX_UNCOMPRESSED_XLSX_BYTES", 150 * 1024 * 1024))
 MAX_COLUMNS = int(os.getenv("INGESTION_MAX_COLUMNS", 250))
@@ -65,7 +66,7 @@ def detect_extension(filename: str) -> str:
     ext = Path(clean).suffix.lower().lstrip(".")
     if ext not in SUPPORTED_EXTENSIONS:
         raise IngestionValidationError(
-            f"Unsupported file format '.{ext or 'unknown'}'. Supported formats: CSV, XLSX, XLS, JSON."
+            f"Unsupported file format '.{ext or 'unknown'}'. Supported formats: CSV, XLSX, XLS, JSON, XML."
         )
     return ext
 
@@ -102,6 +103,11 @@ def validate_upload_bytes(blob: bytes, filename: str) -> tuple[str, str]:
     elif ext == "json":
         if b"\x00\x00" in blob[:4096] and not (blob.startswith(b"\xff\xfe") or blob.startswith(b"\xfe\xff")):
             raise IngestionValidationError("Invalid .json file: unexpected binary content.")
+    elif ext == "xml":
+        if b"\x00\x00" in blob[:4096] and not (blob.startswith(b"\xff\xfe") or blob.startswith(b"\xfe\xff")):
+            raise IngestionValidationError("Invalid .xml file: unexpected binary content.")
+        if XXE_PATTERN.search(blob[:16384]):
+            raise IngestionValidationError("Unsafe XML directive (DOCTYPE/ENTITY) detected in XML payload.")
     return clean_name, ext
 
 
@@ -473,6 +479,125 @@ def _parse_json(blob: bytes, limit: int | None = None) -> ParsedDataset:
     )
 
 
+def _strip_xml_ns(tag: str) -> str:
+    return tag.split("}", 1)[1] if "}" in tag else tag
+
+
+def _xml_element_to_flat_dict(el: Any, prefix: str = "") -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    for attr_k, attr_v in (el.attrib or {}).items():
+        clean_k = _strip_xml_ns(str(attr_k))
+        col_name = f"{prefix}.{clean_k}" if prefix else clean_k
+        out[col_name] = attr_v
+    children = list(el)
+    if not children:
+        txt = (el.text or "").strip()
+        if prefix and txt:
+            out[prefix] = txt
+        elif not prefix and txt:
+            out["value"] = txt
+        return out
+    seen_child_tags: dict[str, int] = {}
+    for ch in children:
+        tag = _strip_xml_ns(ch.tag)
+        seen_child_tags[tag] = seen_child_tags.get(tag, 0) + 1
+    for ch in children:
+        tag = _strip_xml_ns(ch.tag)
+        sub_prefix = f"{prefix}.{tag}" if prefix else tag
+        sub_children = list(ch)
+        if not sub_children and not ch.attrib:
+            val = (ch.text or "").strip()
+            if seen_child_tags[tag] > 1:
+                existing = out.get(sub_prefix)
+                out[sub_prefix] = f"{existing}; {val}" if existing else val
+            else:
+                out[sub_prefix] = val
+        else:
+            nested = _xml_element_to_flat_dict(ch, prefix=sub_prefix)
+            out.update(nested)
+    return out
+
+
+def _parse_xml(blob: bytes, limit: int | None = None) -> ParsedDataset:
+    if XXE_PATTERN.search(blob[:16384]):
+        raise IngestionValidationError("Unsafe XML directive (DOCTYPE/ENTITY) detected in XML payload.")
+    text, encoding = _decode_text(blob)
+    stripped = text.strip()
+    if not stripped:
+        raise IngestionValidationError("XML file is empty.")
+    try:
+        root = DefusedET.fromstring(stripped.encode("utf-8"))
+    except Exception as exc:
+        raise IngestionValidationError(f"Invalid or unsafe XML structure: {type(exc).__name__}") from exc
+
+    children = list(root)
+    if not children:
+        flat_one = _xml_element_to_flat_dict(root)
+        if not flat_one:
+            raise IngestionValidationError("XML document contains zero data records.")
+        flat_records = [flat_one]
+    else:
+        # Prefer container child that holds repeated record children (e.g. <report><meta/><rows><row/>...</rows></report>)
+        target_nodes: list[Any] | None = None
+        tag_counts: dict[str, int] = {}
+        for ch in children:
+            t = _strip_xml_ns(ch.tag)
+            tag_counts[t] = tag_counts.get(t, 0) + 1
+        repeated_top = [ch for ch in children if tag_counts[_strip_xml_ns(ch.tag)] > 1]
+        if repeated_top:
+            target_nodes = repeated_top
+        else:
+            for ch in children:
+                sub = list(ch)
+                if len(sub) >= 1 and all(list(gc) or gc.attrib for gc in sub):
+                    target_nodes = sub
+                    break
+            if target_nodes is None:
+                if all(not list(ch) and not ch.attrib for ch in children):
+                    # Single object represented directly under root attributes/elements
+                    target_nodes = [root]
+                else:
+                    target_nodes = children
+
+        flat_records = []
+        for node in target_nodes:
+            flat = _xml_element_to_flat_dict(node)
+            if any(v is not None and str(v).strip() != "" for v in flat.values()):
+                flat_records.append(flat)
+
+    if not flat_records:
+        raise IngestionValidationError("XML dataset contains zero non-empty records.")
+
+    total = len(flat_records)
+    if total > MAX_ROWS:
+        raise IngestionValidationError(f"Row count exceeds {MAX_ROWS:,} row ingestion limit.")
+
+    warnings: list[str] = []
+    ordered_keys: list[str] = []
+    seen_keys: set[str] = set()
+    for rec in flat_records:
+        for k in rec.keys():
+            if k not in seen_keys:
+                seen_keys.add(k)
+                ordered_keys.append(k)
+                if len(ordered_keys) > MAX_COLUMNS:
+                    raise IngestionValidationError(f"Dataset exceeds {MAX_COLUMNS} columns limit.")
+    columns = _normalize_headers(ordered_keys, warnings)
+    key_to_col = dict(zip(ordered_keys, columns))
+    selected = flat_records if limit is None else flat_records[:limit]
+    rows = [{key_to_col[k]: rec.get(k) for k in ordered_keys} for rec in selected]
+    row_numbers = list(range(1, len(rows) + 1))
+    return ParsedDataset(
+        file_format="xml",
+        columns=columns,
+        rows=rows,
+        total_rows=total,
+        encoding=encoding,
+        parse_warnings=warnings,
+        row_numbers=row_numbers,
+    )
+
+
 def parse_uploaded_dataset(
     blob: bytes,
     filename: str,
@@ -480,7 +605,7 @@ def parse_uploaded_dataset(
     sheet_name: str | None = None,
     limit: int | None = None,
 ) -> ParsedDataset:
-    """Validate and parse CSV, XLSX, XLS, or JSON bytes into uniform rows."""
+    """Validate and parse CSV, XLSX, XLS, JSON, or XML bytes into uniform rows."""
     _, ext = validate_upload_bytes(blob, filename)
     if ext == "csv":
         return _parse_csv(blob, limit=limit)
@@ -490,4 +615,6 @@ def parse_uploaded_dataset(
         return _parse_xls(blob, sheet_name=sheet_name, limit=limit)
     if ext == "json":
         return _parse_json(blob, limit=limit)
+    if ext == "xml":
+        return _parse_xml(blob, limit=limit)
     raise IngestionValidationError(f"Unsupported format: {ext}")

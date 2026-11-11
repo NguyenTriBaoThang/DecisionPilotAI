@@ -156,3 +156,100 @@ test('creates an isolated company workspace, runs 4-step enterprise CSV ingestio
   await page.getByRole('button', { name: /Default Workspace/i }).click()
   await expect(page.getByLabel('Product')).toContainText('SmartDesk Mini')
 })
+
+test('ingests a multimodal invoice PNG with async queue, HITL correction, signed preview, and BI promotion', async ({ page }) => {
+  await page.goto('/')
+  await page.getByLabel('Access token', { exact: true }).fill('e2e-admin-token-for-isolated-tests-only')
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await expect(page.getByRole('link', { name: 'Data Sources', exact: true })).toBeVisible()
+
+  // 1. Provision isolated company workspace
+  await page.getByRole('button', { name: 'Company Workspace' }).click()
+  await page.getByPlaceholder('e.g. Acme Retail Ltd.').fill('MM Vision Ltd')
+  const createCompanyRes = page.waitForResponse(
+    (res) => res.url().includes('/api/v1/companies') && res.request().method() === 'POST'
+  )
+  await page.getByRole('button', { name: 'Add', exact: true }).click()
+  expect((await createCompanyRes).ok()).toBeTruthy()
+  await expect(page.getByRole('heading', { name: 'Empty Company Workspace' })).toBeVisible()
+
+  // 2. Open Multimodal & Media Studio
+  await page.getByRole('link', { name: 'Data Sources', exact: true }).click()
+  await page.getByRole('tab', { name: /Multimodal & Media Studio/i }).click()
+  await expect(page.getByText('Multimodal Data & Intelligence Studio')).toBeVisible()
+
+  // 3. Generate a crisp PNG invoice via Chromium Canvas and upload asynchronously (HTTP 202)
+  const pngBase64 = await page.evaluate(() => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 960
+    canvas.height = 380
+    const ctx = canvas.getContext('2d')!
+    ctx.fillStyle = '#FFFFFF'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.fillStyle = '#0F172A'
+    ctx.font = 'bold 28px Arial, sans-serif'
+    ctx.fillText('INVOICE #E2E-101', 36, 56)
+    ctx.fillText('Date: 2026-08-20', 36, 112)
+    ctx.fillText('Product: E2E Scanner', 36, 168)
+    ctx.fillText('Customer: Vision Retail', 36, 224)
+    ctx.fillText('Grand Total: $1,850.00', 36, 280)
+    ctx.fillText('Cost: $900.00', 36, 336)
+    return canvas.toDataURL('image/png').split(',')[1]
+  })
+
+  await page.getByLabel('Multimodal batch files').setInputFiles({
+    name: 'e2e-invoice.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(pngBase64, 'base64'),
+  })
+
+  const uploadRes = page.waitForResponse(
+    (res) => res.url().includes('/api/v1/multimodal/upload') && res.request().method() === 'POST'
+  )
+  await page.getByRole('button', { name: /Upload & Queue Extraction Job/i }).click()
+  expect((await uploadRes).status()).toBe(202)
+
+  // 4. Wait for background worker extraction -> AWAITING APPROVAL -> launch HITL Workbench
+  await expect(page.getByText('AWAITING APPROVAL')).toBeVisible({ timeout: 45_000 })
+  await page.getByRole('button', { name: /Review & Approve/i }).first().click()
+  await expect(page.getByText(/Human-in-the-Loop Verification: e2e-invoice\.png/i)).toBeVisible()
+
+  // Verify signed image preview loaded in browser without Bearer header errors
+  const previewImg = page.locator('img[alt="e2e-invoice.png"]')
+  await expect(previewImg).toBeVisible()
+  expect(await previewImg.evaluate((el) => (el as HTMLImageElement).complete && (el as HTMLImageElement).naturalWidth > 0)).toBeTruthy()
+
+  // 5. Inline HITL verification edit + mandatory explicit confirm toggle
+  await page.getByRole('button', { name: /Edit Fields/i }).first().click()
+  await page.getByLabel(/^Edit date for /i).fill('2026-08-20')
+  await page.getByLabel(/^Edit product for /i).fill('E2E Scanner')
+  await page.getByLabel(/^Edit revenue for /i).fill('1850')
+  await page.getByLabel(/^Edit cost for /i).fill('900')
+  const patchRes = page.waitForResponse(
+    (res) => res.url().includes('/api/v1/extractions/') && res.request().method() === 'PATCH'
+  )
+  await page.getByRole('button', { name: /Save Correction/i }).click()
+  expect((await patchRes).ok()).toBeTruthy()
+
+  const confirmBtn = page.getByRole('button', { name: /Confirm & Import to BI/i })
+  await expect(confirmBtn).toBeDisabled()
+  await page.getByRole('switch', { name: /Confirm extracted data is verified/i }).click()
+  await expect(confirmBtn).toBeEnabled()
+
+  const approveRes = page.waitForResponse(
+    (res) => res.url().includes('/approve-import') && res.request().method() === 'POST'
+  )
+  await confirmBtn.click()
+  expect((await approveRes).ok()).toBeTruthy()
+
+  // 6. Verify approved insight card + Executive Dashboard reflects multimodal revenue in isolated tenant
+  await expect(page.getByText('Verified Multimodal Insights')).toBeVisible({ timeout: 15_000 })
+  await page.getByRole('link', { name: 'Executive Dashboard', exact: true }).click()
+  await expect(page.getByLabel('Product')).toContainText('E2E Scanner')
+  await expect(page.getByText(/1,850/).first()).toBeVisible()
+
+  // 7. Switch back to Default Workspace and confirm isolation
+  await page.getByRole('button', { name: 'Company Workspace' }).click()
+  await page.getByRole('button', { name: /Default Workspace/i }).click()
+  await expect(page.getByLabel('Product')).toContainText('SmartDesk Mini')
+})

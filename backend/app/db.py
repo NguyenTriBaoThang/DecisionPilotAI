@@ -138,6 +138,9 @@ data_sources = sa.Table(
     C("name", sa.String(120), nullable=False),
     C("source_type", sa.String(40), nullable=False),
     C("config_json", sa.JSON, nullable=False),
+    C("encrypted_secrets_json", sa.Text, nullable=True),
+    C("sync_watermark", sa.String(120), nullable=True),
+    C("last_synced_at", sa.DateTime(timezone=True), nullable=True),
     C("status", sa.String(32), nullable=False, server_default="active"),
     C("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
     C("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
@@ -273,6 +276,8 @@ tenant_transactions = sa.Table(
     C("marketing_spend", sa.Float, nullable=True),
     C("inventory_level", sa.Integer, nullable=True),
     C("custom_fields_json", sa.JSON, nullable=True),
+    C("source_file_id", sa.String(64), nullable=True),
+    C("source_location_json", sa.JSON, nullable=True),
 )
 sa.Index("ix_tenant_tx_company_dataset_date", tenant_transactions.c.company_id, tenant_transactions.c.dataset_id, tenant_transactions.c.date)
 sa.Index("ix_tenant_tx_company_dataset_prod", tenant_transactions.c.company_id, tenant_transactions.c.dataset_id, tenant_transactions.c.product_id)
@@ -302,6 +307,164 @@ tenant_inventory_daily = sa.Table(
     C("sold_qty", sa.Integer, nullable=False),
     C("closing_stock", sa.Integer, nullable=False),
     C("stockout_flag", sa.Boolean, nullable=False),
+)
+
+# ---------------------------------------------------------------------------
+# Multimodal Ingestion, Async Queue, Human-in-the-Loop Validation & Unified Layer
+# ---------------------------------------------------------------------------
+
+multimodal_files = sa.Table(
+    "multimodal_files", metadata,
+    C("id", sa.String(64), primary_key=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("dataset_id", sa.ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False, index=True),
+    C("data_source_id", sa.ForeignKey("data_sources.id"), nullable=False, index=True),
+    C("file_name", sa.String(255), nullable=False),
+    C("mime_type", sa.String(120), nullable=False),
+    C("modality", sa.String(32), nullable=False),
+    C("file_format", sa.String(24), nullable=False),
+    C("file_size_bytes", sa.BigInteger, nullable=False),
+    C("checksum_sha256", sa.String(64), nullable=False, index=True),
+    C("storage_key", sa.String(500), nullable=False),
+    C("upload_timestamp", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    C("processing_status", sa.String(32), nullable=False, server_default="uploaded"),
+    C("extraction_status", sa.String(32), nullable=False, server_default="pending"),
+    C("validation_status", sa.String(32), nullable=False, server_default="pending"),
+    C("confidence_threshold", sa.Float, nullable=False, server_default="0.8"),
+    C("consent_external_ai", sa.Boolean, nullable=False, server_default=sa.false()),
+    C("privacy_notice_accepted", sa.Boolean, nullable=False, server_default=sa.false()),
+    C("retention_days", sa.Integer, nullable=False, server_default="90"),
+    C("expires_at", sa.DateTime(timezone=True), nullable=True),
+    C("source_metadata_json", sa.JSON, nullable=False),
+    C("extraction_summary_json", sa.JSON, nullable=True),
+    C("created_by", sa.String(100), nullable=False),
+    C("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    C("imported_at", sa.DateTime(timezone=True), nullable=True),
+)
+sa.Index("ix_mm_files_company_status", multimodal_files.c.company_id, multimodal_files.c.processing_status)
+sa.Index("ix_mm_files_company_modality", multimodal_files.c.company_id, multimodal_files.c.modality)
+
+ingestion_jobs = sa.Table(
+    "ingestion_jobs", metadata,
+    C("id", sa.String(64), primary_key=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("dataset_id", sa.ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False, index=True),
+    C("file_id", sa.ForeignKey("multimodal_files.id", ondelete="CASCADE"), nullable=True, index=True),
+    C("data_source_id", sa.ForeignKey("data_sources.id"), nullable=True),
+    C("job_type", sa.String(40), nullable=False),
+    C("idempotency_key", sa.String(128), nullable=True, index=True),
+    C("status", sa.String(32), nullable=False, server_default="queued"),
+    C("stage", sa.String(32), nullable=False, server_default="uploaded"),
+    C("progress_pct", sa.Integer, nullable=False, server_default="0"),
+    C("attempt", sa.Integer, nullable=False, server_default="0"),
+    C("max_attempts", sa.Integer, nullable=False, server_default="3"),
+    C("timeout_seconds", sa.Integer, nullable=False, server_default="120"),
+    C("params_json", sa.JSON, nullable=False),
+    C("result_summary_json", sa.JSON, nullable=True),
+    C("error_message", sa.Text, nullable=True),
+    C("created_by", sa.String(100), nullable=False),
+    C("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    C("started_at", sa.DateTime(timezone=True), nullable=True),
+    C("finished_at", sa.DateTime(timezone=True), nullable=True),
+)
+
+extracted_records = sa.Table(
+    "extracted_records", metadata,
+    C("id", sa.String(64), primary_key=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("dataset_id", sa.ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False, index=True),
+    C("file_id", sa.ForeignKey("multimodal_files.id", ondelete="CASCADE"), nullable=False, index=True),
+    C("source_id", sa.String(64), nullable=False),
+    C("modality", sa.String(32), nullable=False),
+    C("entity_type", sa.String(40), nullable=False),
+    C("extraction_timestamp", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    C("source_location_json", sa.JSON, nullable=False),
+    C("raw_payload_json", sa.JSON, nullable=False),
+    C("extracted_json", sa.JSON, nullable=False),
+    C("corrected_json", sa.JSON, nullable=True),
+    C("confidence_score", sa.Float, nullable=True),
+    C("extraction_method", sa.String(80), nullable=False),
+    C("validation_status", sa.String(32), nullable=False, server_default="unverified"),
+    C("needs_human_review", sa.Boolean, nullable=False, server_default=sa.true()),
+    C("reviewed_by", sa.String(100), nullable=True),
+    C("reviewed_at", sa.DateTime(timezone=True), nullable=True),
+    C("transformation_history_json", sa.JSON, nullable=False),
+    C("promoted", sa.Boolean, nullable=False, server_default=sa.false()),
+)
+sa.Index("ix_extracted_file_status", extracted_records.c.file_id, extracted_records.c.validation_status)
+
+connector_sync_logs = sa.Table(
+    "connector_sync_logs", metadata,
+    C("id", sa.Integer, primary_key=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("data_source_id", sa.ForeignKey("data_sources.id", ondelete="CASCADE"), nullable=False, index=True),
+    C("dataset_id", sa.String(64), nullable=True),
+    C("sync_mode", sa.String(32), nullable=False),
+    C("status", sa.String(32), nullable=False),
+    C("watermark_before", sa.String(120), nullable=True),
+    C("watermark_after", sa.String(120), nullable=True),
+    C("records_fetched", sa.Integer, nullable=False, server_default="0"),
+    C("actor", sa.String(100), nullable=False),
+    C("details_json", sa.JSON, nullable=False),
+    C("error_message", sa.Text, nullable=True),
+    C("started_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    C("finished_at", sa.DateTime(timezone=True), nullable=True),
+)
+
+tenant_customers = sa.Table(
+    "tenant_customers", metadata,
+    C("company_id", sa.String(64), primary_key=True),
+    C("dataset_id", sa.String(64), primary_key=True),
+    C("customer_id", sa.String(120), primary_key=True),
+    C("customer_name", sa.String(160), nullable=False),
+    C("segment", sa.String(120), nullable=False),
+    C("region", sa.String(120), nullable=False),
+    C("first_seen_date", sa.Date, nullable=True),
+    C("last_seen_date", sa.Date, nullable=True),
+    C("total_orders", sa.Integer, nullable=False, server_default="0"),
+    C("lifetime_value", sa.Float, nullable=False, server_default="0"),
+    C("source_file_id", sa.String(64), nullable=True),
+    C("source_location_json", sa.JSON, nullable=True),
+)
+
+tenant_orders = sa.Table(
+    "tenant_orders", metadata,
+    C("company_id", sa.String(64), primary_key=True),
+    C("dataset_id", sa.String(64), primary_key=True),
+    C("order_id", sa.String(120), primary_key=True),
+    C("order_date", sa.Date, nullable=False),
+    C("customer_id", sa.String(120), nullable=False),
+    C("region", sa.String(120), nullable=False),
+    C("sales_channel", sa.String(120), nullable=False),
+    C("total_revenue", sa.Float, nullable=False),
+    C("total_cost", sa.Float, nullable=False, server_default="0"),
+    C("gross_profit", sa.Float, nullable=True),
+    C("item_count", sa.Integer, nullable=False, server_default="1"),
+    C("source_file_id", sa.String(64), nullable=True),
+    C("extraction_id", sa.String(64), nullable=True),
+    C("source_location_json", sa.JSON, nullable=True),
+    C("validation_status", sa.String(32), nullable=False, server_default="approved"),
+)
+
+tenant_multimodal_insights = sa.Table(
+    "tenant_multimodal_insights", metadata,
+    C("id", sa.String(64), primary_key=True),
+    C("company_id", sa.String(64), nullable=False, index=True),
+    C("dataset_id", sa.String(64), nullable=False, index=True),
+    C("source_file_id", sa.String(64), nullable=False, index=True),
+    C("extraction_id", sa.String(64), nullable=True),
+    C("modality", sa.String(32), nullable=False),
+    C("entity_type", sa.String(40), nullable=False),
+    C("insight_date", sa.Date, nullable=True),
+    C("title", sa.String(200), nullable=False),
+    C("summary_text", sa.Text, nullable=False),
+    C("metrics_json", sa.JSON, nullable=False),
+    C("source_location_json", sa.JSON, nullable=False),
+    C("confidence_score", sa.Float, nullable=True),
+    C("extraction_method", sa.String(80), nullable=False),
+    C("validation_status", sa.String(32), nullable=False, server_default="approved"),
+    C("approved_by", sa.String(100), nullable=False),
+    C("approved_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
 )
 
 

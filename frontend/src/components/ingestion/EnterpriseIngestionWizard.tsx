@@ -202,7 +202,7 @@ export function EnterpriseIngestionWizard({
 
   const uploadMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedFile) throw new Error('Choose a CSV, XLSX, XLS, or JSON file first.')
+      if (!selectedFile) throw new Error('Choose a CSV, XLSX, XLS, JSON, or XML file first.')
       return uploadEnterpriseDataset(selectedFile, {
         datasetName: datasetName.trim() || undefined,
       })
@@ -384,10 +384,10 @@ export function EnterpriseIngestionWizard({
     <Card className="space-y-5">
       <SectionTitle
         title="Enterprise Data Ingestion Pipeline"
-        detail="Upload business files (CSV, XLSX, XLS, JSON), preview rows, verify AI column mappings, inspect 5-axis data quality, and import after explicit confirmation."
+        detail="Upload business files (CSV, XLSX, XLS, JSON, XML), preview rows, verify AI column mappings, inspect 5-axis data quality, and import after explicit confirmation."
         aside={
           <div className="flex items-center gap-2">
-            <Pill tone="accent">CSV · XLSX · XLS · JSON</Pill>
+            <Pill tone="accent">CSV · XLSX · XLS · JSON · XML</Pill>
             {datasetId && (
               <Button
                 size="sm"
@@ -473,7 +473,7 @@ export function EnterpriseIngestionWizard({
                 className="rounded-lg border px-3 py-2 text-xs"
                 style={{ background: 'var(--surface-muted)', borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
               >
-                UTF-8/Latin CSV, Multi-sheet Excel (.xlsx/.xls), Array or NDJSON (.json) · Max 40 MiB
+                UTF-8/Latin CSV, Multi-sheet Excel (.xlsx/.xls), Array/NDJSON (.json), Safe XML (.xml) · Max 40 MiB
               </div>
             </div>
           </div>
@@ -482,7 +482,7 @@ export function EnterpriseIngestionWizard({
             ref={fileInputRef}
             type="file"
             aria-label="Enterprise dataset file"
-            accept=".csv,.xlsx,.xls,.json"
+            accept=".csv,.xlsx,.xls,.json,.xml"
             disabled={isViewerOnly || uploadMutation.isPending}
             onChange={(e) => {
               const f = e.target.files?.[0] || null
@@ -510,7 +510,7 @@ export function EnterpriseIngestionWizard({
           >
             <UploadCloud className="mx-auto mb-2" size={28} style={{ color: 'var(--primary)' }} />
             <div className="text-xs font-semibold" style={{ color: 'var(--heading)' }}>
-              {t('Drag and drop CSV, XLSX, XLS, or JSON here')}
+              {t('Drag and drop CSV, XLSX, XLS, JSON, or XML here')}
             </div>
             <div className="text-[11px] mt-1" style={{ color: 'var(--text-secondary)' }}>
               {selectedFile

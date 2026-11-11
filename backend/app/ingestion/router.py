@@ -12,6 +12,8 @@ from backend.app.ingestion import service
 from backend.app.ingestion.connectors import get_connector, list_connectors
 from backend.app.ingestion.parsers import MAX_FILE_BYTES
 from backend.app.ingestion.storage import ObjectStorage, get_object_storage
+from backend.app.multimodal import connectors_live
+from backend.app.multimodal.security import extract_secret_fields
 from backend.app.schemas import (
     ColumnMappingSaveRequest,
     CompanyCreateRequest,
@@ -113,6 +115,12 @@ def build_ingestion_router(engine: sa.Engine, storage: ObjectStorage | None = No
             connector = get_connector(body.source_type)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
+        if body.live_probe:
+            return connectors_live.test_live_connection(
+                body.source_type,
+                body.config,
+                secrets=extract_secret_fields(body.config),
+            )
         return connector.test_connection(body.config)
 
     @router.get("/mapping-templates")

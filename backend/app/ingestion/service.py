@@ -27,8 +27,11 @@ from backend.app.db import (
     enterprise_datasets,
     import_logs,
     mapping_templates,
+    tenant_customers,
     tenant_inventory_daily,
     tenant_marketing_daily,
+    tenant_multimodal_insights,
+    tenant_orders,
     tenant_products,
     tenant_transactions,
 )
@@ -53,6 +56,7 @@ from backend.app.ingestion.quality import (
     render_error_report_json,
 )
 from backend.app.ingestion.storage import ObjectStorage
+from backend.app.multimodal.security import encrypt_secrets, extract_secret_fields
 
 log = logging.getLogger(__name__)
 
@@ -155,7 +159,13 @@ def _ensure_company_and_source(conn: sa.Connection, company_id: str) -> tuple[di
                 company_id=company_id,
                 name="Direct File Upload",
                 source_type="file_upload",
-                config_json={"supported_formats": ["csv", "xlsx", "xls", "json"]},
+                config_json={"supported_formats": [
+                    "csv", "xlsx", "xls", "json", "xml",
+                    "pdf", "docx", "pptx", "txt",
+                    "jpg", "jpeg", "png", "webp",
+                    "mp4", "mov", "avi",
+                    "mp3", "wav", "m4a",
+                ]},
                 status="active",
             )
         )
@@ -1404,7 +1414,10 @@ def delete_dataset(
             tenant_inventory_daily,
             tenant_marketing_daily,
             tenant_transactions,
+            tenant_orders,
+            tenant_customers,
             tenant_products,
+            tenant_multimodal_insights,
             dataset_quality_reports,
             import_logs,
         ):
@@ -1502,6 +1515,9 @@ def list_company_data_sources(conn: sa.Connection, company_id: str) -> list[dict
             "name": r["name"],
             "source_type": r["source_type"],
             "config": redact_config(r["config_json"]),
+            "sync_watermark": r.get("sync_watermark"),
+            "last_synced_at": _json_safe_iso(r.get("last_synced_at")),
+            "has_encrypted_secrets": bool(r.get("encrypted_secrets_json")),
             "status": r["status"],
             "created_at": _json_safe_iso(r["created_at"]),
         }
@@ -1521,6 +1537,7 @@ def create_company_data_source(
         raise HTTPException(422, "; ".join(errors))
     src_id = f"src-{source_type[:8]}-{uuid4().hex[:10]}"
     safe_cfg = redact_config(config)
+    encrypted_blob = encrypt_secrets(extract_secret_fields(config))
     with engine.begin() as conn:
         _ensure_company_and_source(conn, company_id)
         conn.execute(
@@ -1530,6 +1547,7 @@ def create_company_data_source(
                 name=name.strip(),
                 source_type=source_type,
                 config_json=safe_cfg,
+                encrypted_secrets_json=encrypted_blob,
                 status="configured" if connector.capability.status == "extensible" else "active",
             )
         )
@@ -1547,5 +1565,8 @@ def create_company_data_source(
         "name": name.strip(),
         "source_type": source_type,
         "config": safe_cfg,
+        "sync_watermark": None,
+        "last_synced_at": None,
+        "has_encrypted_secrets": bool(encrypted_blob),
         "status": "configured" if connector.capability.status == "extensible" else "active",
     }

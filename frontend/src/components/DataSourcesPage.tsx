@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, Database, FileSpreadsheet, HardDrive, RefreshCw, ShieldCheck, UploadCloud } from 'lucide-react'
+import { CheckCircle2, Database, FileSpreadsheet, HardDrive, Layers, RefreshCw, ShieldCheck, UploadCloud } from 'lucide-react'
 import { dateLabel, getActiveCompanyId, integer, request, uploadSnapshot, type Dataset, type Session } from '../api'
 import { Button, Card, ErrorState, Heading, Pill, SectionTitle, Source, Table, useToast } from '../ui'
 import { ConnectorsHub } from './ingestion/ConnectorsHub'
 import { DatasetCatalogPanel } from './ingestion/DatasetCatalogPanel'
 import { EnterpriseIngestionWizard } from './ingestion/EnterpriseIngestionWizard'
+import { MultimodalWorkspacePanel } from './ingestion/MultimodalWorkspacePanel'
 
 export function DataSourcesPage({
   companyId = getActiveCompanyId(),
@@ -22,6 +23,7 @@ export function DataSourcesPage({
   const [file, setFile] = useState<File | null>(null)
   const [confirmed, setConfirmed] = useState(false)
   const [resumeDatasetId, setResumeDatasetId] = useState<string | null>(null)
+  const [ingestionMode, setIngestionMode] = useState<'tabular' | 'multimodal'>('tabular')
   const [notice, setNotice] = useState(() => sessionStorage.getItem('dp-import-notice') || '')
 
   const upload = useMutation({
@@ -84,6 +86,8 @@ export function DataSourcesPage({
     if (name === 'customers') grain = '1 row per customer'
     if (name === 'marketing_campaigns') grain = '1 row per campaign-date'
     if (name === 'inventory_daily') grain = '1 row per physical SKU-date'
+    if (name === 'orders') grain = '1 row per order'
+    if (name === 'multimodal_insights') grain = '1 row per approved extraction'
 
     return {
       table: name,
@@ -223,13 +227,61 @@ export function DataSourcesPage({
         <Source>SQLite / PostgreSQL engine · Tenant-isolated workspace · Non-leaking features</Source>
       </Card>
 
-      {/* Enterprise Multi-Format Ingestion Workflow (Upload -> Preview -> Map -> Validate -> Confirm Import) */}
-      <EnterpriseIngestionWizard
-        companyId={companyId}
-        session={session}
-        resumeDatasetId={resumeDatasetId}
-        onClearResume={() => setResumeDatasetId(null)}
-      />
+      {/* Ingestion Mode Selector Bar */}
+      <div
+        role="tablist"
+        aria-label="Data Ingestion Mode"
+        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-2.5"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={ingestionMode === 'tabular'}
+            onClick={() => setIngestionMode('tabular')}
+            className="inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition-colors"
+            style={
+              ingestionMode === 'tabular'
+                ? { background: 'var(--primary)', color: '#fff' }
+                : { background: 'var(--surface-muted)', color: 'var(--heading)' }
+            }
+          >
+            <FileSpreadsheet size={14} />
+            <span>Structured Tabular Pipeline (CSV · Excel · JSON · XML)</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={ingestionMode === 'multimodal'}
+            onClick={() => setIngestionMode('multimodal')}
+            className="inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition-colors"
+            style={
+              ingestionMode === 'multimodal'
+                ? { background: 'var(--primary)', color: '#fff' }
+                : { background: 'var(--surface-muted)', color: 'var(--heading)' }
+            }
+          >
+            <Layers size={14} />
+            <span>Multimodal &amp; Media Studio (PDF · DOCX · Image · Video · Audio)</span>
+          </button>
+        </div>
+        <span className="text-[11px] font-medium px-2" style={{ color: 'var(--text-secondary)' }}>
+          Human-in-the-Loop Verification Active
+        </span>
+      </div>
+
+      {/* Primary Ingestion Workbench */}
+      {ingestionMode === 'tabular' ? (
+        <EnterpriseIngestionWizard
+          companyId={companyId}
+          session={session}
+          resumeDatasetId={resumeDatasetId}
+          onClearResume={() => setResumeDatasetId(null)}
+        />
+      ) : (
+        <MultimodalWorkspacePanel companyId={companyId} session={session} />
+      )}
 
       {/* Company Dataset Catalog, Activation, History & Deletion */}
       <DatasetCatalogPanel

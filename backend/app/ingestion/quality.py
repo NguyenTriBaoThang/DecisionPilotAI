@@ -155,6 +155,25 @@ def parse_date_value(raw: Any, *, dayfirst: bool = True) -> tuple[date | None, s
     return None, None, f"Unrecognized date format '{s}'"
 
 
+def parse_flexible_date(raw: Any) -> tuple[date | None, str | None]:
+    """Parse flexible date values (ISO, EU/US slash/dash, month names, Excel serial) returning (date, format_tag)."""
+    if raw is None or _is_missing(raw):
+        return None, None
+    parsed, fmt, _ = parse_date_value(raw, dayfirst=True)
+    if parsed is not None:
+        return parsed, fmt
+    parsed_mdy, fmt_mdy, _ = parse_date_value(raw, dayfirst=False)
+    return parsed_mdy, fmt_mdy
+
+
+def parse_numeric_money(raw: Any) -> tuple[float | None, str | None]:
+    """Parse monetary / numeric string returning (float_value, currency_code)."""
+    if raw is None or _is_missing(raw):
+        return None, None
+    val, cur, _, _ = parse_numeric_value(raw)
+    return val, cur
+
+
 def parse_numeric_value(raw: Any) -> tuple[float | None, str | None, str | None, str | None]:
     """Parse multi-locale numeric & currency strings; return (value, currency_code, format_tag, error_reason)."""
     if isinstance(raw, bool):

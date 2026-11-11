@@ -12,8 +12,8 @@ from pydantic import ValidationError
 
 from ai_service.root_cause import decompose
 from backend.app import services
-from backend.app.analytics import (FORMULAS, availability, bounds, grouped, marketing_summary,
-                                   options, previous_period, sales_total, trend)
+from backend.app.analytics import (FORMULAS, approved_multimodal_insights, availability, bounds, grouped,
+                                   marketing_summary, options, previous_period, sales_total, trend)
 from backend.app.schemas import Filters, ForecastRequest, Intent
 
 log = logging.getLogger(__name__)
@@ -232,7 +232,20 @@ def query(conn, info, question):
     trace = dict(tool=intent.action,provider=provider,dataset_id=info["dataset_id"],company_id=info.get("company_id","comp-default"),filters=scope,formulas={})
     chart, evidence = None,{}
     metric = intent.metric
+    mm_insights = approved_multimodal_insights(conn, info, limit=6)
+    q_folded = fold(question.question)
+    asks_multimodal = bool(re.search(r"document|pdf|invoice|receipt|image|video|audio|multimodal|insight|report|hoa don|tai lieu|am thanh|hinh anh", q_folded))
     if intent.action=="unsupported":
+        if mm_insights and asks_multimodal and not BLOCKED.search(question.question):
+            bullets = "; ".join(f"[{m['modality'].upper()}] {m['title']}: {m['summary_text'][:140]}" for m in mm_insights[:4])
+            trace["sources"] = ["tenant_multimodal_insights"]
+            return dict(
+                intent=intent,
+                chart=None,
+                evidence={"multimodal_insights": mm_insights},
+                trace=trace,
+                answer=f"Approved multimodal intelligence highlights ({len(mm_insights)} records): {bullets}",
+            )
         return dict(intent=intent,chart=None,evidence={},trace=trace,
                     answer="I can query recorded sales, customers, campaigns, inventory, alerts and supported forecasts. Try asking for revenue this month or a product-demand forecast.")
     services.checked_filters(conn,scope,info=info)
@@ -339,4 +352,8 @@ def query(conn, info, question):
         evidence = {"rows":rows}
         trace.update(sources=[source_name],formulas={})
         answer = f"Found {len(rows)} prioritized alerts in this response for {period}."
+    if mm_insights:
+        evidence["multimodal_insights"] = mm_insights
+        if "tenant_multimodal_insights" not in (trace.get("sources") or []):
+            trace.setdefault("sources", []).append("tenant_multimodal_insights")
     return dict(answer=answer,intent=intent,chart=chart,evidence=evidence,trace=trace)

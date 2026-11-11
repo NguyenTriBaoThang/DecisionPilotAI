@@ -1,9 +1,11 @@
-"""DecisionPilot HTTP API with Multi-Tenant Enterprise Ingestion and Decision Intelligence."""
+"""DecisionPilot HTTP API with Multi-Tenant Enterprise Ingestion, Multimodal Intelligence, and Decision Support."""
+from contextlib import asynccontextmanager
 import hmac
 import hashlib
 import json
 import logging
 import os
+import re
 from datetime import date, timezone
 from typing import Annotated, Literal
 
@@ -19,12 +21,15 @@ from backend.app.analytics import dataset_info, options
 from backend.app.db import audit, companies, datasets, make_engine, read_connection, simulations
 from backend.app.ingestion import service as ingestion_service
 from backend.app.ingestion.router import build_ingestion_router
-from backend.app.ingestion.storage import ObjectStorage
+from backend.app.ingestion.storage import ObjectStorage, get_object_storage
+from backend.app.multimodal import service as multimodal_service
+from backend.app.multimodal.router import build_multimodal_router
 from backend.app.schemas import Feedback, Filters, ForecastRequest, Question, QueryResponse, ScenarioRequest, ScenarioFeedback
 from backend.app.security import authorize_company, credentials, identify
 from scripts.pipeline import LIMIT_BYTES, SnapshotConflict, load_snapshot, read_upload
 
 log = logging.getLogger(__name__)
+SIGNED_CONTENT_PATH_RX = re.compile(r"^(/api)?/v1/files/[A-Za-z0-9._-]+/content$")
 
 
 def _tenant_ids(request: Request) -> tuple[str, str | None]:
@@ -77,8 +82,26 @@ def latest_decision(conn, kind, subject, dataset_id, company_id="comp-default"):
 
 def create_app(engine=None, storage: ObjectStorage | None = None):
     engine = engine if engine is not None else make_engine()
+    store = storage or get_object_storage()
+    job_queue = multimodal_service.create_job_queue(engine, store)
     access = credentials()
-    app = FastAPI(root_path=os.getenv("ROOT_PATH","/api"),title="DecisionPilot AI",version="2.0.0",description="Multi-tenant Enterprise Business Intelligence, Data Ingestion, and Decision Support.")
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        try:
+            yield
+        finally:
+            job_queue.shutdown(wait=True)
+
+    app = FastAPI(
+        root_path=os.getenv("ROOT_PATH", "/api"),
+        title="DecisionPilot AI",
+        version="2.1.0",
+        description="Multi-tenant Enterprise Business Intelligence, Multimodal Data Ingestion, and Decision Support.",
+        lifespan=lifespan,
+    )
+    app.state.storage = store
+    app.state.multimodal_job_queue = job_queue
 
     @app.middleware("http")
     async def workspace_access(request: Request, call_next):
@@ -90,21 +113,34 @@ def create_app(engine=None, storage: ObjectStorage | None = None):
                 return JSONResponse(content={"status": "ok"})
             except sa.exc.SQLAlchemyError:
                 return JSONResponse(status_code=503, content={"status": "unavailable"})
-        if identity is None:
+
+        # Allow browser media tags (<img/audio/video src="...?token=...">) when cryptographically verified by the /content endpoint
+        is_signed_media = (
+            identity is None
+            and request.method == "GET"
+            and bool(request.query_params.get("token"))
+            and bool(SIGNED_CONTENT_PATH_RX.match(request.url.path))
+        )
+        if identity is None and not is_signed_media:
             return JSONResponse(status_code=401, content={"detail": "Sign in with a workspace access token."},
                                 headers={"WWW-Authenticate": "Bearer"})
         request.state.identity = identity
-        required = "admin" if request.url.path == "/import" else "analyst" if request.url.path.endswith("/feedback") else "viewer"
-        if {"viewer": 0, "analyst": 1, "admin": 2}[identity["role"]] < {"viewer": 0, "analyst": 1, "admin": 2}[required]:
-            return JSONResponse(status_code=403, content={"detail": "Your workspace role cannot perform this action."})
+        if identity is not None:
+            required = "admin" if request.url.path == "/import" else "analyst" if request.url.path.endswith("/feedback") else "viewer"
+            if {"viewer": 0, "analyst": 1, "admin": 2}[identity["role"]] < {"viewer": 0, "analyst": 1, "admin": 2}[required]:
+                return JSONResponse(status_code=403, content={"detail": "Your workspace role cannot perform this action."})
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["Cache-Control"] = "no-store"
+        if not is_signed_media:
+            response.headers["Cache-Control"] = "no-store"
         return response
 
-    ingestion_router = build_ingestion_router(engine, storage=storage)
+    ingestion_router = build_ingestion_router(engine, storage=store)
+    multimodal_router = build_multimodal_router(engine, storage=store, job_queue=job_queue)
     app.include_router(ingestion_router, prefix="/v1")
     app.include_router(ingestion_router, prefix="/api/v1", include_in_schema=False)
+    app.include_router(multimodal_router, prefix="/v1")
+    app.include_router(multimodal_router, prefix="/api/v1", include_in_schema=False)
 
     @app.get("/session")
     def session(request: Request):
@@ -287,7 +323,20 @@ def create_app(engine=None, storage: ObjectStorage | None = None):
     @app.get("/audit")
     def audit_log(request: Request,
                   limit: Annotated[int,Query(ge=1,le=100)]=25,
-                  kind: Literal["query","dataset_loaded","recommendation_feedback","scenario_feedback","decisions","company_created","dataset_deleted","data_source_registered"] | None=None,
+                  kind: Literal[
+                      "query",
+                      "dataset_loaded",
+                      "recommendation_feedback",
+                      "scenario_feedback",
+                      "decisions",
+                      "company_created",
+                      "dataset_deleted",
+                      "data_source_registered",
+                      "multimodal_uploaded",
+                      "multimodal_approved",
+                      "multimodal_deleted",
+                      "connector_synced",
+                  ] | None=None,
                   before: Annotated[int | None, Query(ge=1)]=None):
         cid, _ = _tenant_ids(request)
         with read_connection(engine) as conn:

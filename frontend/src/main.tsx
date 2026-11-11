@@ -160,7 +160,7 @@ function AppShell({ session }: { session: Session }) {
           {t('Empty Company Workspace')}
         </h2>
         <p className="text-sm max-w-2xl leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-          Upload your company&apos;s CSV, XLSX, XLS, or JSON business data, review AI-assisted column mappings and 5-axis quality checks, and confirm import to unlock Executive Dashboard, Ask AI, Forecasts, Scenarios, and Audit trails.
+          Upload your company&apos;s CSV, XLSX, XLS, JSON, or XML tabular data — or ingest multimodal PDF, DOCX, PPTX, Image, Video, and Audio files in Multimodal Studio — review AI extractions and confirm import to unlock Executive Dashboard, Ask AI, Forecasts, Scenarios, and Audit trails.
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-3">

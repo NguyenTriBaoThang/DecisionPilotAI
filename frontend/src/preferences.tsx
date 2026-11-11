@@ -642,15 +642,15 @@ export const translations: Record<string, { vi: string; en: string }> = {
   'New Company': { vi: 'Tạo doanh nghiệp mới', en: 'New Company' },
   'Create Company Workspace': { vi: 'Tạo không gian doanh nghiệp mới', en: 'Create Company Workspace' },
   'Enterprise Data Ingestion Pipeline': { vi: 'Quy trình Nhập dữ liệu Doanh nghiệp', en: 'Enterprise Data Ingestion Pipeline' },
-  'Upload business files (CSV, XLSX, XLS, JSON), preview rows, verify AI column mappings, inspect 5-axis data quality, and import after explicit confirmation.': {
-    vi: 'Tải tệp dữ liệu kinh doanh (CSV, XLSX, XLS, JSON), xem trước, kiểm tra ánh xạ cột bằng AI, đánh giá chất lượng 5 chiều và nhập sau khi xác nhận.',
-    en: 'Upload business files (CSV, XLSX, XLS, JSON), preview rows, verify AI column mappings, inspect 5-axis data quality, and import after explicit confirmation.',
+  'Upload business files (CSV, XLSX, XLS, JSON, XML), preview rows, verify AI column mappings, inspect 5-axis data quality, and import after explicit confirmation.': {
+    vi: 'Tải tệp dữ liệu kinh doanh (CSV, XLSX, XLS, JSON, XML), xem trước, kiểm tra ánh xạ cột bằng AI, đánh giá chất lượng 5 chiều và nhập sau khi xác nhận.',
+    en: 'Upload business files (CSV, XLSX, XLS, JSON, XML), preview rows, verify AI column mappings, inspect 5-axis data quality, and import after explicit confirmation.',
   },
   'Upload File': { vi: '1. Tải tệp', en: '1. Upload File' },
   'Preview Data': { vi: '2. Xem trước', en: '2. Preview Data' },
   'Column Mapping': { vi: '3. Ánh xạ cột', en: '3. Column Mapping' },
   'Quality & Import': { vi: '4. Chất lượng & Nhập', en: '4. Quality & Import' },
-  'Drag and drop CSV, XLSX, XLS, or JSON here': { vi: 'Kéo thả tệp CSV, XLSX, XLS hoặc JSON vào đây', en: 'Drag and drop CSV, XLSX, XLS, or JSON here' },
+  'Drag and drop CSV, XLSX, XLS, JSON, or XML here': { vi: 'Kéo thả tệp CSV, XLSX, XLS, JSON hoặc XML vào đây', en: 'Drag and drop CSV, XLSX, XLS, JSON, or XML here' },
   'Dataset Catalog & History': { vi: 'Danh mục & Lịch sử Bộ dữ liệu', en: 'Dataset Catalog & History' },
   'Connectors & External Integrations': { vi: 'Cổng kết nối & Tích hợp Dữ liệu', en: 'Connectors & External Integrations' },
   'Completeness': { vi: 'Độ đầy đủ', en: 'Completeness' },
@@ -672,6 +672,45 @@ export const translations: Record<string, { vi: string; en: string }> = {
     vi: 'Trường dữ liệu tùy chọn chưa được ánh xạ trong bộ dữ liệu này',
     en: 'Optional analytics module not mapped in this dataset',
   },
+
+  // Multimodal Data Ingestion & HITL Intelligence Studio
+  'Structured Tabular Pipeline (CSV · Excel · JSON · XML)': {
+    vi: 'Quy trình Dữ liệu Bảng (CSV · Excel · JSON · XML)',
+    en: 'Structured Tabular Pipeline (CSV · Excel · JSON · XML)',
+  },
+  'Multimodal & Media Studio (PDF · DOCX · Image · Video · Audio)': {
+    vi: 'Studio Đa phương thức & Media (PDF · DOCX · Ảnh · Video · Audio)',
+    en: 'Multimodal & Media Studio (PDF · DOCX · Image · Video · Audio)',
+  },
+  'Human-in-the-Loop Verification Active': {
+    vi: 'Xác minh có con người kiểm duyệt (HITL) đang bật',
+    en: 'Human-in-the-Loop Verification Active',
+  },
+  'Multimodal Data & Intelligence Studio': {
+    vi: 'Studio Dữ liệu & Trí tuệ Đa phương thức',
+    en: 'Multimodal Data & Intelligence Studio',
+  },
+  'Async Ingestion Queue': { vi: 'Hàng đợi Xử lý Bất đồng bộ', en: 'Async Ingestion Queue' },
+  'Multimodal File Catalog': { vi: 'Danh mục Tệp Đa phương thức', en: 'Multimodal File Catalog' },
+  'Verified Multimodal Insights': { vi: 'Thông tin Đa phương thức Đã Xác nhận', en: 'Verified Multimodal Insights' },
+  'Verified Multimodal Intelligence Signals': {
+    vi: 'Tín hiệu Trí tuệ Đa phương thức Đã Xác nhận',
+    en: 'Verified Multimodal Intelligence Signals',
+  },
+  'Human-approved document, image, audio, and video insights bound to the active dataset.': {
+    vi: 'Các thông tin từ tài liệu, hình ảnh, âm thanh và video đã được con người phê duyệt cho bộ dữ liệu đang hoạt động.',
+    en: 'Human-approved document, image, audio, and video insights bound to the active dataset.',
+  },
+  'Multimodal Studio': { vi: 'Studio Đa phương thức', en: 'Multimodal Studio' },
+  'Approved by': { vi: 'Phê duyệt bởi', en: 'Approved by' },
+  'Review & Approve': { vi: 'Kiểm tra & Phê duyệt', en: 'Review & Approve' },
+  'Confirm & Import to BI': { vi: 'Xác nhận & Nhập vào BI', en: 'Confirm & Import to BI' },
+  'Save Correction': { vi: 'Lưu chỉnh sửa', en: 'Save Correction' },
+  'Source Media & Provenance': { vi: 'Nguồn Media & Truy xuất Nguồn gốc', en: 'Source Media & Provenance' },
+  'Live Test': { vi: 'Kiểm tra kết nối thực', en: 'Live Test' },
+  'Discover Schema': { vi: 'Khám phá Lược đồ', en: 'Discover Schema' },
+  'Sync Now': { vi: 'Đồng bộ ngay', en: 'Sync Now' },
+  'Sync Logs': { vi: 'Nhật ký đồng bộ', en: 'Sync Logs' },
 }
 
 export function translate(text: string, language: Preferences['language']): string {

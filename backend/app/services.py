@@ -9,8 +9,8 @@ from fastapi import HTTPException
 
 from ai_service import anomaly, forecasting, root_cause, scenario
 from ai_service.features import anomaly_frame, observed_series
-from backend.app.analytics import (FORMULAS, availability, bounds, grouped, is_partitioned, marketing_summary,
-                                   options, previous_period, ratio, sales_total, trend)
+from backend.app.analytics import (FORMULAS, approved_multimodal_insights, availability, bounds, grouped, is_partitioned,
+                                   marketing_summary, options, previous_period, ratio, sales_total, trend)
 from backend.app.db import ARTIFACTS, inventory, products, tenant_inventory_daily, tenant_products
 from backend.app.schemas import ForecastRequest, InventoryParams, InventoryRequest, MarketingParams, MarketingRequest
 
@@ -69,6 +69,9 @@ def dashboard(conn, info, filters):
         sources.append("tenant_marketing_daily")
     if dec and caps.get("has_inventory"):
         sources.append("tenant_inventory_daily")
+    mm_insights = approved_multimodal_insights(conn, info, limit=12)
+    if mm_insights:
+        sources.append("tenant_multimodal_insights")
     return dict(summary=total,previous=previous,changes=changes,range=[str(start),str(end)],
                 previous_range=[str(d) for d in prior] if comparison else None, filters=dims,grain=filters.grain,
                 trend=trend(conn,start,end,dims,filters.grain,info=info),products=grouped(conn,start,end,dims,"product",8,info=info),
@@ -76,7 +79,8 @@ def dashboard(conn, info, filters):
                 sales_channels=grouped(conn,start,end,dims,"channel",info=info),marketing_channels=channels,
                 definitions=FORMULAS,
                 market_scope=("Not mapped in uploaded dataset" if (dec and not caps.get("has_marketing")) else ("Business-wide date range" if not dims else "Unavailable for filtered sales scope")),
-                sources=sources, currency=info.get("currency","VND"), capabilities=caps)
+                sources=sources, currency=info.get("currency","VND"), capabilities=caps,
+                multimodal_insights=mm_insights)
 
 
 def forecast(conn, info, request):

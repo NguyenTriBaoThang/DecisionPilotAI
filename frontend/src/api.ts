@@ -91,6 +91,7 @@ export type KPI = {
   summary: Record<string, number | null>; changes: Record<string,number | null>
   range: string[]; previous_range: string[] | null; trend: Row[]; products: Row[]; regions: Row[]
   sales_channels: Row[]; marketing_channels: Row[]; market_scope: string; definitions: Record<string,string>
+  multimodal_insights?: MultimodalInsight[]
 }
 export type Alert = { id: string; metric: string; start: string; end: string; actual: number; baseline: number;
   deviation: number | null; severity: string; score: number; action: string; scope: string; chart: Row[];
@@ -302,6 +303,9 @@ export type TenantDataSource = {
   source_type: string
   status: string
   config: Record<string, unknown>
+  sync_watermark?: string | null
+  last_synced_at?: string | null
+  has_encrypted_secrets?: boolean
   created_at?: string | null
 }
 
@@ -497,11 +501,15 @@ export const createCompany = (payload: { name: string; slug?: string; activate?:
 
 export const listConnectors = () => request<{ items: ConnectorSpec[] }>('/v1/connectors')
 export const listDataSources = () => request<{ company_id: string; items: TenantDataSource[] }>('/v1/data-sources')
-export const testDataSource = (source_type: string, config: Record<string, unknown>) =>
-  request<{ ok: boolean; status: string; errors?: string[]; message?: string }>('/v1/data-sources/test', {
-    source_type,
-    config,
-  })
+export const testDataSource = (source_type: string, config: Record<string, unknown>, live_probe = false) =>
+  request<{ ok: boolean; status: string; errors?: string[]; message?: string; status_code?: number; sample_records?: number }>(
+    '/v1/data-sources/test',
+    {
+      source_type,
+      config,
+      live_probe,
+    }
+  )
 export const createDataSource = (payload: { name: string; source_type: string; config: Record<string, unknown> }) =>
   request<TenantDataSource>('/v1/data-sources', payload)
 
@@ -515,8 +523,8 @@ export async function uploadEnterpriseDataset(
   file: File,
   opts: { datasetName?: string; sheetName?: string; dataSourceId?: string } = {}
 ): Promise<UploadDatasetResponse> {
-  if (!/\.(csv|xlsx|xls|json)$/i.test(file.name)) {
-    throw new Error('Choose a .csv, .xlsx, .xls, or .json file.')
+  if (!/\.(csv|xlsx|xls|json|xml)$/i.test(file.name)) {
+    throw new Error('Choose a .csv, .xlsx, .xls, .json, or .xml file.')
   }
   if (!file.size) throw new Error('The selected file is empty.')
   if (file.size > 40 * 1024 * 1024) throw new Error('Upload exceeds 40 MiB.')
@@ -622,3 +630,289 @@ export const listMappingTemplates = () =>
 
 export const deleteMappingTemplate = (templateId: string) =>
   requestWithMethod<{ deleted: boolean; template_id: string }>(`/v1/mapping-templates/${encodeURIComponent(templateId)}`, 'DELETE')
+
+// --- Multimodal Data Ingestion, Async Jobs, HITL Validation & Live Sync ---
+
+export type SampledVideoFrame = {
+  frame_index: number
+  timestamp_sec: number
+  brightness: number
+  scene_delta?: number
+  scene_change_score?: number
+  frame_subkey?: string
+  signed_url?: string
+  expires_at_epoch?: number
+  ocr_text?: string
+  ocr_engine?: string | null
+}
+
+export type MultimodalFile = {
+  id: string
+  file_id: string
+  company_id: string
+  dataset_id: string
+  data_source_id: string
+  file_name: string
+  mime_type: string
+  modality: 'structured' | 'document' | 'image' | 'video' | 'audio'
+  file_format: string
+  file_size_bytes: number
+  checksum_sha256: string
+  upload_timestamp: string | null
+  processing_status: 'uploaded' | 'processing' | 'extracted' | 'validating' | 'awaiting_approval' | 'imported' | 'failed'
+  extraction_status: string
+  validation_status: string
+  confidence_threshold: number
+  consent_external_ai: boolean
+  privacy_notice_accepted: boolean
+  retention_days: number
+  expires_at: string | null
+  source_metadata: Record<string, unknown> & {
+    sampled_frames?: SampledVideoFrame[]
+    privacy_metadata?: Record<string, unknown>
+    audio_metadata?: Record<string, unknown>
+    page_count?: number
+    slide_count?: number
+    warnings?: string[]
+  }
+  extraction_summary: {
+    stage?: string
+    total_extracted?: number
+    below_threshold?: number
+    needs_review?: number
+    average_confidence?: number | null
+    extraction_status?: string
+    warnings?: string[]
+    error?: string
+  }
+  signed_content_url?: string | null
+  created_by: string
+  updated_at: string | null
+  imported_at: string | null
+}
+
+export type IngestionJob = {
+  id: string
+  company_id: string
+  dataset_id: string
+  file_id: string | null
+  data_source_id: string | null
+  job_type: string
+  idempotency_key: string | null
+  status: 'queued' | 'running' | 'completed' | 'failed'
+  stage: string
+  progress_pct: number
+  attempt: number
+  max_attempts: number
+  timeout_seconds: number
+  result_summary: Record<string, unknown>
+  error_message: string | null
+  created_by: string
+  created_at: string | null
+  started_at: string | null
+  finished_at: string | null
+}
+
+export type ExtractedRecord = {
+  id: string
+  company_id: string
+  dataset_id: string
+  file_id: string
+  source_id: string
+  modality: string
+  entity_type: string
+  extraction_timestamp: string | null
+  source_location: Record<string, unknown>
+  raw_payload: Record<string, unknown>
+  extracted_data: Record<string, unknown>
+  corrected_data: Record<string, unknown> | null
+  effective_data: Record<string, unknown>
+  confidence_score: number | null
+  confidence_threshold: number
+  below_threshold: boolean
+  extraction_method: string
+  validation_status: 'unverified' | 'needs_review' | 'edited' | 'approved' | 'rejected'
+  needs_human_review: boolean
+  reviewed_by: string | null
+  reviewed_at: string | null
+  transformation_history: Array<Record<string, unknown>>
+  promoted: boolean
+}
+
+export type ExtractionBundle = {
+  file: MultimodalFile
+  confidence_threshold: number
+  count: number
+  below_threshold_count: number
+  items: ExtractedRecord[]
+}
+
+export type MultimodalInsight = {
+  id: string
+  company_id?: string
+  dataset_id: string
+  source_file_id: string
+  extraction_id?: string | null
+  modality: string
+  entity_type: string
+  insight_date: string | null
+  title: string
+  summary_text: string
+  metrics: Record<string, unknown>
+  source_location: Record<string, unknown>
+  confidence_score: number | null
+  extraction_method: string
+  validation_status?: string
+  approved_by: string
+  approved_at: string | null
+}
+
+export type MultimodalApproveResult = {
+  approved: boolean
+  file_id: string
+  dataset_id: string
+  promoted_financial_rows: number
+  promoted_insights: number
+  counts: Record<string, number>
+  activated: boolean
+  model_ready: boolean
+  currency: string
+}
+
+export type SchemaDiscoveryResult = {
+  source_id: string
+  source_type: string
+  schema?: string
+  table_or_view?: string
+  columns: Array<{ column_name: string; data_type: string; sample: Scalar }>
+  sample_count: number
+  sample_rows: Array<Record<string, unknown>>
+}
+
+export type SyncResult = {
+  sync_log_id: number
+  source_id: string
+  dataset_id: string | null
+  sync_mode: string
+  records_fetched: number
+  watermark_before: string | null
+  watermark_after: string | null
+}
+
+export type ConnectorSyncLog = {
+  id: number
+  dataset_id: string | null
+  sync_mode: string
+  status: string
+  watermark_before: string | null
+  watermark_after: string | null
+  records_fetched: number
+  actor: string
+  details: Record<string, unknown>
+  error_message: string | null
+  started_at: string | null
+  finished_at: string | null
+}
+
+export async function uploadMultimodalFiles(
+  files: File[],
+  opts: {
+    datasetId?: string
+    datasetName?: string
+    dataSourceId?: string
+    confidenceThreshold?: number
+    samplingIntervalSec?: number
+    maxFrames?: number
+    retentionDays?: number
+    consentExternalAi?: boolean
+    privacyNoticeAccepted?: boolean
+    idempotencyKey?: string
+  } = {}
+): Promise<{ company_id: string; dataset_id: string; files: MultimodalFile[]; jobs: IngestionJob[] }> {
+  if (!files.length) throw new Error('Select at least one file to upload.')
+  const form = new FormData()
+  for (const file of files) {
+    form.append('files', file)
+  }
+  if (opts.datasetId) form.append('dataset_id', opts.datasetId)
+  if (opts.datasetName) form.append('dataset_name', opts.datasetName)
+  if (opts.dataSourceId) form.append('data_source_id', opts.dataSourceId)
+  if (opts.confidenceThreshold != null) form.append('confidence_threshold', String(opts.confidenceThreshold))
+  if (opts.samplingIntervalSec != null) form.append('sampling_interval_sec', String(opts.samplingIntervalSec))
+  if (opts.maxFrames != null) form.append('max_frames', String(opts.maxFrames))
+  if (opts.retentionDays != null) form.append('retention_days', String(opts.retentionDays))
+  form.append('consent_external_ai', String(Boolean(opts.consentExternalAi)))
+  form.append('privacy_notice_accepted', String(Boolean(opts.privacyNoticeAccepted)))
+  if (opts.idempotencyKey) form.append('idempotency_key', opts.idempotencyKey)
+  return send('/v1/multimodal/upload', { method: 'POST', body: form })
+}
+
+export const listMultimodalFiles = (filters: { modality?: string; processing_status?: string; dataset_id?: string } = {}) => {
+  const qs = params(filters)
+  return request<{ company_id: string; items: MultimodalFile[] }>('/v1/files' + (qs ? '?' + qs : ''))
+}
+
+export const getMultimodalFile = (fileId: string) =>
+  request<{ file: MultimodalFile; jobs: IngestionJob[] }>(`/v1/files/${encodeURIComponent(fileId)}`)
+
+export const getSignedFileUrl = (fileId: string, subkey = 'raw') =>
+  request<{ file_id: string; subkey: string; url: string; expires_at_epoch: number }>(
+    `/v1/files/${encodeURIComponent(fileId)}/signed-url?` + params({ subkey })
+  )
+
+export const deleteMultimodalFile = (fileId: string) =>
+  requestWithMethod<{ deleted: boolean; file_id: string; dataset_id: string; removed_storage_objects: number }>(
+    `/v1/files/${encodeURIComponent(fileId)}`,
+    'DELETE'
+  )
+
+export const listIngestionJobs = (filters: { dataset_id?: string; file_id?: string; status?: string } = {}) => {
+  const qs = params(filters)
+  return request<{ company_id: string; items: IngestionJob[] }>('/v1/jobs' + (qs ? '?' + qs : ''))
+}
+
+export const retryIngestionJob = (jobId: string) =>
+  request<IngestionJob>(`/v1/jobs/${encodeURIComponent(jobId)}/retry`, {})
+
+export const getFileExtractions = (fileId: string) =>
+  request<ExtractionBundle>(`/v1/files/${encodeURIComponent(fileId)}/extractions`)
+
+export const patchExtractedRecord = (
+  recordId: string,
+  payload: { corrected_data?: Record<string, unknown>; validation_status?: ExtractedRecord['validation_status'] }
+) => requestWithMethod<ExtractedRecord>(`/v1/extractions/${encodeURIComponent(recordId)}`, 'PATCH', payload)
+
+export const approveImportFile = (
+  fileId: string,
+  payload: {
+    confirmed: boolean
+    record_ids?: string[]
+    approve_below_threshold?: boolean
+    activate?: boolean
+    currency?: CurrencyCode
+  }
+) => request<MultimodalApproveResult>(`/v1/files/${encodeURIComponent(fileId)}/approve-import`, payload)
+
+export const listMultimodalInsights = (filters: { dataset_id?: string; modality?: string; limit?: string } = {}) => {
+  const qs = params(filters)
+  return request<{ company_id: string; items: MultimodalInsight[] }>('/v1/insights' + (qs ? '?' + qs : ''))
+}
+
+export const testSavedDataSource = (sourceId: string) =>
+  request<{ ok: boolean; status: string; message?: string; status_code?: number; sample_records?: number }>(
+    `/v1/data-sources/${encodeURIComponent(sourceId)}/test`,
+    {}
+  )
+
+export const discoverDataSourceSchema = (sourceId: string) =>
+  request<SchemaDiscoveryResult>(`/v1/data-sources/${encodeURIComponent(sourceId)}/discover`, {})
+
+export const syncDataSource = (
+  sourceId: string,
+  payload: { dataset_name?: string; watermark_column?: string } = {}
+) => request<SyncResult>(`/v1/data-sources/${encodeURIComponent(sourceId)}/sync`, payload)
+
+export const listDataSourceSyncLogs = (sourceId: string) =>
+  request<{ source_id: string; items: ConnectorSyncLog[] }>(
+    `/v1/data-sources/${encodeURIComponent(sourceId)}/sync-logs`
+  )

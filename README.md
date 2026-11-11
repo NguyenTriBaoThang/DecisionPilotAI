@@ -391,7 +391,24 @@ python -m alembic upgrade head
 python -m scripts.bootstrap
 ```
 
-#### Enterprise Data Ingestion Environment Variables
+#### Multimodal Intelligence Architecture (19 Formats · Async Queue · HITL Gate)
+
+DecisionPilot AI extends structured BI with a local-first, human-gated multimodal pipeline spanning **19 file formats** and **live external connectors**:
+
+```mermaid
+flowchart LR
+    Upload["Multi-Format Upload<br/>(CSV, XLSX, XLS, JSON, XML,<br/>PDF, DOCX, PPTX, TXT,<br/>JPG, JPEG, PNG, WEBP,<br/>MP4, MOV, AVI, MP3, WAV, M4A)"] --> Guard["Security Guard<br/>(MIME & Magic-Byte Check,<br/>PE/EICAR/XXE Block)"]
+    Guard --> Store["Isolated Tenant Storage<br/>(SHA-256 + Signed Content URLs)"]
+    Guard --> Queue["Persistent Async Queue<br/>(ingestion_jobs: queued -> running -> awaiting_approval)"]
+    Queue --> Engines["Modality Processors<br/>Tabular · Document (PyMuPDF/DOCX/PPTX + WinRT OCR)<br/>Image (OpenCV + WinRT OCR) · Video (Bounded Keyframes)<br/>Audio (RMS Acoustic + Optional STT)"]
+    Engines --> HITL["Human-in-the-Loop Workbench<br/>(Provenance Preview · Confidence Check · Inline Edit)"]
+    HITL -- "confirmed=true" --> BI["Unified Tenant BI<br/>(tenant_sales_transactions + tenant_multimodal_insights)<br/>Dashboard · Ask AI · Forecast · Anomalies · Audit"]
+```
+
+- **Strict Human-in-the-Loop Promotion Gate:** Extracted metrics and summaries remain isolated inside `extracted_records` (`awaiting_approval`) until an authorized user reviews provenance, fixes any OCR/parser errors (`PATCH /v1/extractions/{id}`), and submits explicit confirmation (`POST /v1/files/{id}/approve-import` with `confirmed: true`). Below-threshold records require either manual edits or an explicit override flag.
+- **Privacy & Security Controls:** Fernet encryption at rest for connector secrets (`DATA_ENCRYPTION_KEY`), HMAC-SHA256 expiring signed URLs for `/v1/files/{id}/content`, outbound SSRF protection (`CONNECTOR_ALLOW_PRIVATE_NETWORK=false` default), video frame caps (`<=20`), explicit `facial_recognition_performed=false`, honest `stt_engine_unavailable` flagging without fabricated transcripts, and `DELETE /v1/files/{id}` permanent shredding.
+
+#### Enterprise & Multimodal Environment Variables
 
 | Variable | Default | Description |
 | :--- | :--- | :--- |
@@ -401,6 +418,16 @@ python -m scripts.bootstrap
 | `INGESTION_S3_ENDPOINT` | `""` | Custom S3-compatible endpoint URL (e.g. MinIO / R2). |
 | `INGESTION_S3_REGION` | `ap-southeast-1` | AWS/S3 region identifier. |
 | `INGESTION_MAX_FILE_BYTES` | `52428800` | Maximum uploaded ingestion file size in bytes (50 MiB default). |
+| `MULTIMODAL_MAX_FILE_BYTES` | `104857600` | Maximum individual multimodal file size (100 MiB default). |
+| `MULTIMODAL_WORKER_CONCURRENCY` | `2` | Background thread pool size for `ingestion_jobs` async extraction. |
+| `MULTIMODAL_DEFAULT_CONFIDENCE_THRESHOLD` | `0.8` | Minimum extraction confidence before requiring human edit or override. |
+| `MULTIMODAL_MAX_VIDEO_FRAMES` | `10` | Default bounded video keyframe sampling cap (server max `20`). |
+| `MULTIMODAL_RETENTION_DAYS` | `90` | Default retention period metadata stamped on uploaded media files. |
+| `DATA_ENCRYPTION_KEY` | `""` | Fernet symmetric key encrypting connector secrets (auto-generates local keyfile in dev). |
+| `FILE_SIGNING_SECRET` | `""` | HMAC secret for expiring `?token=` media preview URLs (`410`/`401` outside TTL). |
+| `CONNECTOR_ALLOW_PRIVATE_NETWORK` | `false` | Outbound SSRF guard blocking private/loopback/metadata IPs on live connectors by default. |
+| `MULTIMODAL_ENABLE_EXTERNAL_AI` | `false` | Strict opt-in toggle for external speech-to-text / multimodal APIs. |
+| `WHISPER_MODEL_SIZE` | `base` | Optional local `faster-whisper` model size when installed. |
 
 #### 2. Frontend Setup (React + Vite)
 
@@ -451,13 +478,20 @@ The FastAPI backend exposes 16 structured REST endpoints with complete OpenAPI 3
 | `GET` / `POST` | `/v1/companies` | List authorized company workspaces or provision an isolated tenant workspace (`admin`). |
 | `GET` | `/v1/connectors` | Catalog active (`file_upload`) and extensible (`postgresql`, `sqlserver`, `mysql`, `rest_api`, `erp_crm_pos`) connectors. |
 | `GET` / `POST` | `/v1/data-sources` & `/test` | Register or validate tenant-scoped external connector configurations (secrets redacted at rest). |
-| `POST` | `/v1/datasets/upload` | Upload `CSV`, `XLSX`, `XLS`, or `JSON` file to isolated company object storage & trigger initial profiling. |
+| `POST` | `/v1/datasets/upload` | Upload `CSV`, `XLSX`, `XLS`, `JSON`, or `XML` file to isolated company object storage & trigger initial profiling. |
 | `POST` | `/v1/datasets/{id}/preview` | Preview parsed records and switch worksheets for multi-sheet Excel workbooks. |
 | `POST` | `/v1/datasets/{id}/mapping` | Persist confirmed user/AI column mappings (`date`..`inventory`, `custom:<field>`) and reusable company templates. |
 | `POST` | `/v1/datasets/{id}/validate` | Run 5-axis Data Quality Engine (`completeness`, `validity`, `consistency`, `uniqueness`, `accuracy`) & cleaning preview. |
 | `POST` | `/v1/datasets/{id}/import` | Execute transactional ingestion (`confirmed: true` required) into tenant analytical tables + train company LightGBM artifacts. |
 | `GET` / `DELETE` | `/v1/datasets`, `/{id}`, `/{id}/quality`, `/{id}/error-report`, `/{id}/history`, `/{id}/activate` | Manage tenant catalog, download CSV/JSON error reports, switch active company dataset, inspect lifecycle audit, or remove datasets. |
 | `GET` / `DELETE` | `/v1/mapping-templates` | Reuse or manage tenant-scoped saved column mapping templates. |
+| `POST` | `/v1/multimodal/upload` | Multi-file upload across all **19** supported formats (`HTTP 202`), creating persistent `multimodal_files` & `ingestion_jobs`. |
+| `GET` / `DELETE` | `/v1/files`, `/v1/files/{id}`, `/v1/files/{id}/content` | List/filter multimodal files, read raw/keyframe media via HMAC signed URLs, or permanently shred storage objects (`admin`). |
+| `GET` / `POST` | `/v1/jobs`, `/v1/jobs/{id}`, `/v1/jobs/{id}/retry` | Track async ingestion job lifecycle (`queued` -> `running` -> `awaiting_approval` / `failed`) and retry failed extractions. |
+| `GET` / `PATCH` | `/v1/files/{id}/extractions`, `/v1/extractions/{id}` | Inspect extracted structured rows/entities & provenance; apply and audit human corrections prior to import. |
+| `POST` | `/v1/files/{id}/approve-import` | Execute mandatory HITL confirmation (`confirmed: true`) promoting validated rows and insights into unified tenant BI tables. |
+| `GET` | `/v1/insights` | Query verified `tenant_multimodal_insights` surfacing in Executive Dashboard and Ask AI Copilot. |
+| `POST` / `GET` | `/v1/data-sources/{id}/{test,discover,sync,sync-logs}` | Live connectivity probe, schema discovery, watermark incremental sync, and sync run history for external DB/API sources. |
 
 > Complete schema definitions, request payloads, and curl snippets are documented in [`docs/API.md`](./docs/API.md) and on the live Swagger UI (`http://127.0.0.1:5173/api/docs` via Vite proxy, `http://localhost:8080/api/docs` via Docker Compose, or `http://127.0.0.1:8000/docs` directly on Uvicorn).
 
@@ -546,12 +580,8 @@ DecisionPilot AI is designed around strict principles of data privacy, defensive
   - [x] Full bilingual support (Vietnamese default & English toggle).
   - [x] One-click Docker Compose (`docker-compose.yml`) and Windows (`run.bat` / `scripts/dev.ps1`) launchers.
   - [x] Multi-page GitHub Pages Technical Documentation Portal (`/`) + hosted SPA Demo (`/app/`).
-  - [x] Multi-tenant Enterprise Data Ingestion & Workspace (`CSV`, `XLSX`, `XLS`, `JSON`, 4-step workflow, AI column mapping + templates, 5-axis quality scorecard, downloadable error reports, explicit import confirmation, per-company isolation & currency support, extensible DB/API/ERP connectors).
-
-- [ ] **v1.1.0 (In Progress — Q1 2027):**
-  - [ ] Live execution drivers for PostgreSQL / SQL Server / MySQL / REST / ERP connectors registered in `Data Sources`.
-  - [ ] Direct API connectors for Vietnamese POS platforms (KiotViet, Sapo, Haravan).
-  - [ ] Automated real-time anomaly push alerts via Telegram Webhooks and Zalo OA.
+  - [x] Multi-tenant Enterprise Data Ingestion & Workspace (`CSV`, `XLSX`, `XLS`, `JSON`, `XML`, 4-step workflow, AI column mapping + templates, 5-axis quality scorecard, downloadable error reports, explicit import confirmation, per-company isolation & currency support, extensible DB/API/ERP connectors).
+  - [x] **Multimodal Data & Intelligence Platform (`v1.1.0`):** 19 formats across Tabular (`CSV`, `XLSX`, `XLS`, `JSON`, `XML`), Documents (`PDF` + scanned WinRT OCR fallback, `DOCX`, `PPTX`, `TXT`), Images (`JPG`, `JPEG`, `PNG`, `WEBP` + OpenCV/OCR), Video (`MP4`, `MOV`, `AVI` bounded keyframes), Audio (`MP3`, `WAV`, `M4A`), persistent `ingestion_jobs` queue, Human-in-the-Loop Extraction Workbench, Fernet-encrypted connector secrets, live `rest_api` / `postgresql` discovery & watermark sync, signed URLs, and unified BI insights.
 
 - [ ] **v1.2.0 (Planned — Q2 2027):**
   - [ ] Advanced Customer Lifetime Value (CLV) cohort modeling using BG/NBD models.

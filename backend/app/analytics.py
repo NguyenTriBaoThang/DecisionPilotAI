@@ -17,6 +17,7 @@ from backend.app.db import (
     sales,
     tenant_inventory_daily,
     tenant_marketing_daily,
+    tenant_multimodal_insights,
     tenant_products,
     tenant_transactions,
 )
@@ -152,6 +153,11 @@ def dataset_info(conn, company_id: str = "comp-default", dataset_id: str | None 
 
 
 def bounds(info, start=None, end=None):
+    if not info.get("start") or not info.get("end"):
+        raise HTTPException(
+            422,
+            "Active dataset does not yet contain dated financial transactions. Approve structured/financial records before requesting time-series KPIs.",
+        )
     oldest, latest = date.fromisoformat(info["start"]), date.fromisoformat(info["end"])
     start, end = start or max(latest.replace(day=1),oldest), end or latest
     if start > end:
@@ -159,6 +165,39 @@ def bounds(info, start=None, end=None):
     if start < oldest or end > latest:
         raise HTTPException(422, f"Choose dates between {oldest} and {latest}.")
     return start, end
+
+
+def approved_multimodal_insights(conn, info: dict, limit: int = 12) -> list[dict]:
+    cid = info.get("company_id", "comp-default")
+    q = (
+        sa.select(tenant_multimodal_insights)
+        .where(
+            tenant_multimodal_insights.c.company_id == cid,
+            tenant_multimodal_insights.c.validation_status == "approved",
+        )
+        .order_by(tenant_multimodal_insights.c.approved_at.desc())
+        .limit(limit)
+    )
+    rows = conn.execute(q).mappings().all()
+    return [
+        {
+            "id": r["id"],
+            "dataset_id": r["dataset_id"],
+            "source_file_id": r["source_file_id"],
+            "modality": r["modality"],
+            "entity_type": r["entity_type"],
+            "insight_date": r["insight_date"].isoformat() if r.get("insight_date") else None,
+            "title": r["title"],
+            "summary_text": r["summary_text"],
+            "metrics": r.get("metrics_json") or {},
+            "source_location": r.get("source_location_json") or {},
+            "confidence_score": r.get("confidence_score"),
+            "extraction_method": r["extraction_method"],
+            "approved_by": r["approved_by"],
+            "approved_at": r["approved_at"].isoformat() if hasattr(r.get("approved_at"), "isoformat") else r.get("approved_at"),
+        }
+        for r in rows
+    ]
 
 
 def previous_period(start, end, calendar_aligned=False):

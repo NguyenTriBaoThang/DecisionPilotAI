@@ -92,11 +92,17 @@ class DataSourceConnector(ABC):
 class FileUploadConnector(DataSourceConnector):
     capability = ConnectorCapability(
         connector_type="file_upload",
-        display_name="File Upload (CSV / Excel / JSON)",
+        display_name="Multimodal File Upload",
         category="file",
         status="active",
-        description="Direct validated file ingestion supporting CSV, XLSX, XLS, and JSON with automatic schema profiling and data quality inspection.",
-        supported_formats=["csv", "xlsx", "xls", "json"],
+        description="Direct validated ingestion across Structured (CSV, XLSX, XLS, JSON, XML), Documents (PDF, DOCX, PPTX, TXT), Images (JPG, PNG, WEBP), Video (MP4, MOV, AVI), and Audio (MP3, WAV, M4A).",
+        supported_formats=[
+            "csv", "xlsx", "xls", "json", "xml",
+            "pdf", "docx", "pptx", "txt",
+            "jpg", "jpeg", "png", "webp",
+            "mp4", "mov", "avi",
+            "mp3", "wav", "m4a",
+        ],
         config_fields=[],
     )
 

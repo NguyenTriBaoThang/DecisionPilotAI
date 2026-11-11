@@ -8,6 +8,7 @@ import {
   CalendarDays,
   CircleDollarSign,
   Info,
+  Layers,
   Percent,
   RotateCcw,
   ShoppingBag,
@@ -867,6 +868,55 @@ export function Dashboard({ dataset, options }: { dataset: Dataset; options: Opt
               }
             />
           </div>
+
+          {result.multimodal_insights && result.multimodal_insights.length > 0 && (
+            <Card className="space-y-3">
+              <SectionHeader
+                title={t('Verified Multimodal Intelligence Signals')}
+                detail={t('Human-approved document, image, audio, and video insights bound to the active dataset.')}
+                aside={
+                  <Link
+                    to="/data-sources"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold hover:underline"
+                    style={{ color: 'var(--primary-text)' }}
+                  >
+                    <Layers size={14} />
+                    <span>{t('Multimodal Studio')}</span>
+                  </Link>
+                }
+              />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+                {result.multimodal_insights.slice(0, 6).map((ins) => (
+                  <div
+                    key={ins.id}
+                    className="rounded-xl border p-3.5 space-y-1.5"
+                    style={{ background: 'var(--surface-muted)', borderColor: 'var(--border)' }}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <StatusBadge tone="accent">{ins.modality.toUpperCase()}</StatusBadge>
+                      <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                        {ins.insight_date ? dateLabel(ins.insight_date) : ins.extraction_method}
+                      </span>
+                    </div>
+                    <strong className="block font-semibold line-clamp-1" style={{ color: 'var(--heading)' }}>
+                      {ins.title}
+                    </strong>
+                    <p className="text-[11px] line-clamp-3 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                      {ins.summary_text}
+                    </p>
+                    <div className="text-[10px] pt-1" style={{ color: 'var(--text-muted)' }}>
+                      {t('Approved by')}: {ins.approved_by}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Source>
+                {isVi
+                  ? 'Chỉ hiển thị các trích xuất đa phương thức đã được con người xác nhận · Đã ghi nhật ký kiểm toán'
+                  : 'Showing strictly human-confirmed multimodal extractions · Audit-logged provenance'}
+              </Source>
+            </Card>
+          )}
         </>
       )}
     </div>

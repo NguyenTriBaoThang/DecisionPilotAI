@@ -183,3 +183,23 @@ class DataSourceCreateRequest(Strict):
 class DataSourceTestRequest(Strict):
     source_type: ConnectorType
     config: dict[str, Any] = Field(default_factory=dict)
+    live_probe: bool = False
+
+
+class ExtractionPatchRequest(Strict):
+    corrected_data: dict[str, Any] | None = None
+    validation_status: Literal["unverified", "needs_review", "edited", "approved", "rejected"] | None = None
+
+
+class MultimodalApproveRequest(Strict):
+    confirmed: bool = True
+    record_ids: list[str] | None = None
+    approve_below_threshold: bool = False
+    activate: bool = True
+    currency: CurrencyCode | None = None
+
+
+class DataSourceSyncRequest(Strict):
+    dataset_name: Annotated[str | None, Field(min_length=1, max_length=120)] = None
+    watermark_column: Annotated[str | None, Field(min_length=1, max_length=64)] = None
+
