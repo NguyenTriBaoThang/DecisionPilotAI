@@ -8,9 +8,9 @@ export function TabRevenueAnalysis() {
 
   const pipelineSteps = [
     { step: '01', title: 'Continuous Stream Ingestion', desc: 'Aggregates daily revenue, channel ad spend, and inventory movements.' },
-    { step: '02', title: 'Dynamic 28-day Baseline', desc: 'Computes rolling mean and standard deviation factoring in weekday/weekend seasonality.' },
-    { step: '03', title: 'Hybrid Isolation Forest', desc: 'Isolates multi-dimensional outlier points using decision partition trees.' },
-    { step: '04', title: 'Rolling Z-Score Filtering', desc: 'Flags deviations exceeding 3-sigma thresholds (|z| > 2.5).' },
+    { step: '02', title: '56-Day Trailing Baseline', desc: 'Computes past-only trailing baseline via shift(7).rolling(56, min_periods=28) so anomalies never contaminate prior windows.' },
+    { step: '03', title: 'Hybrid Isolation Forest', desc: 'Isolates multi-dimensional outlier points using scikit-learn IsolationForest partitions.' },
+    { step: '04', title: 'IQR & Robust Z-Score Gate', desc: 'Combines IQR fences and MAD-scaled Z-scores plus sustained weekly revenue verification.' },
     { step: '05', title: 'Contribution Decomposition', desc: 'Calculates SKU, regional, and channel delta shares reconciling to 100% of change.' },
     { step: '06', title: 'Actionable Alert Generation', desc: 'Outputs severity-ranked alerts with contributing root cause factors.' },
   ]

@@ -5,10 +5,24 @@ import { TabDemandForecasting } from './TabDemandForecasting'
 import { TabScenarioSimulation } from './TabScenarioSimulation'
 import { FromDataToDecisionStory } from './FromDataToDecisionStory'
 import { CompetitionAlignmentTable } from './CompetitionAlignmentTable'
-import { MessageSquareText, AlertCircle, TrendingUp, Sliders, Cpu, Compass } from 'lucide-react'
+import { MessageSquareText, AlertCircle, TrendingUp, Sliders } from 'lucide-react'
+import type { IntelTabId } from '../../routes'
 
-export function DataDecisionIntelligenceSection() {
-  const [activeTab, setActiveTab] = useState<'ask' | 'analyze' | 'forecast' | 'simulate'>('ask')
+interface DataDecisionIntelligenceSectionProps {
+  activeTab?: IntelTabId
+  onTabChange?: (tab: IntelTabId) => void
+}
+
+export function DataDecisionIntelligenceSection({
+  activeTab: controlledTab,
+  onTabChange,
+}: DataDecisionIntelligenceSectionProps = {}) {
+  const [internalTab, setInternalTab] = useState<IntelTabId>('ask')
+  const activeTab = controlledTab ?? internalTab
+  const setActiveTab = (next: IntelTabId) => {
+    setInternalTab(next)
+    onTabChange?.(next)
+  }
 
   const tabs = [
     {

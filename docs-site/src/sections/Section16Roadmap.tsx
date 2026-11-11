@@ -10,8 +10,9 @@ cd DecisionPilotAI
 # Create a feature branch:
 git checkout -b feature/kiotviet-connector
 
-# Run test suite to verify baseline:
-pytest -v
+# Run verification suite before submitting:
+python -m pytest tests/test_decisionpilot.py -q
+npm --prefix frontend test
 
 # Commit changes using Conventional Commits:
 git commit -m "feat(integrations): add KiotViet webhook listener"
@@ -36,12 +37,12 @@ git push origin feature/kiotviet-connector`
             Completed (v1.0.0)
           </div>
           <ul style={{ listStyle: 'none', padding: 0, marginTop: '8px', fontSize: '0.84rem', color: 'var(--text-muted)' }}>
-            <li style={{ marginBottom: '6px' }}>&bull; 6 Core BI Workspaces</li>
+            <li style={{ marginBottom: '6px' }}>&bull; Connected Decision Loop (/ask &harr; /anomalies &harr; /scenarios &harr; /audit)</li>
             <li style={{ marginBottom: '6px' }}>&bull; 3D Scenario Simulator (Three.js)</li>
-            <li style={{ marginBottom: '6px' }}>&bull; LightGBM Chronological Forecaster</li>
-            <li style={{ marginBottom: '6px' }}>&bull; Isolation Forest Anomaly Detection</li>
-            <li style={{ marginBottom: '6px' }}>&bull; Read-only analytics tools with intent routing</li>
-            <li style={{ marginBottom: '6px' }}>&bull; Immutable Audit Logging Ledger</li>
+            <li style={{ marginBottom: '6px' }}>&bull; LightGBM 17-Feature Forecaster &amp; 2% Gate</li>
+            <li style={{ marginBottom: '6px' }}>&bull; 56-Day Baseline Hybrid Anomaly Detection</li>
+            <li style={{ marginBottom: '6px' }}>&bull; Fixed Read-Only Analytics Tools &amp; Intent Router</li>
+            <li style={{ marginBottom: '6px' }}>&bull; Transactional Scenario/Recommendation Audit Ledger</li>
           </ul>
         </div>
 

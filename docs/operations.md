@@ -1,8 +1,7 @@
 # DecisionPilot AI — Operations, Deployment & Troubleshooting Manual
 
-> **Deployment Environments:** Local Development (Windows / macOS / Linux) & Production Docker Containerization  
-> **Backend Service:** FastAPI on Uvicorn (Port 8000)  
-> **Frontend Workspace:** Vite SPA on Node.js (Port 5173)
+> **Deployment Environments:** Local Development (Windows / macOS / Linux), Docker Compose Stack, & GitHub Pages Static Portal  
+> **Local Endpoints:** Frontend `:5173` · Docs Portal `:5174/DecisionPilotAI/` · Backend API `:8000` (Docker Compose on `127.0.0.1:8080`)
 
 ---
 
@@ -10,7 +9,7 @@
 
 | Dependency | Minimum Version | Recommended Version | Verification Command |
 | :--- | :---: | :---: | :--- |
-| **Python** | 3.11+ | 3.13.0 | `python --version` |
+| **Python** | 3.11+ | 3.12 / 3.13 | `python --version` |
 | **Node.js** | 20.0+ | 22.0+ | `node --version` |
 | **npm** | 10.0+ | 10.8+ | `npm --version` |
 | **PowerShell** *(Windows)* | 5.1+ | 7.4+ | `$PSVersionTable.PSVersion` |
@@ -21,117 +20,105 @@
 ## 2. Quickstart Launch Guide
 
 ### 2.1 Option A: One-Click Execution on Windows (Recommended)
-Double-click the [`run.bat`](file:///g:/GITHUB/DecisionPilotAI/run.bat) file in the project root directory.
+Run [`run.bat`](../run.bat) in the project root directory (or invoke PowerShell directly):
 
-This script automatically executes:
-1. Virtual environment verification (`.venv\Scripts\python.exe`).
-2. Database schema migrations via Alembic (`alembic upgrade head`).
-3. Bootstrap dataset validation (ensuring 50,000 transactions are populated).
-4. Launches the FastAPI backend on `http://127.0.0.1:8000`.
-5. Launches the Vite frontend on `http://127.0.0.1:5173`.
-
-### 2.2 Option B: Native PowerShell Launch
-Open PowerShell in the workspace root and run:
 ```powershell
-.\scripts\dev.ps1
+powershell -ExecutionPolicy Bypass -File scripts/dev.ps1
 ```
 
-### 2.3 Option C: Manual Multi-Terminal Launch
+This launcher automatically:
+1. Selects `.venv\Scripts\python.exe` if present.
+2. Applies Alembic migrations (`python -m alembic upgrade head`).
+3. Verifies or populates the bootstrap snapshot (`python -m scripts.bootstrap`).
+4. Starts FastAPI Uvicorn on `http://127.0.0.1:8000`, Docs Portal on `http://127.0.0.1:5174/DecisionPilotAI/`, and Vite SPA on `http://127.0.0.1:5173`.
+
+### 2.2 Option B: Manual Multi-Terminal Launch
 
 **Terminal 1 — Backend API:**
 ```powershell
-# Activate Python virtual environment
 .\.venv\Scripts\Activate.ps1
-
-# Ensure database schema is at head
 python -m alembic upgrade head
-
-# Populate or verify bootstrap seed data
 python -m scripts.bootstrap
-
-# Start FastAPI Uvicorn ASGI server
 python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-**Terminal 2 — Frontend Dev Server:**
+**Terminal 2 — Frontend Workspace & Multi-Page Docs Portal:**
 ```powershell
-cd frontend
-npm run dev -- --host 127.0.0.1 --port 5173
+# Workspace SPA (http://127.0.0.1:5173)
+npm --prefix frontend run dev -- --host 127.0.0.1 --port 5173
+
+# Multi-Page Technical Documentation Portal (http://127.0.0.1:5174/DecisionPilotAI/)
+npm --prefix docs-site run dev
 ```
 
 ---
 
-## 3. Database Administration & Pipeline Commands
+## 3. Data Pipeline, Model Training & Benchmark Commands
 
-All database management and data pipeline routines are packaged as standalone Python modules:
+Exact CLI flags verified against `scripts/`:
 
 ```powershell
-# 1. Generate fresh 24-month synthetic retail dataset (50,000 rows)
-python -m scripts.generate --rows 50000 --months 24
+# 1. Regenerate 24-month synthetic snapshot (50,000 transactions, seed=42)
+python -m scripts.generate --months 24 --transactions 50000 --output data/synthetic
 
-# 2. Validate data integrity across all 6 tables
-python -m scripts.pipeline validate
+# 2. Validate structural & accounting checks on a snapshot bundle
+python -m scripts.pipeline validate data/synthetic --report artifacts/data_quality.json
 
-# 3. Export versioned snapshot bundle to ZIP
-python -m scripts.pipeline export --out data/snapshots/dp_seed.zip
+# 3. Retrain LightGBM + IsolationForest bundles for the active DB snapshot
+python -m scripts.train --out artifacts
 
-# 4. Run automated test suite
-python -m pytest tests/
+# 4. Run 46-case offline conversational benchmark (local rules)
+python -m scripts.benchmark --out artifacts/query_benchmark.json
+
+# 5. Execute automated test suites
+python -m pytest tests/test_decisionpilot.py -q
+npm --prefix frontend test
+npm --prefix frontend run build
+npm --prefix docs-site run build
 ```
 
 ---
 
-## 4. Production Docker Containerization
-
-To run the entire system inside isolated production containers:
+## 4. Production Docker Containerization (`docker-compose.yml`)
 
 ```powershell
-# Build and start all services
+cp .env.example .env
 docker compose up -d --build
-
-# Verify running containers
 docker compose ps
 ```
 
 ### Container Services Topology
-- `web`: Nginx web server serving optimized Vite frontend bundle on port `80`.
-- `api`: FastAPI ASGI application container running on port `8000`.
-- `db`: PostgreSQL 16 container managing relational storage on port `5432`.
+- **`frontend`:** Multi-stage Node `22-alpine` + `nginx:1.27-alpine` bound to `127.0.0.1:${WEB_PORT:-8080}:80`; proxies `/api/*` -> `http://backend:8000/`. Verify health via `http://localhost:8080/api/health`.
+- **`backend`:** `python:3.12-slim` non-root container (`decisionpilot`) running `scripts/start_backend.sh` (`alembic upgrade head`, `scripts.bootstrap`, Uvicorn `:8000`, `ROOT_PATH=/api`).
+- **`postgres`:** `postgres:16` database service with persistent `decisionpilot_db` volume and readiness health check.
 
 ---
 
-## 5. Automated CI/CD Pipeline
+## 5. Automated CI/CD & GitHub Pages Workflows
 
-The GitHub Actions workflow at [`.github/workflows/ci.yml`](file:///g:/GITHUB/DecisionPilotAI/.github/workflows/ci.yml) executes on every push to `main` and pull request:
-1. **Frontend Lint & Build:** Verifies TypeScript typing (`tsc --noEmit`) and compiles Vite production chunks (`vite build`).
-2. **Backend Tests:** Executes Alembic migrations, loads synthetic dataset, and executes `pytest` integration test suites.
-3. **Pipeline Integrity:** Asserts zero unhandled exceptions across `validate` and `generate` scripts.
+1. **CI Pipeline ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)):** Runs 5 parallel/matrix jobs on pushes & PRs to `main`, `master`, and `develop`:
+   - `frontend-check`: Node `22`, `npm ci`, `npm run build`, `npm test` (`9/9` Vitest), `npm audit --audit-level=high`.
+   - `docs-check`: Node `22`, `npm ci`, `npm run build` (`docs-site`).
+   - `backend-check`: Python `3.12` across `sqlite` and `postgresql:16`, Alembic migrations, `scripts.bootstrap`, `pytest`, and `scripts.pipeline validate`.
+   - `browser-workflow`: Installs Playwright Chromium and runs `frontend/e2e/` (`3` tests across `workspace.spec.ts` & `demo-flow.spec.ts`).
+   - `docker-build-check`: Validates `docker build -t decisionpilot-ai:ci .`.
+2. **GitHub Pages Deploy ([`.github/workflows/deploy-pages.yml`](../.github/workflows/deploy-pages.yml)):** Builds `docs-site` (multi-page portal at `/DecisionPilotAI/`) and `frontend --base=/DecisionPilotAI/app/` (live demo SPA at `/DecisionPilotAI/app/`), injecting unified `404.html` redirect support (`dp-docs-redirect` & `dp-spa-redirect`). Requires **Settings -> Pages -> Source = GitHub Actions**.
 
 ---
 
 ## 6. Troubleshooting & FAQ
 
-### Issue 1: Port `8000` or `5173` is already in use
-**Solution:** Check and terminate conflicting processes:
+### Issue 1: Port `8000`, `5173`, or `5174` is already in use
 ```powershell
-# Find process using port 8000
 Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue | Select-Object OwningProcess
-
-# Terminate process by ID
 Stop-Process -Id <PID> -Force
 ```
 
-### Issue 2: Matplotlib temporary cache warning on startup
-**Symptom:** `Matplotlib created a temporary cache directory at ... because there was an issue with the default path.`  
-**Explanation:** On restricted or sandboxed environments, Matplotlib cannot write to user home directory.  
-**Fix:** Set the environment variable:
+### Issue 2: Matplotlib temporary cache warning
 ```powershell
 $env:MPLCONFIGDIR = "$pwd\artifacts"
 ```
 
-### Issue 3: Vite Dev Server Proxy fails to connect to Backend
-**Symptom:** Red error banner on frontend: *Unable to connect to service health.*  
-**Verification:**
-1. Ensure the FastAPI backend is running: browse to `http://127.0.0.1:8000/health`.
-2. Verify `frontend/vite.config.ts` has the `/api` proxy configured to `http://127.0.0.1:8000` with path rewrite `path.replace(/^\/api/, '')`.
-
+### Issue 3: Frontend shows *Unable to connect to service health*
+1. Confirm Uvicorn is listening: check `http://127.0.0.1:8000/health`.
+2. In Vite dev mode (`frontend/vite.config.ts`), `/api` proxies to `http://127.0.0.1:8000` (rewriting `/api` -> `""`), matching `ROOT_PATH=/api` and `API_BASE` fallback behavior.

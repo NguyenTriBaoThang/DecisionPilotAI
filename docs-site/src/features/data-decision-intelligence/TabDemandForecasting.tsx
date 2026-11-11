@@ -67,12 +67,12 @@ export function TabDemandForecasting() {
     : ''
 
   const pipelineSteps = [
-    { step: '01', title: 'Chronological Data Split', desc: '70% Train (to Feb 2026), 15% Validation (to Jun 2026), 15% Holdout Test (to Sep 2026). Zero future leakage.' },
-    { step: '02', title: 'Lag & Rolling Features', desc: 'Computes lag_7, lag_14, lag_28, roll_mean_7, roll_std_14, and day_of_week / holiday calendar flags.' },
-    { step: '03', title: 'LightGBM Multi-Quantile', desc: 'Trains gradient-boosted trees targeting median (q=0.5) and prediction intervals (q=0.05, q=0.95).' },
-    { step: '04', title: '2% Rule Selection Gate', desc: 'Model candidate MUST beat Seasonal Naive WAPE by at least 2.00% on holdout validation.' },
-    { step: '05', title: 'Continuous Calibration', desc: 'Validates 90% prediction interval coverage (actual: 92.86% on top SKU).' },
-    { step: '06', title: 'Multi-Horizon Forecast', desc: 'Generates daily demand projections across 7-day, 14-day, and 30-day decision horizons.' },
+    { step: '01', title: 'Chronological Data Split', desc: 'Train (to 2026-02-22), Validation (to 2026-06-12), and Holdout Test (to 2026-09-30). Zero future leakage.' },
+    { step: '02', title: '17 Causal Features', desc: 'Computes lag 1/7/14/28, rolling 7/14/28 means & stds, growth_7, weekday/month/quarter/holiday flags, and log1p(scale).' },
+    { step: '03', title: 'LightGBM Regressor & Baselines', desc: 'Evaluates LGBMRegressor alongside seasonal naive and moving average baselines over normalized series.' },
+    { step: '04', title: '2% Rule Selection Gate', desc: 'LightGBM is selected only when Validation MAE improves on the better baseline by more than 2.00%.' },
+    { step: '05', title: 'Empirical Residual Calibration', desc: 'Computes 90% prediction intervals from empirical residuals (92.86% test coverage on top SKU P001).' },
+    { step: '06', title: 'Multi-Horizon Forecast', desc: 'Delivers 7-day and 30-day revenue, order, and unit demand forecasts via POST /api/forecast.' },
   ]
 
   return (
@@ -223,15 +223,17 @@ export function TabDemandForecasting() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ width: '16px', height: '0px', borderTop: '2px dashed #A78BFA' }} />
-            <span style={{ color: '#E2E8F0' }}>LightGBM Forecast (Median q=0.5)</span>
+            <span style={{ color: '#E2E8F0' }}>{seriesView === 'sku' ? 'LightGBM Point Forecast' : 'Selected Model Point Forecast'}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ width: '16px', height: '10px', background: 'rgba(139, 92, 246, 0.2)', border: '1px solid rgba(139, 92, 246, 0.4)' }} />
-            <span style={{ color: '#E2E8F0' }}>90% Prediction Interval (q=0.05 - 0.95)</span>
+            <span style={{ color: '#E2E8F0' }}>90% Prediction Interval (Empirical Residuals)</span>
           </div>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span className="badge badge-indigo">LightGBM v4.3</span>
-            <span className="badge badge-green">2% Rule Passed</span>
+            <span className="badge badge-indigo">LightGBM 4.6.0</span>
+            <span className={`badge ${seriesView === 'sku' ? 'badge-green' : 'badge-amber'}`}>
+              {seriesView === 'sku' ? 'LightGBM (>2% Gate Passed)' : 'Seasonal MA Baseline'}
+            </span>
           </div>
         </div>
 
@@ -482,14 +484,14 @@ export function TabDemandForecasting() {
             </code>
           </div>
           <p style={{ fontSize: '0.8rem', color: '#94A3B8', margin: '6px 0 10px 0' }}>
-            Accepts forecast horizon, target metric (revenue, orders, units), and optional SKU filters. Returns quantile bands and confidence intervals.
+            Accepts forecast target (<code>revenue</code>, <code>orders</code>, or <code>demand</code>), optional single <code>product</code> or <code>category</code> scope, and <code>horizon</code> (7 or 30).
           </p>
           <CodeBlock
-            code={`// Request Payload Example
+            code={`// Request Payload Example (ForecastRequest)
 {
-  "horizon_days": 14,
-  "product_id": "P001",
-  "quantiles": [0.05, 0.5, 0.95]
+  "target": "demand",
+  "product": "P001",
+  "horizon": 30
 }`}
             label="json"
           />

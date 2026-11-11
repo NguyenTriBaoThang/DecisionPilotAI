@@ -3,12 +3,17 @@ import { CodeBlock } from '../components/CodeBlock'
 import { Sliders, DollarSign, BarChart2, ShieldCheck } from 'lucide-react'
 
 export function Section09Simulator() {
-  const simulationCode = `# POST /api/simulate payload example
+  const simulationCode = `# POST /api/simulate (discriminated union: type = "price" | "marketing" | "inventory")
 {
-  "price_change_pct": -5.0,
-  "marketing_budget_multiplier": 1.2,
-  "inventory_buffer_days": 15,
-  "target_sku": "P001"
+  "type": "price",
+  "objective": "profit",
+  "horizon": 30,
+  "parameters": {
+    "product": "P001",
+    "discounts": [0, 0.05, 0.10],
+    "elasticity": -1.1,
+    "additional_cost": 0
+  }
 }`
 
   return (

@@ -1,9 +1,11 @@
 # DecisionPilot AI — Competition Submission
 
 > **Competition:** AI for Business Innovation 2026 — LIKELION & K-TECH College  
-> **Track:** Data & Decision Intelligence for SMEs  
-> **Status:** Working MVP (prototype) on synthetic data  
-> **Repository:** [https://github.com/NguyenTriBaoThang/DecisionPilotAI](https://github.com/NguyenTriBaoThang/DecisionPilotAI)
+> **Track:** 5. Data & Decision Intelligence  
+> **Status:** Working MVP (prototype) on synthetic data (`dp-1.1` / `f32e87e3a5744333ff98d3bf`)  
+> **Repository:** [https://github.com/NguyenTriBaoThang/DecisionPilotAI](https://github.com/NguyenTriBaoThang/DecisionPilotAI)  
+> **Documentation Portal:** [https://nguyentribaothang.github.io/DecisionPilotAI/](https://nguyentribaothang.github.io/DecisionPilotAI/) *(Home + 17 paginated chapters)*  
+> **Hosted Live Demo:** [https://nguyentribaothang.github.io/DecisionPilotAI/app/](https://nguyentribaothang.github.io/DecisionPilotAI/app/)
 
 ---
 
@@ -65,7 +67,7 @@ flowchart LR
    When an LLM is enabled (optional), it only classifies the question into a fixed set of tools; it does not write SQL or compute numbers. All metrics, revenue deltas, and forecasts come from SQLite/PostgreSQL queries and scikit-learn/LightGBM pipelines, and every answer shows its sources.
 
 4. **Human-in-the-Loop Governance & Auditing:**  
-   AI generates ranked action recommendations with confidence scores, impact estimates, and explicit mathematical assumptions. Every executive decision (Approve/Reject) is recorded in an immutable audit log.
+   AI generates ranked action recommendations (`budget`, `price`, `inventory`) bridged directly into `/scenarios` and `/ask?q=...`. Recording `accepted` or `rejected` in the simulator with an active `recommendation_id` atomically writes both `scenario_feedback` and `recommendation_feedback` in one database transaction into trigger-protected `audit_events`.
 
 ---
 
@@ -90,8 +92,8 @@ flowchart LR
 └───────────────────┴────────────────────────────────────────────────────┘
 ```
 
-- **Real backend:** every number in the full application comes from the database or a trained model. The GitHub Pages demo uses built-in sample data and is labeled as a demo.
-- **Single-Command Launch:** Instant bootstrap via `run.bat` or `powershell scripts/dev.ps1`.
+- **Real backend:** every number in the full application comes from the database or a trained model (`dp-1.1`). The GitHub Pages deployment serves the **Multi-Page Technical Documentation Portal** at `/` and the interactive SPA at `/app/` (using built-in demo data labeled as practice data when no server is attached).
+- **Single-Command Launch:** Instant bootstrap via `run.bat` or `powershell -ExecutionPolicy Bypass -File scripts/dev.ps1`.
 - **No GPU needed:** training and inference run on a laptop CPU.
 
 ---
@@ -122,12 +124,13 @@ No pilot with a real business has been run. The figures below are the reasoning 
 
 ## 7. Submission Deliverables Index
 
-- [x] **Full MVP Codebase:** Backend API + Web Client + AI Service.
+- [x] **Full MVP Codebase:** Backend API + Web Client + AI Service + Multi-Page Documentation Portal (`docs-site/`).
 - [x] **System Architecture Guide:** [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 - [x] **Model Governance & Lifecycle:** [`MODEL_VERSIONING.md`](./MODEL_VERSIONING.md).
+- [x] **Plain-Language Domain Glossary:** [`CONTEXT.md`](./CONTEXT.md).
 - [x] **AI Explainability & Jury Answers:** [`docs/AI_EXPLAINABILITY_AND_EVALUATION.md`](./docs/AI_EXPLAINABILITY_AND_EVALUATION.md).
-- [x] **Relational Data Model & Dictionary:** [`docs/data-model.md`](./docs/data-model.md).
+- [x] **Relational Data Model & Dictionary:** [`docs/data-model.md`](./docs/data-model.md) & [`docs/DATA_DICTIONARY.md`](./docs/DATA_DICTIONARY.md).
 - [x] **REST API Specifications:** [`docs/API.md`](./docs/API.md).
 - [x] **Machine Learning Technical Specs:** [`docs/ml-training-and-data.md`](./docs/ml-training-and-data.md).
-- [x] **Operations & Deployment Manual:** [`docs/operations.md`](./docs/operations.md).
+- [x] **Operations & Verification Guides:** [`docs/operations.md`](./docs/operations.md) & [`docs/VERIFICATION.md`](./docs/VERIFICATION.md).
 

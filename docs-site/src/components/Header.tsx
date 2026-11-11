@@ -1,29 +1,98 @@
-import { Github, Search as SearchIcon, ExternalLink, Activity } from 'lucide-react'
-import { REPO_URL, APP_DEMO_URL, VERSION, COMPETITION } from '../data/site'
+import { BookOpen, Cpu, ExternalLink, Github, Home, Menu, Search as SearchIcon, X } from 'lucide-react'
+import { APP_DEMO_URL, REPO_URL, VERSION } from '../data/site'
+import { BASE_URL, buildHref, type IntelTabId, type PageId } from '../routes'
 
-export function Header({ onOpenSearch }: { onOpenSearch: () => void }) {
+interface HeaderProps {
+  activePage: PageId
+  mobileNavOpen: boolean
+  onToggleMobileNav: () => void
+  onNavigate: (page: PageId, options?: { tab?: IntelTabId; hashId?: string }) => void
+  onOpenSearch: () => void
+}
+
+export function Header({
+  activePage,
+  mobileNavOpen,
+  onToggleMobileNav,
+  onNavigate,
+  onOpenSearch,
+}: HeaderProps) {
+  const isDocsActive = activePage !== 'home' && activePage !== 'data-decision-intelligence'
+
   return (
     <header className="app-header">
       <div className="header-container">
-        {/* Brand */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <a href="#sec-overview" className="brand-wrapper">
-            <img src="./logo.png" alt="DecisionPilot AI" className="brand-logo" />
+        {/* Brand & Top Nav */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {activePage !== 'home' && (
+            <button
+              type="button"
+              className="mobile-menu-btn"
+              onClick={onToggleMobileNav}
+              aria-label={mobileNavOpen ? 'Close navigation menu' : 'Open navigation menu'}
+              aria-expanded={mobileNavOpen}
+            >
+              {mobileNavOpen ? <X size={18} /> : <Menu size={18} />}
+            </button>
+          )}
+
+          <a
+            href={buildHref('home')}
+            onClick={(e) => {
+              e.preventDefault()
+              onNavigate('home')
+            }}
+            className="brand-wrapper"
+          >
+            <img src={`${BASE_URL}logo.png`} alt="DecisionPilot AI" className="brand-logo" />
             <span className="brand-title">DecisionPilot AI</span>
             <span className="brand-badge">{VERSION}</span>
           </a>
 
-          <div className="hackathon-badge" style={{ display: 'none' }}>
-            <Activity size={12} />
-            <span>{COMPETITION}</span>
-          </div>
+          <nav className="header-nav" aria-label="Portal sections">
+            <a
+              href={buildHref('home')}
+              onClick={(e) => {
+                e.preventDefault()
+                onNavigate('home')
+              }}
+              className={`header-nav-link ${activePage === 'home' ? 'active' : ''}`}
+            >
+              <Home size={14} />
+              <span>Home</span>
+            </a>
+
+            <a
+              href={buildHref(isDocsActive ? activePage : 'overview')}
+              onClick={(e) => {
+                e.preventDefault()
+                onNavigate(isDocsActive ? activePage : 'overview')
+              }}
+              className={`header-nav-link ${isDocsActive ? 'active' : ''}`}
+            >
+              <BookOpen size={14} />
+              <span>Technical Docs</span>
+            </a>
+
+            <a
+              href={buildHref('data-decision-intelligence', { tab: 'ask' })}
+              onClick={(e) => {
+                e.preventDefault()
+                onNavigate('data-decision-intelligence', { tab: 'ask' })
+              }}
+              className={`header-nav-link ${activePage === 'data-decision-intelligence' ? 'active' : ''}`}
+            >
+              <Cpu size={14} />
+              <span>Track 5 Showcase</span>
+            </a>
+          </nav>
         </div>
 
-        {/* Actions */}
+        {/* Right Actions */}
         <div className="nav-actions">
           <button type="button" className="btn-search" onClick={onOpenSearch} aria-label="Search technical docs">
             <SearchIcon size={15} />
-            <span>Search documentation...</span>
+            <span>Search docs...</span>
             <kbd>Ctrl K</kbd>
           </button>
 
@@ -41,4 +110,3 @@ export function Header({ onOpenSearch }: { onOpenSearch: () => void }) {
     </header>
   )
 }
-

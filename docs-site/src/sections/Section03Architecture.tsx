@@ -18,9 +18,9 @@ flowchart TD
   end
 
   subgraph Orchestration ["Tier 3: Analytics & Orchestration"]
-    LLM_ORCH["NL Query Orchestrator"]
-    SQL_GEN["Safe SQL Synthesizer & Validator"]
-    AUDIT["Immutable Audit Ledger"]
+    LLM_ORCH["Intent Classifier & Orchestrator"]
+    SQL_GEN["Fixed Read-Only Analytics Tools"]
+    AUDIT["Append-Only audit_events Ledger"]
   end
 
   subgraph AI_Engine ["Tier 4: AI & Machine Learning"]

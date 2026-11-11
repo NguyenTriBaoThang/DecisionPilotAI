@@ -11,7 +11,7 @@ export interface ArchNode {
 export const ARCH_TIERS = [
   { id: 'client', name: 'Tier 1: Client & Presentation Tier', desc: 'React 19, TypeScript, Vite, Tailwind CSS, Lucide, Three.js 3D Simulator' },
   { id: 'gateway', name: 'Tier 2: API Gateway & Security Tier', desc: 'FastAPI, Bearer Token Auth, RBAC (Viewer/Analyst/Admin), HMAC SHA-256' },
-  { id: 'orchestration', name: 'Tier 3: Analytics & Orchestration Tier', desc: 'LLM Orchestrator, Zero-Hallucination SQL Synthesizer, Audit Ledger' },
+  { id: 'orchestration', name: 'Tier 3: Analytics & Orchestration Tier', desc: 'Typed Intent Router, Fixed Read-Only Analytics Tools, Append-Only Audit Ledger' },
   { id: 'ml', name: 'Tier 4: AI & Machine Learning Tier', desc: 'LightGBM Regressors, Isolation Forest Hybrids, Microeconomic Elasticity' },
   { id: 'data', name: 'Tier 5: Persistence & Storage Tier', desc: 'PostgreSQL 16 / SQLite, SQLAlchemy ORM, Normalized 3NF Relational Tables' },
 ]
@@ -67,7 +67,7 @@ export const ARCH_NODES: ArchNode[] = [
     tier: 'Tier 4: AI/ML',
     label: 'LightGBM Chronological Forecaster',
     sub: '30-day ahead demand & revenue forecasting',
-    responsibility: 'Trains on 70/15/15 chronological split with 14 rolling and calendar features; generates 90% confidence prediction intervals.',
+    responsibility: 'Trains on chronological Train/Val/Test split with 17 causal lag, rolling, and calendar features; applies 2% validation MAE gate and 90% prediction intervals.',
     technology: 'LightGBM, Scikit-learn, NumPy, Pandas',
     location: 'ai_service/forecasting.py',
   },

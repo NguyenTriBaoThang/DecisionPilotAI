@@ -1,146 +1,105 @@
 # GIẢI TRÌNH KIẾN TRÚC AI, ĐÁNH GIÁ MÔ HÌNH & HỎI ĐÁP BAN GIÁM KHẢO (AI EXPLAINABILITY & JUDGES Q&A)
 
-> **Correction notice (11/11/2026).** This document was written before its figures were reconciled with `artifacts/`. Where it differs from `artifacts/MODEL_EVALUATION.md`, `artifacts/evaluation.json`, `artifacts/query_benchmark.json` or `artifacts/scenario_backtest.json`, **the artifacts are authoritative**. Known differences: enterprise-wide revenue WAPE is 24.14% (not 11.24%), revenue-anomaly recall is 38.2%, the NL benchmark runs on local rules, the price model is linear (P001 elasticity -1.1) and the advertising model is a power law (no Hill curve, no AST/sqlglot SQL parser). Scores in this file are a self-assessment, not an independent audit.
+> **Lưu ý minh bạch:** Mọi số liệu đánh giá trong tài liệu này được đối chiếu trực tiếp với mã nguồn và `artifacts/` (`dataset_id: f32e87e3a5744333ff98d3bf`, bundle `dp-1.1`), gồm [`artifacts/MODEL_EVALUATION.md`](../artifacts/MODEL_EVALUATION.md), [`artifacts/evaluation.json`](../artifacts/evaluation.json), [`artifacts/query_benchmark.json`](../artifacts/query_benchmark.json) và [`artifacts/scenario_backtest.json`](../artifacts/scenario_backtest.json). Toàn bộ kết quả đo trên tập dữ liệu tổng hợp (synthetic) và tự kiểm định nội bộ, không phải kiểm toán độc lập hay kết quả triển khai trên doanh nghiệp thật.
 
 **Dự án:** DecisionPilot AI  
 **Cuộc thi:** AI for Business Innovation 2026 — LIKELION  
-**Hạng mục:** Data & Decision Intelligence  
-**Phiên bản tài liệu:** 1.0 (Tháng 11/2026)
+**Hạng mục:** 5. Data & Decision Intelligence  
+**Phiên bản:** `v1.0.0` / Bundle `dp-1.1`
 
 ---
 
 ## 1. AI thực sự được sử dụng ở đâu trong DecisionPilot AI?
 
-DecisionPilot AI kiên định với nguyên tắc **"Right Tool for the Right Job"** — không lạm dụng LLM vào các bài toán tính toán số học chính xác, mà phân định ranh giới rõ ràng giữa 4 tầng trí tuệ nhân tạo:
+DecisionPilot AI kiên định với nguyên tắc **"Right Tool for the Right Job"** — không lạm dụng LLM cho các phép toán tài chính hay viết SQL tự do, mà phân định rõ 4 tầng trí tuệ nhân tạo:
 
-```
+```text
 ┌────────────────────────────────────────────────────────────────────────┐
 │                        TỔNG THỂ HỆ THỐNG TRÍ TUỆ NHÂN TẠO              │
 ├────────────────────────────────┬───────────────────────────────────────┤
-│ 1. Natural Language Analytics  │ LLM (Gemini 2.5 Flash / GPT-4.1-mini) │
-│    & Intent Classification     │ hoặc Local Rule Engine                │
+│ 1. Natural Language Analytics  │ Intent Router (Local Rules mặc định;  │
+│    & Fixed Analytics Tools     │ tùy chọn Gemini 2.5 Flash / GPT-4.1m) │
 ├────────────────────────────────┼───────────────────────────────────────┤
-│ 2. Predictive Forecasting      │ Machine Learning (LightGBM 4.6.0)     │
-│    (Nhu cầu SKU, Đơn hàng)     │ + Time-Series Lag & Calendar Features │
+│ 2. Predictive Forecasting      │ LightGBM 4.6.0 (17 đặc trưng nhân quả)│
+│    (Doanh thu, Đơn, Nhu cầu)   │ + Cổng kiểm định >2% so với Baseline  │
 ├────────────────────────────────┼───────────────────────────────────────┤
-│ 3. Anomaly Radar & Signals     │ Unsupervised ML (Isolation Forest)     │
-│    (Đột biến chi phí, đứt hàng)│ + Rolling Robust Z-Score              │
+│ 3. Anomaly Radar & Signals     │ Unsupervised ML (Isolation Forest)    │
+│    (Doanh thu, Ads, Tồn kho)   │ + Rolling 56d Z-Score / IQR & Stockout│
 ├────────────────────────────────┼───────────────────────────────────────┤
-│ 4. Scenario Simulator &        │ Mathematical Optimization Engine      │
-│    Decision Intelligence       │ + Waterfall Contribution Decomposition│
+│ 4. Scenario Simulator &        │ Mô phỏng Co giãn giá & Power-law Ads  │
+│    Decision Intelligence       │ + Bóc tách đóng góp (Waterfall Drivers)│
 └────────────────────────────────┴───────────────────────────────────────┘
 ```
 
-1. **Hiểu ý định ngôn ngữ tự nhiên (Intent Parsing):** Khi người dùng đặt câu hỏi kinh doanh, hệ thống trích xuất cấu trúc ý định (`metric`, `time_range`, `dimension`, `filters`, `horizon`). Hệ thống hỗ trợ đa nhà cung cấp:
-   - Google Gemini API (`gemini-2.5-flash`)
-   - OpenAI API (`gpt-4.1-mini`)
-   - **Local Rule-Based Regex Fallback:** Cho phép chạy demo mượt mà 100% offline mà không tốn chi phí API token hay phụ thuộc kết nối mạng.
-2. **Dự báo chuỗi thời gian (Demand & Sales Forecasting):** Mô hình **LightGBM** học các tương quan phi tuyến giữa đặc trưng trễ (lags), đặc trưng cửa sổ trượt (rolling stats), lịch sự kiện và độ co giãn giá để dự báo 7 đến 30 ngày.
-3. **Phát hiện bất thường đa biến (Anomaly Detection):** Kết hợp thuật toán **Isolation Forest** (bắt các điểm dị biệt trong không gian đa chiều giữa chi phí và doanh số) cùng **Rolling Z-Score** và luật nghiệp vụ (Business Heuristics).
-4. **Bóc tách căn nguyên (Root-Cause Contribution):** Giải thuật bóc tách toán học thác nước (Waterfall Decomposition) chia tách chính xác 100% phần chênh lệch giữa hai kỳ mà không tạo số liệu ngụy tạo.
-5. **Mô phỏng kịch bản (What-If Simulation):** Động cơ toán học mô phỏng độ co giãn giá theo cầu $Q_{new} = Q_0 \times (1 + \epsilon \times \Delta P / P)$, ràng buộc thời gian nhập hàng (lead time) và biên lợi nhuận gộp.
+1. **Hiểu ý định ngôn ngữ tự nhiên (Intent Parsing):** Trích xuất cấu trúc `Intent` được kiểm định chặt (`action`, `metric`, `dimension`, `period`, `filters`, `horizon`, `forecast_target`), từ chối các câu hỏi chứa SQL (`BLOCKED`) hoặc ngoài phạm vi, và gọi bộ công cụ phân tích cố định viết sẵn trong Python/SQLAlchemy. Hệ thống chạy mặc định bằng **Local Rules** (`100%` offline, không tốn phí API) và hỗ trợ tùy chọn `gemini-2.5-flash` hoặc `gpt-4.1-mini`.
+2. **Dự báo chuỗi thời gian (Demand & Sales Forecasting):** Mô hình **LightGBM** (`LGBMRegressor`) học trên **17 đặc trưng nhân quả tại thời điểm $t$** (`lag_1/7/14/28`, rolling `mean/std` `7/14/28`, `growth_7`, lịch, `scale`) qua cổng kiểm định nghiêm ngặt: chỉ chọn LightGBM khi MAE trên tập Validation vượt baseline tốt hơn (`moving_average` / `seasonal_naive`) trên **2%**.
+3. **Phát hiện bất thường đa biến (Anomaly Detection):** Kết hợp cửa sổ trượt quá khứ **56 ngày lùi 7 ngày** (`shift(7).rolling(56, min_periods=28)`), **Isolation Forest** (`n_estimators=120`, `contamination=0.065`), IQR / Robust Z-score, kiểm tra sụt giảm doanh thu bền vững 7 ngày và luật tồn kho theo `lead_time_days`.
+4. **Bóc tách căn nguyên (Root-Cause Contribution):** Phân rã cộng tính (additive decomposition) theo sản phẩm, danh mục, khu vực, kênh bán, phân khúc — cộng tổng đúng 100% phần chênh lệch quan sát được giữa hai kỳ, đồng thời hiển thị rõ cảnh báo thống kê: *"Observed contributions do not establish causality."*
+5. **Mô phỏng kịch bản (What-If Simulation):** Mô phỏng co giãn giá tuyến tính theo phần trăm thay đổi ($Q_{\text{sim}} = Q_0 \times \max(0, 1 + \varepsilon \cdot \Delta P / P_0)$), giới hạn tồn kho vật lý và hàm suy giảm lợi suất quảng cáo dạng lũy thừa ($\text{ratio}^\alpha$, mặc định $\alpha = 0.65$).
 
 ---
 
 ## 2. Vì sao chọn từng mô hình cụ thể?
 
-| Thành phần | Mô hình lựa chọn | Lý do kỹ thuật & Thực tế SME | Các lựa chọn đã cân nhắc và loại bỏ |
+| Thành phần | Mô hình lựa chọn | Lý do kỹ thuật & Thực tế SME | Các lựa chọn đã loại bỏ |
 |---|---|---|---|
-| **Dự báo nhu cầu** | **LightGBM** | Dữ liệu dạng bảng (tabular/time-series features) là thế mạnh tuyệt đối của Tree-based Gradient Boosting. Tốc độ suy luận tính bằng mili-giây, tiêu tốn ít RAM, xử lý tốt các biến phân loại (SKU, Category, Day-of-week). | **ARIMA/SARIMA:** Không học được tương quan chéo giữa nhiều SKU.<br/>**LSTM/Transformer:** Đòi hỏi hàng trăm ngàn chuỗi dữ liệu lớn, dễ overfitting trên dữ liệu SME và tiêu tốn GPU không cần thiết. |
-| **Phát hiện bất thường** | **Hybrid: Isolation Forest + Rolling Z-Score** | Bắt được cả bất thường đơn biến (doanh thu giảm sốc) lẫn bất thường tương quan (chi phí quảng cáo tăng nhưng đơn hàng đứng yên). Không cần gán nhãn thủ công (unsupervised). | **Autoencoder/VAE:** Quá phức tạp cho triển khai On-premises nhẹ, khó giải thích trực quan cho chủ doanh nghiệp. |
-| **Phân loại câu hỏi** | **Constrained Intent Extraction** | LLM chỉ làm nhiệm vụ parse câu hỏi thành cấu trúc JSON có kiểm định (Typed Intent Schema). Logic truy vấn do Python & SQLAlchemy thực thi. | **Text-to-SQL tự do:** Cực kỳ nguy hiểm, dễ bị SQL Injection, ảo tưởng bảng biểu và không đảm bảo tính toán nhất quán. |
-| **Giả lập kịch bản** | **Microeconomic Elasticity Optimization** | Độ co giãn giá danh mục $\epsilon \in [-5, 0]$ kết hợp ràng buộc tồn kho thực tế đem lại kết quả định lượng minh bạch, kiểm chứng được. | **Black-box Deep RL:** Khó kiểm soát rủi ro kinh doanh, không phù hợp với giai đoạn MVP của doanh nghiệp nhỏ. |
+| **Dự báo nhu cầu** | **LightGBM + Baseline Gate (`>2%`)** | Xử lý tốt dữ liệu bảng SME trên CPU; dễ giải trình Gain theo từng đặc trưng; không để mô hình phức tạp thay thế baseline nếu không cải thiện thực sự trên Validation. | **Text-heavy Deep Learning / LSTM:** Dữ liệu 730 ngày cho SME dễ overfit, tốn tài nguyên GPU không cần thiết. |
+| **Phát hiện bất thường** | **Hybrid: Isolation Forest + Rolling Z-Score / IQR** | Phát hiện được cả sốc đơn biến lẫn bất thường đa chiều (VD: chi phí Facebook tăng `1.85x` nhưng tỷ lệ phân bổ đơn giảm), hoàn toàn không cần gán nhãn khi chạy thật. | **Autoencoder:** Nặng, khó giải trình cho chủ cửa hàng lý do vì sao ngày đó bị gắn cờ cảnh báo. |
+| **Hỏi đáp dữ liệu** | **Constrained Intent Extraction + Fixed Tools** | LLM (nếu bật) chỉ trả về `Intent` JSON, mọi phép tính nằm trong SQLAlchemy Core trên kết nối `READ ONLY` (`statement_timeout = 8s` / `PRAGMA query_only`). Tuyệt đối không chạy SQL do LLM sinh ra. | **Free-form Text-to-SQL:** Rủi ro SQL injection, ảo giác bảng/cột và sai số phép tính tổng hợp. |
+| **Giả lập kịch bản** | **Linear-% Elasticity + Power-Law Ads** | Công thức minh bạch, tham số có thể tinh chỉnh trực tiếp ($\varepsilon \pm 0.3$, $\alpha \pm 0.15$) và gắn nhãn rõ là *ước lượng có điều kiện* thay vì nhân quả tuyệt đối. | **Hộp đen Black-box RL:** Không thể giải thích giả định lợi nhuận trước chủ doanh nghiệp. |
 
 ---
 
 ## 3. Mô hình được huấn luyện từ dữ liệu nào?
 
-- **Bộ dữ liệu gốc:** Bộ dữ liệu tổng hợp (Synthetic Dataset) mô phỏng hoạt động bán lẻ & dịch vụ của SME Việt Nam:
-  - Thời gian: 730 ngày (24 tháng, từ 01/10/2024 đến 30/09/2026).
-  - Quy mô: 50.000 giao dịch bán hàng, 50 mã SKU (sản phẩm vật lý & dịch vụ), 10.000 khách hàng, 3 vùng thị trường (HCMC, Hanoi, Danang).
-  - Đầy đủ 6 bảng quan hệ có ràng buộc toàn vẹn khóa ngoại và quy tắc kế toán khép kín.
-- **Chiến lược phân chia dữ liệu (Chronological Time-Series Split):**
-  - **Tập huấn luyện (Train):** 70% (01/10/2024 – 22/02/2026) — Dùng để học trọng số cây quyết định.
-  - **Tập kiểm định (Validation):** 15% (23/02/2026 – 12/06/2026) — Dùng để chọn siêu tham số, so sánh với Baseline và tính toán phần dư cho khoảng tin cậy.
-  - **Tập kiểm thử độc lập (Test/Holdout):** 15% (13/06/2026 – 30/09/2026) — Chỉ đánh giá hiệu năng cuối cùng, hoàn toàn không được nhìn thấy trong quá trình huấn luyện.
-- **Chống rò rỉ dữ liệu (No Data Leakage):**
-  - Mọi đặc trưng thống kê (Rolling Mean, Lags, Standard Deviation) chỉ tính trên các ngày $t - 1$ trở về trước.
-  - Không sử dụng doanh số, chi phí quảng cáo hay nhãn tương lai trong ma trận đặc trưng tại thời điểm dự báo.
+- **Bộ dữ liệu gốc (`f32e87e3a5744333ff98d3bf`):** Bộ dữ liệu tổng hợp mô phỏng hoạt động bán lẻ & dịch vụ SME tại Việt Nam (`scripts/generate.py`, `seed=42`):
+  - Thời gian: **730 ngày liên tục** (`2024-10-01` đến `2026-09-30`).
+  - Quy mô: **50.000 giao dịch** (`Online`, `Retail`, `B2B`), **50 SKU** (`34` vật lý + `16` dịch vụ thuộc `6` danh mục), **10.000 khách hàng** tại **4 vùng** (`HCMC`, `Hanoi`, `Da Nang`, `Can Tho`), **2.920 bản ghi chiến dịch** (`Facebook Ads`, `Google Ads`, `TikTok Ads`, `Email`) và **24.820 bản ghi tồn kho**.
+- **Phân chia dữ liệu theo thời gian (Chronological Split):**
+  - **Train (70%):** `2024-10-01` – `2026-02-22`.
+  - **Validation (15%):** `2026-02-23` – `2026-06-12` (tách riêng hai nửa để chọn mô hình và hiệu chuẩn dải tin cậy khi đủ lịch sử).
+  - **Test/Holdout (15%):** `2026-06-13` – `2026-09-30`.
+- **Chống rò rỉ dữ liệu:** Tất cả 17 đặc trưng chỉ sử dụng quan sát tại $\le t - 1$; nhãn bất thường trong manifest chỉ dùng để chấm điểm đánh giá trên tập Test.
 
 ---
 
-## 4. Có so sánh với Baseline không?
+## 4. Kết quả kiểm chứng thực nghiệm (`dp-1.1`)
 
-**CÓ, đây là yêu cầu bắt buộc trong kiến trúc của DecisionPilot AI.**
-
-Hệ thống thiết lập 2 mô hình đường cơ sở (Baselines):
-1. **Seasonal Naive:** Lấy giá trị của cùng kỳ tuần trước ($y_{t-7}$) làm dự báo cho ngày $t$.
-2. **Moving Average (7-day / 28-day):** Lấy giá trị trung bình trượt của chu kỳ gần nhất.
-
-**Nguyên tắc "Fail-Back to Baseline" nghiêm ngặt:**
-- Tại mỗi cấp độ dự báo (Toàn công ty, theo Category, hoặc từng SKU cụ thể), thuật toán chỉ chọn **LightGBM** làm mô hình mặc định khi và chỉ khi:
-  $$\text{MAE}_{\text{LightGBM}} \le 0.98 \times \min(\text{MAE}_{\text{SeasonalNaive}}, \text{MAE}_{\text{MovingAverage}})$$
-  *(tức là phải tốt hơn Baseline ít nhất **2%** trên tập Validation).*
-- Nếu LightGBM không vượt qua ngưỡng 2%, hệ thống **tự động hạ cấp về mô hình Moving Average hoặc Seasonal Naive**. Điều này đảm bảo hệ thống không bao giờ cung cấp một mô hình phức tạp mà hiệu quả lại kém hơn công thức đơn giản.
-
----
-
-## 5. Dự báo có thực sự đáng tin cậy không?
-
-Độ tin cậy của dự báo được đo lường minh bạch qua 3 góc độ:
-
-1. **Sai số thực nghiệm trên tập Test:**
-   - Dự báo nhu cầu SKU chủ lực `P001 (SmartDesk Mini)`: Đạt **MAE = 2.68 đơn vị**, **WAPE = 41.87%** trên chân trời 30 ngày.
-   - Dự báo doanh thu tổng: Đạt **Test WAPE = 24.14%**.
-2. **Khoảng tin cậy thực tế 90% (Empirical Prediction Interval):**
-   - Khoảng tin cậy không phải là số giả định $\pm 10\%$, mà được tính từ phân vị phần dư thực tế trên tập Validation: $\hat{y} \pm q_{0.95}(\text{residuals})$.
-   - Trên tập kiểm thử độc lập, độ phủ thực tế (Actual Coverage) của dải tin cậy đạt **91.90%** đối với SKU P001 (vượt chuẩn 90% lý thuyết).
-3. **Hiệu ứng kiểm duyệt do đứt hàng (Stockout Censoring):**
-   - Hệ thống ghi rõ trong tài liệu và giao diện: Khi một SKU bị hết hàng (Closing stock = 0), số lượng bán quan sát được bị chặn trên bởi lượng tồn kho. Do đó, nhu cầu thực tế tiềm ẩn có thể cao hơn doanh số ghi nhận.
+1. **Dự báo nhu cầu (`30 ngày` trên tập Test Holdout):**
+   - **Doanh thu toàn doanh nghiệp:** Chọn `moving_average` (vì LightGBM chưa vượt baseline `>2%` trên Validation) — **Test MAE = `34,584,971.67 ₫`**, **WAPE = `24.14%`**, độ phủ dải 90% đạt **`83.81%`** *(tổng 7 ngày đạt WAPE `21.84%`, độ phủ `91.96%`)*.
+   - **SKU chủ lực `P001` (`SmartDesk Mini`):** Chọn **`LightGBM`** (vượt chuẩn `>2%`) — **Test MAE = `2.68` đơn vị/ngày**, **WAPE = `41.87%`**, độ phủ dải 90% đạt **`92.86%`** *(vượt mốc danh nghĩa 90%)*.
+   - *(Ứng dụng hiển thị cảnh báo minh bạch khi độ phủ thực nghiệm thấp hơn mức danh nghĩa 90% trên cấp toàn doanh nghiệp.)*
+2. **Phát hiện bất thường (Tập Test có gán nhãn sự kiện tổng hợp):**
+   - `facebook_spend`: **Precision `100.00%`**, **Recall `82.14%`**, **F1 `90.20%`**, FPR `0.00%`.
+   - `revenue`: **Precision `86.67%`**, **Recall `38.24%`**, **F1 `53.06%`** (kết hợp quy tắc giảm bền vững 7 ngày).
+   - `facebook_conversion`: **Precision `75.00%`**, **Recall `75.00%`**; `facebook_roas`: **Precision `68.00%`**, **Recall `60.71%`**; `margin`: **Precision `50.00%`**, **Recall `75.00%`**.
+   - `stockout_risk` *(luật tồn kho)*: **Precision `18.75%`**, **Recall `25.00%`**, được gắn nhãn giới hạn công khai trên `/models/quality` và màn hình cảnh báo.
+3. **Truy vấn Ngôn ngữ tự nhiên (`artifacts/query_benchmark.json`):**
+   - **46/46 (`100%`)** bộ câu hỏi tiếng Anh, tiếng Việt và câu hỏi từ chối an toàn vượt qua 100% kiểm tra về intent, thực thi, số học, bộ lọc, loại biểu đồ và trích dẫn nguồn.
+   - Độ trễ trung vị (Local Rules): **`1,432.2 ms`** (**p95 = `3,268.6 ms`**). *(Đường Gemini/OpenAI tùy chọn không nằm trong benchmark offline này.)*
+4. **Hồi cứu kịch bản (`artifacts/scenario_backtest.json`):**
+   - Tái lập theo tuần số lượng bán `P001` theo giá: **WAPE `23.99%`** so với baseline `24.24%`.
+   - Tái lập chi tiêu Facebook Ads hàng tuần: **WAPE `33.00%`** so với baseline `25.44%` *(được cảnh báo công khai là độ lỗi lớn hơn baseline)*.
 
 ---
 
-## 6. Simulator đang dựa trên những giả định nào?
+## 5. Giá trị kinh doanh (Mục tiêu kỳ vọng — Cần kiểm chứng thực địa)
 
-Cỗ máy mô phỏng What-If không phải là hộp đen tiên tri tuyệt đối mà dựa trên các giả định kinh tế học vi mô rõ ràng:
-
-1. **Giả định về Độ co giãn Giá theo Cầu (Price Elasticity $\epsilon$):**
-   - Mỗi SKU được gán một hệ số co giãn danh mục trong khoảng $[-5.0, 0.0]$. Ví dụ, `SmartDesk Mini` có $\epsilon = -1.42$ (hàng co giãn cao), trong khi gói dịch vụ hỗ trợ có $\epsilon = -0.3$ (ít co giãn).
-   - Tác động giảm giá tuân theo công thức vi mô: $\Delta Q / Q = \epsilon \times (\Delta P / P)$.
-2. **Giới hạn Cung ứng Vật lý (Physical Fulfillment Cap):**
-   - Nếu kịch bản giảm giá kích cầu vượt quá tồn kho khả dụng hiện tại cộng với lượng hàng nhập dự kiến cập bến sau thời gian Lead-time:
-     $$Q_{\text{actual}} = \min(Q_{\text{simulated}},\ \text{Available Stock} + \text{Inbound Receipts})$$
-   - Hệ thống sẽ kích hoạt cảnh báo **"Rủi ro đứt hàng (Stockout Risk)"** thay vì vẽ ra doanh thu ảo không thể giao hàng.
-3. **Hiệu suất Tiếp thị Giảm dần (Diminishing Marginal Returns):**
-   - Khi tăng ngân sách quảng cáo, số lượng leads và đơn hàng không tăng tuyến tính mà theo hàm số mũ $\text{Orders} \propto \text{Spend}^{\alpha}$ với $\alpha < 1$.
+1. **Rút ngắn thời gian báo cáo & điều tra bất thường:** Chuyển câu hỏi tiếng Việt/Anh thành báo cáo số liệu kèm nguồn và liên kết điều tra 1 chạm từ Cảnh báo -> `/ask?q=...` thay vì ghép file Excel thủ công.
+2. **Minh bạch hóa rủi ro trước khi chiết khấu hoặc bơm ngân sách:** Giả định co giãn (`P001`: `-1.1`, `AirPure S`: `-1.4`, người dùng chỉnh được) và tồn kho vật lý giúp lãnh đạo thử trước phương án 0%/5%/10% trên không gian 3D trước khi ra quyết định.
+3. **Liên kết khép kín & Nhật ký kiểm toán chống sửa xóa:** Chấp thuận (`accepted`) hoặc từ chối (`rejected`) kịch bản gắn với `recommendation_id` sẽ ghi đồng thời vào bảng `audit_events` có trigger bảo vệ dữ liệu — tuyệt đối không tự động thay giá bán hay đặt hàng ERP.
 
 ---
 
-## 7. Giá trị kinh doanh (Business Value) được đo lường như thế nào?
+## 6. Những giới hạn cần nói rõ trước Ban Giám Khảo
 
-1. **Rút ngắn thời gian từ Câu hỏi đến Hành động (Time-to-Insight):**
-   - Thay vì mất 2–4 ngày chờ kế toán hoặc nhân viên kỹ thuật tổng hợp số liệu Excel, người quản lý SME nhận câu trả lời và biểu đồ trong vòng **dưới 1 giây**.
-2. **Ngăn chặn thiệt hại đứt hàng (Stockout Prevention):**
-   - Cảnh báo trước 7–14 ngày giúp doanh nghiệp kịp thời đặt hàng nhà cung cấp trước khi kho về 0, bảo vệ trung bình 15–20% doanh thu của các sản phẩm bán chạy nhất (Hero SKUs).
-3. **Cắt giảm lãng phí ngân sách quảng cáo (Ad Spend Efficiency):**
-   - Radar bất thường phát hiện kịp thời các chiến dịch Facebook Ads/Google Ads bị tụt ROAS hoặc giá lead tăng đột biến, giúp tiết kiệm hàng chục triệu đồng tiền ngân sách quảng cáo rác mỗi tháng.
-4. **Tối ưu hóa Lợi nhuận gộp thông qua Định giá thông minh:**
-   - Thay vì giảm giá xả hàng bừa bãi, Scenario Simulator giúp người quản lý so sánh giữa 0%, 5% và 10% chiết khấu để chọn điểm cân bằng tối đa hóa lợi nhuận thực nhận (Contribution Profit).
-
----
-
-## 8. Những giới hạn nào cần nói rõ trước Ban Giám Khảo?
-
-Để giữ vững tính trung thực học thuật và đạo đức nghề nghiệp AI, nhóm công khai các giới hạn hiện tại của MVP:
-
-1. **Bản chất dữ liệu Demo:** Dữ liệu hiện tại là dữ liệu tổng hợp (synthetic) có kiểm soát phục vụ thi đấu và kiểm định hệ thống, không phải là dữ liệu của một doanh nghiệp đang hoạt động trên thị trường.
-2. **Phạm vi mô hình giao dịch đơn giản:** Trong phiên bản MVP, mỗi dòng giao dịch đại diện cho 1 đơn hàng (single order line). Chưa mô phỏng giỏ hàng nhiều món (multi-item basket), mã coupon phức tạp, hoàn tiền (refunds) hay thuế VAT đa mức.
-3. **Tương quan và Nhân quả (Correlation vs. Causation):** Tính năng bóc tách đóng góp (Contribution Decomposition) phản ánh chính xác 100% phần chênh lệch quan sát được giữa các chiều dữ liệu (sản phẩm, khu vực, phân khúc), nhưng đây là phân tích thống kê mô tả (descriptive), không phải là chứng minh quan hệ nhân quả (causal design) nếu chưa chạy thử nghiệm A/B test thực địa.
-4. **Cơ chế Human-in-the-Loop:** Khi người quản lý bấm "Chấp thuận" (Accept) một khuyến nghị, hệ thống MVP chỉ ghi nhận quyết định vào Nhật ký kiểm toán (Decision Audit Trail), chưa tự động gọi API thay đổi giá trên sàn thương mại điện tử hay tự động xuất lệnh chuyển tiền ngân hàng. Điều này nhằm đảm bảo an toàn tuyệt đối cho doanh nghiệp.
+1. **Dữ liệu tổng hợp (Synthetic Data):** Kết quả hiệu năng trên `f32e87e3a5744333ff98d3bf` phản ánh dữ liệu mô phỏng phục vụ thi đấu; cần thu thập dữ liệu thật tại SME thí điểm và đánh giá lại trên kỳ chưa từng nhìn thấy trước khi dùng cho quyết định vốn thực tế.
+2. **Mô hình giao dịch đơn dòng:** Chưa mô hình hóa giỏ hàng nhiều mặt hàng cùng lúc (cross-sell/market basket), tỷ lệ hoàn trả đơn (refunds) sau bán hay chi phí vận hành cố định ngoài giá vốn COGS.
+3. **Ước lượng có điều kiện vs. Quan hệ nhân quả:** Các phân rã đóng góp và giả lập kịch bản mô tả sự thay đổi có điều kiện dựa trên giả định danh mục chứ chưa thay thế được thử nghiệm ngẫu nhiên có đối chứng (A/B Test).
+4. **Độ nhạy cảnh báo tồn kho & bất thường doanh thu:** Recall của `revenue` (`38.24%`) và `stockout_risk` (`25.00%`) còn khiêm tốn trên các pha chuyển dịch đột ngột; hệ thống công khai các giới hạn này ngay trong giao diện thay vì che giấu.
 
 ---
 
 <div align="center">
   <b>DecisionPilot AI — Minh bạch · Chính xác · Có trách nhiệm</b>
 </div>
-

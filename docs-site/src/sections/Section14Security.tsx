@@ -19,7 +19,7 @@ export function Section14Security() {
             1. Zero-Hallucination Grounding
           </div>
           <p className="card-desc">
-            Large language models are prone to confabulating plausible-sounding numbers. DecisionPilot AI solves this by disallowing the LLM from generating figures directly. The model only synthesizes read-only SQL; the database engine computes the exact metric; the model then formats the verified tabular output into natural Vietnamese or English prose.
+            Language models are never allowed to invent numbers or generate raw SQL. Instead, <code>ai_service/llm_orchestrator.py</code> classifies user questions into a strict Pydantic <code>Intent</code> schema and invokes fixed read-only analytics tools. PostgreSQL or SQLite computes exact aggregates, and every narrative figure traces back to tool evidence.
           </p>
         </div>
 
@@ -29,17 +29,17 @@ export function Section14Security() {
             2. No Model-Written SQL
           </div>
           <p className="card-desc">
-            Questions are routed to a fixed set of tested, read-only analytics tools; neither users nor language models supply SQL. Questions that contain SQL statements (<code>DROP</code>, <code>UPDATE</code>, <code>INSERT</code>, <code>DELETE</code>, <code>SELECT ... FROM</code>) or ask for unsupported metrics are refused before any query runs.
+            Questions are routed to a fixed set of tested, read-only analytics tools executing parameterized SQLAlchemy queries under read-only transaction isolation; neither users nor language models supply SQL. Inputs containing SQL statements (<code>DROP</code>, <code>UPDATE</code>, <code>INSERT</code>, <code>DELETE</code>, <code>SELECT ... FROM</code>) or unsupported metrics are refused before execution.
           </p>
         </div>
 
         <div className="card">
           <div className="card-title">
             <FileText size={18} className="green" />
-            3. Immutable Audit Ledger
+            3. Append-Only Audit Ledger (audit_events)
           </div>
           <p className="card-desc">
-            Every executive action is appended to the <code>audit</code> database ledger with authenticated actor identity, UTC timestamp, and dataset version hash. This includes every question asked, scenario simulated, and recommendation approved or dismissed, providing complete auditability for corporate governance.
+            Every query, dataset load, recommendation feedback, and scenario decision is appended to the <code>audit_events</code> table with authenticated actor identity, UTC timestamp, and active 24-hex <code>dataset_id</code> lock.
           </p>
         </div>
 

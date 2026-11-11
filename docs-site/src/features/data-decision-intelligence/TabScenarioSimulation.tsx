@@ -283,7 +283,7 @@ export function TabScenarioSimulation() {
       {subTab === 'marketing' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: '12px', padding: '24px' }}>
-            <span className="badge badge-indigo" style={{ marginBottom: '6px' }}>HILL FUNCTION SATURATION</span>
+            <span className="badge badge-indigo" style={{ marginBottom: '6px' }}>SATURATION CURVE (ILLUSTRATIVE)</span>
             <h4 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#FFFFFF', margin: '4px 0 0 0' }}>
               Advertising Spend Saturation Curve (Diminishing ROAS)
             </h4>
@@ -359,7 +359,7 @@ export function TabScenarioSimulation() {
             </div>
 
             <p style={{ fontSize: '0.82rem', color: '#CBD5E1', lineHeight: 1.5, margin: 0 }}>
-              &bull; <strong>SME Strategic Insight:</strong> Scaling ad budget beyond 1.5x on a single platform triggers steep audience fatigue. DecisionPilot AI recommends reallocating surplus ad budget to Shopee Mall search ads and retargeting high-intent basket abandoners.
+              &bull; <strong>SME Strategic Insight:</strong> Scaling ad budget beyond 1.5x on a single channel triggers steep diminishing returns. Note: this interactive tab illustrates a saturation curve; the production simulator (<code>ai_service/scenario.py</code>) models diminishing returns via <code>spend_ratio ^ alpha</code> (default <code>alpha = 0.65</code>) and recommends controlled channel trials across Google Ads and Email.
             </p>
           </div>
         </div>
@@ -534,19 +534,24 @@ export function TabScenarioSimulation() {
           </span>
           <div style={{ marginBottom: '8px' }}>
             <code style={{ fontSize: '0.82rem', color: '#38BDF8', background: 'rgba(0,0,0,0.3)', padding: '4px 8px', borderRadius: '4px' }}>
-              POST /api/scenarios/run
+              POST /api/simulate
             </code>
           </div>
           <p style={{ fontSize: '0.8rem', color: '#94A3B8', margin: '6px 0 10px 0' }}>
-            Executes parameter overrides for price discounts, marketing budget adjustments, and replenishment delays. Returns projected P&amp;L delta and risk scores.
+            Discriminated union accepting <code>price</code>, <code>marketing</code>, or <code>inventory</code> scenario parameters plus objective &amp; horizon. Decisions can be linked to recommendations via <code>POST /api/scenarios/feedback</code>.
           </p>
           <CodeBlock
-            code={`// Scenario Request Payload
+            code={`// ScenarioRequest Payload Example
 {
-  "scenario_name": "Scenario A - Targeted 5% Promo",
-  "product_discounts": { "P001": 0.05 },
-  "ad_spend_multiplier": 1.2,
-  "reallocate_budget": { "from": "facebook", "to": "shopee", "amount": 10000000 }
+  "type": "price",
+  "objective": "profit",
+  "horizon": 30,
+  "parameters": {
+    "product": "P001",
+    "discounts": [0, 0.05, 0.10],
+    "elasticity": -1.1,
+    "additional_cost": 0
+  }
 }`}
             label="json"
           />

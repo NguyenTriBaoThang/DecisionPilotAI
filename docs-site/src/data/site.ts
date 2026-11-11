@@ -114,7 +114,7 @@ export const NAV_SECTIONS: NavSection[] = [
     id: 'security-governance',
     num: '14',
     title: 'Security, Privacy & AI Responsibility',
-    blurb: 'Read-only SQL synthesis, HMAC snapshot verification, zero-hallucination grounding, and human-in-the-loop audit.',
+    blurb: 'Fixed read-only analytics tools (no model-written SQL), dataset SHA-256 locks, and append-only audit ledger.',
     group: 'Development',
   },
 

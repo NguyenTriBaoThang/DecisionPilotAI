@@ -26,25 +26,28 @@ export function Section05Pipeline() {
     {
       step: '05',
       title: 'Multi-Channel Marketing Attribution Reconciliation',
-      desc: 'Aligns ad spend from Facebook Ads, Google Ads, and TikTok Shop with downstream sales attribution, computing daily ROAS.',
+      desc: 'Aligns daily campaign spend and funnel metrics from Facebook Ads, Google Ads, TikTok Ads, and Email with sales attribution via composite (campaign_id, date) foreign keys.',
     },
     {
       step: '06',
       title: 'Warehouse Inventory Continuity & Stockout Audit',
-      desc: 'Enforces mathematical identity: Closing Stock = Opening Stock + Received Stock - Shipped Units. Flags negative inventory or unaccounted shrinkage.',
+      desc: 'Enforces exact daily conservation: closing_stock = opening_stock + received_qty - sold_qty, plus stockout_flag consistency.',
     },
     {
       step: '07',
-      title: 'Cryptographic Snapshot Hashing & Artifact Export',
-      desc: 'Computes SHA-256 fingerprint of the complete relational dataset, producing immutable artifacts (daily_features.csv.gz, data_quality.json).',
+      title: 'Cryptographic Snapshot Hashing & Atomic Load',
+      desc: 'Computes the deterministic 24-hex dataset_id SHA-256 fingerprint, emits data_quality.json, and atomically loads validated tables with audit logging.',
     },
   ]
 
-  const pipelineCli = `# Execute end-to-end data processing and validation pipeline
-python -m scripts.pipeline --dataset-dir data/raw --output-dir artifacts
+  const pipelineCli = `# Validate CSV snapshot integrity and generate data quality report
+python -m scripts.pipeline validate data/synthetic --report artifacts/data_quality.json
 
-# Run relational integrity verification tests
-pytest tests/test_pipeline.py -v`
+# Atomically load validated snapshot into SQLite/PostgreSQL
+python -m scripts.pipeline load data/synthetic
+
+# Run full backend, pipeline, and security test suite
+python -m pytest tests/test_decisionpilot.py -q`
 
   return (
     <section id="sec-etl-pipeline">
@@ -54,7 +57,7 @@ pytest tests/test_pipeline.py -v`
       </h2>
 
       <p className="lead">
-        Data quality is the prerequisite of trustworthy AI. DecisionPilot AI employs a deterministic 7-step data engineering pipeline (<code>scripts/pipeline.py</code>) to clean, reconcile, and validate enterprise data before any model training or inferencing.
+        Data quality is the prerequisite of trustworthy AI. DecisionPilot AI employs a deterministic validation and loading pipeline (<code>scripts/pipeline.py</code>) across 7 integrity stages before any model training or inferencing.
       </p>
 
       {/* 7-Step Pipeline list */}

@@ -2,13 +2,13 @@ import { CodeBlock } from '../components/CodeBlock'
 import { Calendar, ShieldAlert, GitBranch, Terminal } from 'lucide-react'
 
 export function Section07Training() {
-  const trainCli = `# Run model training across all targets and SKUs
-python -m scripts.train --dataset-id f32e87e3a5744333ff98d3bf --output-dir artifacts
+  const trainCli = `# Run chronological model training and evaluation across all targets and SKUs
+python -m scripts.train --out artifacts
 
-# Expected output:
-# [INFO] Chronological split: Train (509 days) | Val (110 days) | Test (110 days)
-# [INFO] Evaluating SKU P001: LightGBM MAE = 2.68 vs Baseline MAE = 3.85 (beat > 2%) -> SELECTED
-# [INFO] Model bundle dp-1.1 serialized to artifacts/f32e87e3a5744333ff98d3bf.joblib`
+# Output artifact written per active dataset fingerprint:
+#   artifacts/f32e87e3a5744333ff98d3bf.joblib
+# Evaluation report updated at:
+#   artifacts/MODEL_EVALUATION.md`
 
   return (
     <section id="sec-training-workflow">

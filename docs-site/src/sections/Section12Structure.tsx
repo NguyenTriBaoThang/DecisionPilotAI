@@ -43,7 +43,7 @@ export function Section12Structure() {
             AI &amp; Scripts (ai_service/ &amp; scripts/)
           </div>
           <p className="card-desc">
-            Pure Python algorithms for LightGBM training, Isolation Forest anomaly scoring, and 7-stage data pipeline validation.
+            Pure Python modules for 17-feature LightGBM training, 56-day trailing hybrid anomaly scoring, and deterministic 6-table CSV ETL validation.
           </p>
         </div>
       </div>

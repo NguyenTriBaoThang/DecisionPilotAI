@@ -15,7 +15,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald?style=for-the-badge)](./LICENSE)
 
 <p align="center">
-  <a href="https://nguyentribaothang.github.io/DecisionPilotAI/"><strong>Explore Technical Documentation (GitHub Pages)</strong></a>
+  <a href="https://nguyentribaothang.github.io/DecisionPilotAI/"><strong>Documentation Portal (GitHub Pages)</strong></a>
+  &nbsp;•&nbsp;
+  <a href="https://nguyentribaothang.github.io/DecisionPilotAI/app/"><strong>Live Interactive Demo</strong></a>
   &nbsp;•&nbsp;
   <a href="./ARCHITECTURE.md"><strong>System Architecture</strong></a>
   &nbsp;•&nbsp;
@@ -66,7 +68,7 @@ Query Ingestion       Anomaly Detection      Forecasting (90%)       3D Sandbox 
 - [Executive Summary](#executive-summary)
 - [The Business Problem & Our Solution](#the-business-problem--our-solution)
 - [Challenge Alignment — Data & Decision Intelligence](#challenge-alignment--data--decision-intelligence)
-- [Core Workspaces & Capabilities](#core-workspaces--capabilities)
+- [Core Workspaces & Documentation Portal](#core-workspaces--documentation-portal)
 - [Product Visual Showcase](#product-visual-showcase)
 - [System Architecture](#system-architecture)
 - [AI & Machine Learning Foundations](#ai--machine-learning-foundations)
@@ -112,38 +114,46 @@ DecisionPilot AI was submitted under the **LIKELION — AI for Business Innovati
 | :--- | :--- | :--- | :--- |
 | **1. AI converts natural language questions into data reports**<br/>*(AI chuyển câu hỏi bằng ngôn ngữ tự nhiên thành báo cáo dữ liệu)* | **Ask Business Data / Copilot**<br/>[`ai_service/llm_orchestrator.py`](./ai_service/llm_orchestrator.py)<br/>[`backend/app/main.py`](./backend/app/main.py) | • Rule & LLM intent classification (Gemini / OpenAI / Local).<br/>• Questions that contain SQL or fall outside the supported scope are refused; no model-written SQL is ever executed.<br/>• Zero-hallucination deterministic database calculation.<br/>• Dynamic chart generation and structured JSON KPIs. | Replaces hours of manual Excel pivot compiling with audited business reports delivered in under **1.43 seconds** (46 curated EN/VI cases on local rules: 100% pass; median 1.43 s; Gemini/OpenAI paths are not part of this benchmark). |
 | **2. AI analyzes revenue and detects significant business anomalies**<br/>*(AI phân tích doanh thu và nhận diện các biến động đáng chú ý)* | **Anomaly Center & Revenue Diagnostics**<br/>[`ai_service/anomaly.py`](./ai_service/anomaly.py)<br/>[`backend/app/analytics.py`](./backend/app/analytics.py) | • Multidimensional **Isolation Forest** outlier isolation.<br/>• Past-only trailing baseline (56-day window, 7-day exclusion).<br/>• Rolling **Z-Score** and IQR bounds.<br/>• Waterfall variance decomposition by SKU and marketing channel. | Flags abnormal ad spend (Facebook spend: **100% precision, 82% recall**). Revenue-contraction recall is only **38%** on the synthetic test and the app shows this limitation next to the alerts. |
-| **3. AI forecasts product or service demand based on historical data**<br/>*(AI dự báo nhu cầu sản phẩm hoặc dịch vụ dựa trên dữ liệu lịch sử)* | **Forecast Center**<br/>[`ai_service/forecasting.py`](./ai_service/forecasting.py)<br/>[`artifacts/MODEL_EVALUATION.md`](./artifacts/MODEL_EVALUATION.md) | • Chronological 70/15/15 time-series partition.<br/>• **LightGBM** regressor trained with 14 engineered point-in-time features (lags 7/14/28, rolling stats, calendar events).<br/>• Strict **2% Rule Gate** against Seasonal Naive and Moving Average baselines.<br/>• Multi-quantile residual calibration for 90% confidence bands. | Supports stock and cash planning. Enterprise-wide revenue forecast: **WAPE 24.1%** (moving average is selected because LightGBM does not clear the 2% gate). SKU P001: LightGBM, **WAPE 41.9%**, **92.9%** interval coverage. |
+| **3. AI forecasts product or service demand based on historical data**<br/>*(AI dự báo nhu cầu sản phẩm hoặc dịch vụ dựa trên dữ liệu lịch sử)* | **Forecast Center**<br/>[`ai_service/forecasting.py`](./ai_service/forecasting.py)<br/>[`artifacts/MODEL_EVALUATION.md`](./artifacts/MODEL_EVALUATION.md) | • Chronological 70/15/15 time-series partition.<br/>• **LightGBM** regressor trained with 17 point-in-time features (lags 1/7/14/28, 7/14/28d rolling mean/std, 7d growth, calendar flags, scale).<br/>• Strict **>2% Validation MAE Gate** against Seasonal Naive and Moving Average baselines.<br/>• Empirical residual calibration (1–7d & 8–30d buckets) for 90% confidence bands. | Supports stock and cash planning. Enterprise-wide 30d revenue forecast: **WAPE 24.14%** (moving average is selected because LightGBM does not clear the 2% gate). SKU P001: LightGBM, **WAPE 41.87%**, **92.86%** interval coverage. |
 | **4. AI compares business scenarios to support strategic decision making**<br/>*(AI so sánh các kịch bản kinh doanh để hỗ trợ ra quyết định)* | **3D Scenario Simulator**<br/>[`ai_service/scenario.py`](./ai_service/scenario.py)<br/>[`frontend/src/features/scenario-simulator/`](./frontend/src/features/scenario-simulator/) | • Price-sensitivity demand response, linear in the percentage price change: $Q = Q_0 \cdot \max(0, 1 + \varepsilon \, \Delta P/P_0)$ (P001 $\varepsilon = -1.1$, catalog assumption; users can override it).<br/>• Concave advertising response $R = R_0 \cdot (\text{budget ratio})^{\alpha}$ (default $\alpha = 0.65$).<br/>• Lead-time replenishment buffer modeling.<br/>• Three.js WebGL spatial landscape and multi-scenario comparison matrix. | Shows the volume-versus-margin trade-off before a discount is applied. Scenario estimates are conditional: in the holdout replay the price scenario is about equal to the baseline (WAPE 24.0% vs 24.2%) and the marketing scenario is worse (33.0% vs 25.4%); see `artifacts/scenario_backtest.json`. |
 
 ---
 
-## 🖥️ Core Workspaces & Capabilities
+## 🖥️ Core Workspaces & Documentation Portal
 
-The application provides six dedicated workspaces designed for distinct operational roles:
+DecisionPilot AI connects six primary operational workspaces with administrative views inside a closed-loop workflow (`Alert -> Investigate in Ask (/ask?q=...) -> Recommendation -> Try First in Simulator -> Transactional Decision Log`):
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
 │                                   DECISIONPILOT AI                                     │
 ├────────────────────┬────────────────────┬────────────────────┬─────────────────────────┤
 │ 1. Executive       │ 2. Ask Business    │ 3. Anomaly Radar   │ 4. Forecast Center      │
-│    Dashboard       │    Copilot         │    Center          │                         │
-│ • Financial KPIs   │ • NLQ to SQL       │ • Isolation Forest │ • LightGBM Multi-Quant  │
-│ • Gross Margin     │ • 1.43s Latency    │ • Rolling 3-Sigma  │ • 90% Confidence Bands  │
-│ • ROAS & AOV       │ • Zero Mutation    │ • Waterfall Decomp │ • 7-day / 30-day Horizon│
+│    Dashboard (/)   │    Copilot (/ask)  │    (/anomalies)    │    (/forecast)          │
+│ • Financial KPIs   │ • Typed Intent API │ • Isolation Forest │ • LightGBM vs Baselines │
+│ • Gross Margin     │ • 1.43s Latency    │ • 56d Shifted IQR  │ • 90% Confidence Bands  │
+│ • ROAS & AOV       │ • Fixed Read Tools │ • Waterfall Decomp │ • 7-day / 30-day Horizon│
 ├────────────────────┴────────────────────┴────────────────────┴─────────────────────────┤
-│ 5. 3D Scenario Simulator                │ 6. Actionable Recommendations & Audit        │
-│ • Linear Price Response (ε = -1.1)     │ • Prioritized Strategy Playbooks             │
-│ • Concave Ad-Spend Response (α=0.65)     │ • Estimated P&L Delta Impact                 │
-│ • Three.js WebGL Spatial Elevation      │ • Human-in-the-Loop Accept/Reject Governance │
+│ 5. 3D Scenario Simulator (/scenarios)   │ 6. Recommendations & Audit (/recommendations)│
+│ • Linear-% Price Elasticity (P001 -1.1) │ • Prioritized Strategy Playbooks             │
+│ • Concave Ad-Spend Response (α = 0.65)  │ • Shared recommendation_id Decision Binding  │
+│ • Three.js WebGL Spatial Elevation      │ • Trigger-Protected audit_events Governance  │
 └─────────────────────────────────────────┴──────────────────────────────────────────────┘
 ```
 
-1. **Executive Dashboard (`/`):** Instant 360-degree financial pulse of the enterprise. Tracks Gross Revenue, Net Profit, Gross Margin %, Total Orders, Average Order Value (AOV), Marketing ROAS, and Warehouse Stock on Hand against previous periods.
-2. **Ask AI Copilot (`/ask`):** Conversational intelligence interface allowing non-technical staff to query transactional data. Synthesizes read-only SQL, executes calculations deterministically, and renders interactive breakdown charts.
-3. **Anomaly Center (`/anomalies`):** Automated surveillance radar ranking operational irregularities by severity (`Critical`, `High`, `Medium`). Provides exact observed versus expected baselines and decomposes root-cause drivers.
-4. **Forecast Center (`/forecast`):** Multi-horizon projection suite supporting aggregated business revenue, order volume, or SKU-specific demand curves with shaded 90% uncertainty envelopes.
-5. **3D Scenario Simulator (`/scenarios`):** Interactive microeconomic What-If sandbox powered by Three.js WebGL. Evaluates pricing discount levers, advertising reallocation, and replenishment lead times against an evidence-based comparison matrix.
-6. **Actionable Recommendations & Audit (`/recommendations`):** Prescriptive recommendation feed directly bridging diagnostic findings with operational actions. Includes human approval buttons (`Accept` / `Reject`) and logs decisions into an immutable audit trail.
+1. **Executive Dashboard (`/`):** Instant 360-degree financial pulse tracking Gross Revenue, Gross Profit, Margin %, Orders, AOV, Marketing ROAS, and inventory status, with one-click deep links into **Ask AI Copilot** (`?q=...`).
+2. **Ask AI Copilot (`/ask`):** Conversational intelligence interface allowing staff to query business performance in English or Vietnamese. Maps each prompt to a strict Pydantic `Intent`, runs fixed parameterized analytics tools inside a read-only DB session (never model-written SQL), and renders charts + computation trace.
+3. **Anomaly Center (`/anomalies`):** Surveillance radar ranking operational irregularities by severity (`Critical`, `High`, `Medium`) against a 56-day trailing baseline (7-day exclusion), with observed vs. expected baselines and additive driver decomposition.
+4. **Forecast Center (`/forecast`):** 7-day and 30-day projections across aggregate revenue, orders, unit demand, category, or individual SKUs with empirical 90% prediction intervals and >2% baseline-gate provenance.
+5. **3D Scenario Simulator (`/scenarios`):** Interactive microeconomic What-If sandbox powered by Three.js WebGL (`overview`, `focus`, `compare` modes) evaluating pricing discounts, ad-spend reallocation, and replenishment lead times.
+6. **Recommendations & Decision Log (`/recommendations`):** Prescriptive recommendation feed bridged directly with simulated scenarios. Recording `Accept` or `Reject` in the simulator with an active `recommendation_id` atomically logs both `scenario_feedback` and `recommendation_feedback` in one database transaction into trigger-protected `audit_events`.
+7. **Workspace Admin & Embedded Views (`/data-sources`, `/settings`, `/docs`, `/landing`):** Authenticated ZIP/XLSX snapshot replacement (up to 40 MiB), persisted EN/VI language (default `vi`) & VND formatting preferences, and an embedded architecture summary.
+
+### Multi-Page Technical Documentation Portal (`https://nguyentribaothang.github.io/DecisionPilotAI/`)
+
+The GitHub Pages site (`docs-site/`) is structured as a dedicated multi-page portal rather than a single long scrolling document:
+- **Portal Home (`/`):** Dedicated landing overview introducing the **Ask -> Understand -> Predict -> Simulate -> Decide** workflow, interactive cards for Track 5 capabilities, and a categorized directory of all 17 chapters.
+- **Paginated Documentation (`/docs/<chapter>`):** 17 focused single-chapter pages (`01`..`16` plus `05★ Data & Decision Intelligence`) with top navigation, active breadcrumb (`Page X of 17`), Previous/Next page buttons, dynamic per-page Table of Contents, interactive Track 5 tabs (`?tab=ask|analyze|forecast|simulate`), and instant **Ctrl+K** client-side search.
+- **Hosted Interactive Demo (`/app/`):** Live static SPA preview backed by automatic fallback to verified `dp-1.1` / `f32e87e3a5744333ff98d3bf` demo payloads when no backend server is attached.
 
 ---
 
@@ -157,7 +167,7 @@ The application provides six dedicated workspaces designed for distinct operatio
 | Scenario Sensitivity & Price Elasticity Trade-Off | Engineered Time-Series Feature Importance |
 | :---: | :---: |
 | <img src="./artifacts/figures/10_scenario_sensitivity.png" alt="Scenario Sensitivity Curve" width="480" /> | <img src="./artifacts/figures/09_feature_importance.png" alt="Feature Importance Ranking" width="480" /> |
-| *Simulated P&L response curve identifying the optimal profit margin versus the volume loss trap.* | *Relative information gain ranking across 14 lag, rolling window, and seasonal calendar features.* |
+| *Simulated P&L response curve identifying the optimal profit margin versus the volume loss trap.* | *Relative information gain ranking across 17 lag, rolling window, growth, scale, and calendar features.* |
 
 ---
 
@@ -201,7 +211,7 @@ flowchart TB
     subgraph Storage["5. Physical Storage & Registry"]
         RelationalDB[("PostgreSQL 16 (Production) / SQLite (Local)")]
         ModelRegistry[("Trained Model Registry: artifacts/<dataset_id>.joblib")]
-        AuditLogStore[("Immutable Audit Table: audit")]
+        AuditLogStore[("Trigger-Protected Decision Log: audit_events & simulation_runs")]
         SyntheticData[("Synthetic Source: data/synthetic/*.csv")]
     end
 
@@ -232,12 +242,12 @@ DecisionPilot AI deliberately combines empirical machine learning with microecon
   $$\Delta M = \sum_{d \in D} \text{Contribution}(d)$$
 
 ### 3. LightGBM Time-Series Forecasting & The 2% Rule Selection Gate
-- **Feature Engineering:** Extracts 14 point-in-time features strictly avoiding future leakage:
-  - Lag features: $t-7, t-14, t-28$.
-  - Rolling window statistics: $\mu_{7}, \sigma_{7}, \mu_{28}, \sigma_{28}$.
-  - Calendar cyclicality: Day of week, month, weekend indicator, statutory holiday flag, major sale event flag.
-- **The 2% Rule Selection Gate:** A candidate LightGBM model is promoted over simple baselines (Seasonal Naive and Moving Average) **only if holdout validation MAE beats the better baseline by more than 2.00%**.
-- **90% Confidence Interval Calibration:** Computes empirical multi-quantile residuals ($q = 0.05, 0.95$) over separate validation segments to deliver reliable prediction intervals.
+- **Feature Engineering:** Extracts 17 point-in-time features strictly avoiding future leakage (`ai_service/features.py`):
+  - Lag features: `lag_1`, `lag_7`, `lag_14`, `lag_28`.
+  - Rolling window statistics: `mean_7`, `std_7`, `mean_14`, `std_14`, `mean_28`, `std_28`, plus 7-day momentum `growth_7`.
+  - Calendar & scale encoding: `weekday`, `month`, `quarter`, `weekend`, `holiday`, and `scale` (`log1p(train_mean)`).
+- **The >2% Validation MAE Gate:** A candidate LightGBM model is promoted over simple baselines (Seasonal Naive and Moving Average) **only if holdout validation MAE beats the better baseline by strictly more than 2.00%**.
+- **90% Confidence Interval Calibration:** Computes empirical residual quantile bounds over separate validation segments (split into `1–7d` and `8–30d` lead buckets) at nominal 90% coverage.
 
 ### 4. What-If Scenario Simulation
 - **Price Elasticity (linear response):** Models how demand reacts to a price change:
@@ -255,12 +265,14 @@ The system is validated against a comprehensive, reproducible synthetic enterpri
 
 | Relational Table | Record Count | Temporal Coverage | Description |
 | :--- | :---: | :---: | :--- |
-| `calendar_events` | 730 days | 2024-10-01 to 2026-09-30 | Full 2-year calendar with day-of-week, statutory holidays, and commercial mega-sale days. |
-| `products` | 50 SKUs | Static catalog | Physical and digital SKUs across 5 categories with unit cost, list price, and supplier lead time. |
-| `customers` | 10,000 users | Active cohort | Segmented into High-Value, Returning, and Occasional shoppers across Hanoi, HCMC, and Da Nang. |
-| `marketing_campaigns` | 2,920 records | Daily ad spend | Daily spend, impressions, clicks, leads, and attributed orders across Facebook, Google, and TikTok. |
-| `sales_transactions` | 50,000 orders | 2-year history | Transaction-level sales records with quantity, applied discount, unit cost, and gross profit. |
-| `inventory_daily` | 24,820 records | Daily warehouse log | Opening stock, inbound supplier receipts, units sold, closing stock, and stockout flags. |
+| `calendar_events` | 730 days | 2024-10-01 to 2026-09-30 | Full 2-year calendar with day-of-week, statutory holidays, and promotional event flags. |
+| `products` | 50 SKUs | Static catalog | 34 physical SKUs and 16 services across 6 categories with unit cost, list price, elasticity, and lead time. |
+| `customers` | 10,000 users | Active cohort | 4 segments (`Returning`, `Individual`, `Corporate`, `Price-sensitive`) across 4 regions (`HCMC`, `Hanoi`, `Da Nang`, `Can Tho`). |
+| `marketing_campaigns` | 2,920 records | Daily ad spend | Daily spend, impressions, clicks, leads, and attributed orders across `Facebook Ads`, `Google Ads`, `TikTok Ads`, and `Email`. |
+| `sales_transactions` | 50,000 orders | 2-year history | Transaction-level records across `Online`, `Retail`, and `B2B` channels with integer VND cost and gross profit checks. |
+| `inventory_daily` | 24,820 records | Daily warehouse log | 34 physical SKUs × 730 days tracking opening stock, receipts, units sold, closing stock, and stockout flags. |
+
+*(Plus 3 system persistence tables managed by Alembic: `dataset_metadata`, `simulation_runs`, and `audit_events`.)*
 
 ```text
 DATA PIPELINE:
@@ -350,7 +362,7 @@ docker compose up --build
 Access the application in your browser:
 - 🌐 **Web Application:** [http://localhost:8080](http://localhost:8080)
 - 📚 **Interactive Swagger API Docs:** [http://localhost:8080/api/docs](http://localhost:8080/api/docs)
-- 🩺 **Health Check Endpoint:** [http://localhost:8080/health](http://localhost:8080/health)
+- 🩺 **Health Check Endpoint:** [http://localhost:8080/api/health](http://localhost:8080/api/health)
 
 *(The database automatically runs Alembic migrations and bootstraps 50,000 synthetic records on first startup).*
 
@@ -425,7 +437,7 @@ The FastAPI backend exposes 16 structured REST endpoints with complete OpenAPI 3
 | `GET` | `/audit` | Immutable audit trail log recording all analytical queries, actions, and decisions. |
 | `POST` | `/import` | Secure snapshot ingestion endpoint protected by authorization token. |
 
-> Complete schema definitions, request payloads, and curl snippets are documented in [`docs/API.md`](./docs/API.md) and on the live [Swagger UI](http://127.0.0.1:8000/api/docs).
+> Complete schema definitions, request payloads, and curl snippets are documented in [`docs/API.md`](./docs/API.md) and on the live Swagger UI (`http://127.0.0.1:5173/api/docs` via Vite proxy, `http://localhost:8080/api/docs` via Docker Compose, or `http://127.0.0.1:8000/docs` directly on Uvicorn).
 
 ---
 
@@ -435,56 +447,51 @@ The FastAPI backend exposes 16 structured REST endpoints with complete OpenAPI 3
 DecisionPilotAI/
 ├── .github/                       # GitHub workflows, CI/CD pipeline, and community templates
 │   └── workflows/
-│       ├── ci.yml                 # Automated testing pipeline (Python 3.11-3.13, Node 22)
-│       └── deploy-pages.yml       # GitHub Pages deployment for technical documentation
+│       ├── ci.yml                 # 5-job CI pipeline (frontend, docs-check, backend sqlite/postgres, E2E, docker)
+│       └── deploy-pages.yml       # Unified GitHub Pages deploy: docs-site (/) + live demo SPA (/app/)
 ├── ai_service/                    # Core AI & Machine Learning services
-│   ├── anomaly.py                 # Hybrid Isolation Forest and rolling Z-score detection
-│   ├── features.py                # 14-feature point-in-time time-series matrix constructor
-│   ├── forecasting.py             # LightGBM regressor and baseline models
-│   ├── llm_orchestrator.py        # Intent router (local rules + optional LLM), refusal rules, answer tools
-│   ├── root_cause.py              # Waterfall variance decomposition engine
-│   └── scenario.py                # Price elasticity, ad-spend response and inventory simulation
+│   ├── anomaly.py                 # Hybrid Isolation Forest, rolling 56d shifted IQR/Z-score, 7d contraction & stockout rules
+│   ├── features.py                # 17-feature point-in-time time-series matrix constructor
+│   ├── forecasting.py             # LightGBM regressor and baseline models (>2% validation MAE gate)
+│   ├── llm_orchestrator.py        # Intent router (local rules + optional LLM), BLOCKED guard, fixed answer tools
+│   ├── root_cause.py              # Additive driver contribution decomposition engine
+│   └── scenario.py                # Price elasticity, power-law ad-spend response and inventory simulation
 ├── backend/                       # Production FastAPI backend application
-│   ├── alembic/                   # Relational database migration scripts
+│   ├── alembic/                   # Relational migrations (0001_initial, 0002_decision_integrity triggers)
 │   └── app/
-│       ├── analytics.py           # SQL analytical aggregation and KPI engine
-│       ├── db.py                  # SQLAlchemy ORM models and database connection pools
-│       ├── main.py                # REST API router endpoints and middleware
-│       ├── schemas.py             # Pydantic v2 domain schemas and data transfer objects
-│       └── services.py            # Bridge layer orchestrating DB queries and AI modules
+│       ├── analytics.py           # Read-only parameterized SQLAlchemy Core analytical engine
+│       ├── db.py                  # SQLAlchemy schema, read/write connections, advisory locks
+│       ├── main.py                # 16 REST API routes, RBAC token middleware, security headers
+│       ├── schemas.py             # Pydantic v2 strict domain schemas (extra="forbid")
+│       └── services.py            # Bridge layer orchestrating DB queries, artifacts, and atomic feedback
 ├── frontend/                      # Modern React 19 Single-Page Web Application
+│   ├── e2e/                       # Playwright E2E specs (workspace.spec.ts, demo-flow.spec.ts)
 │   ├── src/
-│   │   ├── components/            # Reusable UI widgets, bilingual switcher, stepper
-│   │   ├── features/              # 3D Scenario Simulator (Three.js WebGL canvas)
+│   │   ├── components/            # Reusable UI widgets, bilingual switcher, Landing & TechnicalDocs views
+│   │   ├── features/              # 3D Scenario Simulator (Three.js WebGL canvas & interactive tabs)
+│   │   ├── utils/investigate.ts   # Cross-workspace deep-link helper (?q=...)
 │   │   ├── Dashboard.tsx          # Executive Command Center and financial charts
-│   │   ├── WorkspacePages.tsx     # 5 core operational workspaces
-│   │   ├── preferences.tsx        # Bilingual localization provider (VI / EN)
-│   │   └── api.ts                 # Typed HTTP client communicating with backend
-│   └── package.json               # Frontend dependencies and build scripts
-├── docs-site/                     # Standalone GitHub Pages Technical Documentation Site
-│   ├── src/                       # 16 in-depth documentation chapters & interactive tabs
-│   └── vite.config.ts             # Static documentation build configuration
-├── docs/                          # Detailed engineering specifications
-│   ├── ARCHITECTURE.md            # In-depth 5-tier system design specification
-│   ├── API.md                     # Complete REST API reference
-│   ├── DATA_DICTIONARY.md         # Schema definitions for all 6 relational tables
-│   ├── AI_SAFETY.md               # AI safety bounds, refuse protocol, and grounding
-│   └── operations.md              # Production deployment and operations handbook
+│   │   ├── WorkspacePages.tsx     # Ask, Anomaly, Forecast, Recommendations & Audit workspaces
+│   │   ├── preferences.tsx        # Bilingual localization provider (VI default / EN) & VND formatter
+│   │   └── api.ts                 # Typed HTTP client with GitHub Pages offline demo fallback
+│   └── package.json               # Frontend dependencies and build/test scripts
+├── docs-site/                     # Standalone Multi-Page GitHub Pages Technical Documentation Portal
+│   ├── src/                       # HomePage + 17 paginated chapters (01..16 + Track 5 interactive showcase)
+│   └── vite.config.ts             # Static documentation portal build configuration
+├── docs/                          # Engineering specifications, API/schema references & audit reports
 ├── data/synthetic/                # 6 verified CSV datasets (50,000 transactions, 730 days)
-├── artifacts/                     # Trained model weights, evaluation reports, and figures
-│   ├── MODEL_EVALUATION.md        # Comprehensive benchmark evaluation report
-│   ├── query_benchmark.json       # 46-case natural language query benchmark suite
-│   ├── scenario_backtest.json     # Holdout conditional replay backtest results
-│   └── figures/                   # 10 generated evaluation and feature importance charts
-├── scripts/                       # Operational management and automation scripts
-│   ├── bootstrap.py               # Populates database from CSV snapshots
-│   ├── dev.ps1                    # Unified Windows local dev launcher
-│   └── train.py                   # Automated LightGBM retraining script
-├── docker-compose.yml             # Multi-container Docker orchestration
-├── Dockerfile                     # Multi-stage production container image
+├── artifacts/                     # Trained model bundles (dp-1.1), evaluation metrics, and 10 figures
+├── scripts/                       # generate.py, pipeline.py, train.py, benchmark.py, bootstrap.py, dev.ps1
+├── report/                        # Competition slide deck materials & demo voiceover script
+├── tests/                         # Pytest integration suite & 46-case NL benchmark
+├── CONTEXT.md                     # Plain-language domain glossary & honesty guidelines
+├── run.bat                        # Windows one-click launch helper (invokes scripts/dev.ps1)
+├── docker-compose.yml             # Multi-container PostgreSQL 16 + FastAPI + Nginx stack
+├── Dockerfile                     # Multi-stage production backend image
 ├── requirements.txt               # Strict Python runtime dependency specifications
 ├── ARCHITECTURE.md                # System Architecture specification
 ├── COMPETITION_SUBMISSION.md      # Official LIKELION 2026 competition proposal
+├── MODEL_VERSIONING.md            # Model lifecycle & artifact governance policy
 └── LICENSE                        # MIT License
 ```
 
@@ -511,12 +518,12 @@ DecisionPilot AI is designed around strict principles of data privacy, defensive
   - [x] Executive Dashboard with prior-period comparison and KPI sparklines.
   - [x] Natural language querying with intent routing and read-only analytics tools (1.43s median latency on local rules).
   - [x] Hybrid anomaly detection combining Isolation Forest, rolling Z-scores and IQR bounds.
-  - [x] LightGBM demand forecasting with 90% confidence intervals (passed 2% Rule Gate).
-  - [x] What-If Simulator with price elasticity, diminishing-returns advertising response and lead-time inventory constraints.
+  - [x] LightGBM demand forecasting with 90% empirical intervals (selected for top SKU `P001` via the >2% validation MAE gate; `moving_average` retained where aggregate baselines remain tighter).
+  - [x] What-If Simulator with linear-% price elasticity, diminishing-returns advertising response and lead-time inventory constraints, atomically linked with recommendations via `recommendation_id`.
   - [x] Three.js WebGL spatial holographic data visualization.
-  - [x] Full bilingual support (Vietnamese & English).
-  - [x] One-click Docker Compose and Windows deployment scripts.
-  - [x] GitHub Pages Technical Documentation website.
+  - [x] Full bilingual support (Vietnamese default & English toggle).
+  - [x] One-click Docker Compose (`docker-compose.yml`) and Windows (`run.bat` / `scripts/dev.ps1`) launchers.
+  - [x] Multi-page GitHub Pages Technical Documentation Portal (`/`) + hosted SPA Demo (`/app/`).
 
 - [ ] **v1.1.0 (In Progress — Q1 2027):**
   - [ ] Multi-tenant isolation for independent enterprise workspaces.

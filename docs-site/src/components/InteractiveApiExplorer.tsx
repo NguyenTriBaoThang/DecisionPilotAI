@@ -22,7 +22,7 @@ export function InteractiveApiExplorer() {
     }
   }
 
-  const curlCommand = `curl -X ${ep.method} "https://api.decisionpilot.ai/api${ep.path}" \\
+  const curlCommand = `curl -X ${ep.method} "http://localhost:8080/api${ep.path}" \\
   -H "Authorization: Bearer dpa_ws_demo_secret_token" \\
   -H "Content-Type: application/json"${
     ep.requestBody

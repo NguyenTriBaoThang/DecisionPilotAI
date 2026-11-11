@@ -16,7 +16,8 @@
 ## Verification Checklist
 - [ ] Python test suite passes: `python -m pytest -q`
 - [ ] Data pipeline validation passes: `python -m scripts.pipeline validate`
-- [ ] Frontend builds cleanly: `npm --prefix frontend run build`
+- [ ] Frontend tests and build pass: `npm --prefix frontend test && npm --prefix frontend run build`
+- [ ] Documentation portal builds cleanly: `npm --prefix docs-site run build`
 - [ ] Database migrations tested if schema was altered (`alembic upgrade head`)
 - [ ] Documentation updated if endpoints or parameters changed
 

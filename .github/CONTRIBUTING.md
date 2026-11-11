@@ -24,9 +24,14 @@ Thank you for your interest in contributing to **DecisionPilot AI**! We welcome 
      python -m pytest -q
      python -m scripts.pipeline validate
      ```
-   - Frontend typecheck and build:
+   - Frontend unit tests, typecheck and build:
      ```sh
+     npm --prefix frontend test
      npm --prefix frontend run build
+     ```
+   - Documentation portal build (`docs-site/`):
+     ```sh
+     npm --prefix docs-site run build
      ```
 5. **Open a Pull Request**: Submit your PR targeting `main` and fill in the PR checklist.
 

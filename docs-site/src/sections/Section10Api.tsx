@@ -3,8 +3,8 @@ import { CodeBlock } from '../components/CodeBlock'
 import { Terminal, Shield, Lock, FileCode } from 'lucide-react'
 
 export function Section10Api() {
-  const authExample = `# All authenticated requests require a workspace Bearer token
-curl -X GET "https://api.decisionpilot.ai/api/session" \\
+  const authExample = `# All authenticated requests require a workspace Bearer token when auth is enabled
+curl -X GET "http://localhost:8080/api/session" \\
   -H "Authorization: Bearer dpa_ws_demo_secret_token" \\
   -H "Accept: application/json"`
 

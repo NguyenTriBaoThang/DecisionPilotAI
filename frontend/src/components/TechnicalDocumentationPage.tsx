@@ -137,7 +137,7 @@ export function TechnicalDocumentationPage() {
                 <span>Zero-Hallucination AI Grounding Policy</span>
               </h4>
               <p className="text-xs text-slate-300 leading-relaxed">
-                DecisionPilot AI strictly decouples Language Models from mathematical computation. The LLM only classifies executive intent and generates constrained SQL against an explicit 6-table allowlist. Every numerical figure displayed on screen originates deterministically from the database or LightGBM model output, complete with verifiable SQL execution traces.
+                DecisionPilot AI strictly decouples Language Models from mathematical computation. The intent parser classifies questions into a typed Pydantic schema and routes exclusively to fixed, tested read-only analytics tools via SQLAlchemy—never arbitrary LLM-written SQL. Every numerical figure originates deterministically from the database or versioned forecast bundles.
               </p>
             </div>
           </div>
@@ -181,22 +181,22 @@ export function TechnicalDocumentationPage() {
                     <td className="py-2 px-3 text-indigo-300 font-bold">customers</td>
                     <td className="py-2 px-3">customer_id</td>
                     <td className="py-2 px-3">—</td>
-                    <td className="py-2 px-3 text-emerald-400 font-bold">5,000</td>
-                    <td className="py-2 px-3 font-sans">Segments (New, Returning, High-Value, Corporate), LTV, region</td>
+                    <td className="py-2 px-3 text-emerald-400 font-bold">10,000</td>
+                    <td className="py-2 px-3 font-sans">Segments (Returning, Individual, Corporate, Price-sensitive), LTV, 4 regions</td>
                   </tr>
                   <tr>
                     <td className="py-2 px-3 text-indigo-300 font-bold">marketing_campaigns</td>
-                    <td className="py-2 px-3">campaign_id</td>
-                    <td className="py-2 px-3">—</td>
-                    <td className="py-2 px-3 text-emerald-400 font-bold">180</td>
-                    <td className="py-2 px-3 font-sans">Channels (Meta Ads, Google, TikTok), ad spend, impressions, ROAS</td>
+                    <td className="py-2 px-3">campaign_id, date</td>
+                    <td className="py-2 px-3">date</td>
+                    <td className="py-2 px-3 text-emerald-400 font-bold">2,920</td>
+                    <td className="py-2 px-3 font-sans">Channels (Facebook Ads, Google Ads, TikTok Ads, Email), spend &amp; ROAS</td>
                   </tr>
                   <tr>
                     <td className="py-2 px-3 text-indigo-300 font-bold">inventory_daily</td>
-                    <td className="py-2 px-3">id</td>
-                    <td className="py-2 px-3">product_id</td>
-                    <td className="py-2 px-3 text-emerald-400 font-bold">36,500</td>
-                    <td className="py-2 px-3 font-sans">Daily opening/closing stock, inbound deliveries, stockout flags</td>
+                    <td className="py-2 px-3">date, product_id</td>
+                    <td className="py-2 px-3">date, product_id</td>
+                    <td className="py-2 px-3 text-emerald-400 font-bold">24,820</td>
+                    <td className="py-2 px-3 font-sans">34 physical SKUs &times; 730 days: opening/closing stock, receipts, stockout_flag</td>
                   </tr>
                   <tr>
                     <td className="py-2 px-3 text-indigo-300 font-bold">calendar_events</td>
@@ -223,7 +223,7 @@ export function TechnicalDocumentationPage() {
               <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/60 space-y-2 text-xs">
                 <strong className="text-indigo-300 block font-bold text-sm">LightGBM Demand Regressor</strong>
                 <p className="text-slate-300 leading-relaxed">
-                  Trained across 14 temporal features: lag 1, 7, 14, 28 days; 7d/14d/28d rolling mean and standard deviation; growth momentum; and calendar encodings. Chronological train/val/test splits (70/15/15) prevent future data leakage.
+                  Trained across 17 causal temporal features: lag 1, 7, 14, 28 days; 7d/14d/28d rolling mean and standard deviation; growth_7; calendar encodings; and log1p(scale). Chronological Train/Val/Test splits and a 2% validation MAE selection gate prevent data leakage.
                 </p>
                 <div className="font-mono text-[11px] bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-emerald-400">
                   Revenue (all): WAPE 24.14% · MAE 34.58M ₫ · coverage 83.81%
@@ -273,7 +273,7 @@ export function TechnicalDocumentationPage() {
                   <span className="text-indigo-400 font-bold mr-2">POST</span>
                   <span className="text-white">/query</span>
                 </div>
-                <span className="text-slate-400 text-[11px] font-sans">Natural language inquiry with constrained SQL drilldown and trace</span>
+                <span className="text-slate-400 text-[11px] font-sans">Natural language inquiry routed to fixed read-only analytics tools</span>
               </div>
               <div className="p-3 rounded-xl border border-slate-800 bg-slate-900/50 flex items-center justify-between">
                 <div>
@@ -287,7 +287,7 @@ export function TechnicalDocumentationPage() {
                   <span className="text-indigo-400 font-bold mr-2">POST</span>
                   <span className="text-white">/forecast</span>
                 </div>
-                <span className="text-slate-400 text-[11px] font-sans">LightGBM daily point & 90% confidence interval projections</span>
+                <span className="text-slate-400 text-[11px] font-sans">LightGBM / baseline daily point & 90% confidence interval projections</span>
               </div>
               <div className="p-3 rounded-xl border border-slate-800 bg-slate-900/50 flex items-center justify-between">
                 <div>
@@ -299,9 +299,16 @@ export function TechnicalDocumentationPage() {
               <div className="p-3 rounded-xl border border-slate-800 bg-slate-900/50 flex items-center justify-between">
                 <div>
                   <span className="text-indigo-400 font-bold mr-2">POST</span>
+                  <span className="text-white">/scenarios/feedback</span>
+                </div>
+                <span className="text-slate-400 text-[11px] font-sans">Atomic scenario decision (accepted / rejected) linked to optional recommendation</span>
+              </div>
+              <div className="p-3 rounded-xl border border-slate-800 bg-slate-900/50 flex items-center justify-between">
+                <div>
+                  <span className="text-indigo-400 font-bold mr-2">POST</span>
                   <span className="text-white">/recommendations/feedback</span>
                 </div>
-                <span className="text-slate-400 text-[11px] font-sans">Human-in-the-loop executive sign-off (Approve / Reject) with audit log</span>
+                <span className="text-slate-400 text-[11px] font-sans">Executive sign-off (accepted / rejected) recorded in append-only audit ledger</span>
               </div>
             </div>
           </div>

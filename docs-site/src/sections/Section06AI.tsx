@@ -18,13 +18,12 @@ where:
   Results are conditional estimates, not verified causal effects.`
 
   const featureEngineering = `
-// 14 Engineered Chronological Forecasting Features (ai_service/forecasting.py)
+// 17 Engineered Chronological Forecasting Features (ai_service/features.py)
 [
-  "lag_1d", "lag_2d", "lag_7d", "lag_14d", "lag_28d",
-  "rolling_mean_7d", "rolling_std_7d",
-  "rolling_mean_28d", "rolling_std_28d",
-  "day_of_week", "month", "is_weekend",
-  "is_holiday", "is_major_sale_day"
+  "lag_1", "lag_7", "lag_14", "lag_28",
+  "mean_7", "std_7", "mean_14", "std_14", "mean_28", "std_28",
+  "growth_7", "weekday", "month", "quarter",
+  "weekend", "holiday", "scale"
 ]`
 
   return (

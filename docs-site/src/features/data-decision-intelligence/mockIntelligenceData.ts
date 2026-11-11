@@ -23,111 +23,111 @@ export const SAMPLE_QUERIES: QuerySample[] = [
   {
     id: 'q1',
     question: 'How is our business performing this month?',
-    intent: 'executive_kpi_summary',
-    sql: `SELECT 
-  SUM(gross_revenue) AS total_revenue,
-  SUM(gross_revenue - cogs) AS gross_profit,
-  ROUND(SUM(gross_revenue - cogs)::numeric / NULLIF(SUM(gross_revenue), 0), 4) AS gross_margin,
-  COUNT(DISTINCT id) AS total_orders
+    intent: 'action="kpi" · tool="kpi_summary"',
+    sql: `SELECT
+  SUM(revenue) AS total_revenue,
+  SUM(gross_profit) AS gross_profit,
+  ROUND(CAST(SUM(gross_profit) AS NUMERIC) / NULLIF(SUM(revenue), 0), 4) AS margin,
+  COUNT(transaction_id) AS orders
 FROM sales_transactions
-WHERE transaction_date BETWEEN '2026-09-01' AND '2026-09-30';`,
+WHERE date BETWEEN '2026-09-01' AND '2026-09-30';`,
     answer:
-      'Total gross revenue in September 2026 reached 1,428,500,000 ₫ with a gross profit of 524,000,000 ₫ (gross margin: 36.68%) across 3,420 completed orders. While revenue contracted -24.3% in the latter half of the month due to localized stockouts in HCMC, average order value remained resilient at 417,690 ₫.',
+      'Total gross revenue in September 2026 reached 3,377,500,000 ₫ (down 30.6% vs August baseline) with gross profit of 1,094,000,000 ₫. Channel breakdown highlights Online leading transaction share followed by Retail and B2B.',
     latencyMs: 1432,
     chartType: 'bar',
     chartData: [
-      { label: 'Shopee Mall', value: 620000000 },
-      { label: 'Direct Store', value: 485000000 },
-      { label: 'TikTok Shop', value: 215000000 },
-      { label: 'Website Direct', value: 108500000 },
+      { label: 'Online', value: 1620000000 },
+      { label: 'Retail', value: 1105000000 },
+      { label: 'B2B', value: 652500000 },
     ],
     sources: ['sales_transactions', 'calendar_events'],
     formulas: [
-      'gross_profit = gross_revenue - cogs',
-      'gross_margin = gross_profit / gross_revenue',
-      'aov = total_revenue / total_orders',
+      'gross_profit = revenue - total_cost',
+      'margin = gross_profit / revenue',
+      'aov = total_revenue / orders',
     ],
   },
   {
     id: 'q2',
     question: 'Why did revenue decrease?',
-    intent: 'diagnostic_root_cause_analysis',
-    sql: `SELECT 
-  p.sku,
-  p.name,
-  SUM(s.gross_revenue) AS revenue_sept,
-  SUM(s.units) AS units_sold
+    intent: 'action="explain" · tool="explain_change"',
+    sql: `SELECT
+  p.product_id,
+  p.product_name,
+  SUM(s.revenue) AS revenue_sept,
+  SUM(s.quantity) AS units_sold
 FROM sales_transactions s
-JOIN products p ON s.product_id = p.id
-WHERE s.region = 'Hồ Chí Minh'
-  AND s.transaction_date BETWEEN '2026-09-01' AND '2026-09-30'
-GROUP BY p.sku, p.name
+JOIN products p ON s.product_id = p.product_id
+WHERE s.region = 'HCMC'
+  AND s.date BETWEEN '2026-09-01' AND '2026-09-30'
+GROUP BY p.product_id, p.product_name
 ORDER BY revenue_sept DESC;`,
     answer:
-      'Root cause diagnosis identifies two simultaneous drivers: (1) SKU P003 (FocusCam Pro) suffered a 14-day supply stockout in the HCMC branch between Sept 12–25, causing a 68% drop in SKU sales (-62,000,000 ₫). (2) Facebook Ads spend increased 1.85x while visitor conversion rate dropped from 25% to 5.5%, eroding marketing ROAS from 4.12x down to 1.25x.',
+      'Diagnostic decomposition identifies converging pressures: HCMC transaction volume contracted alongside inventory stockout pressure on key SKUs, while Facebook Ads spend increased +84% (7.38M ₫/day vs 4.01M ₫ baseline) as attributed ROAS dropped toward 0.76x.',
     latencyMs: 2309,
     chartType: 'bar',
     chartData: [
       { label: 'P001 SmartDesk Mini', value: 420000000 },
-      { label: 'P002 ErgoChair Air', value: 280000000 },
-      { label: 'P003 FocusCam Pro (Stockout)', value: 108500000 },
-      { label: 'P004 UltraCable Type-C', value: 95000000 },
+      { label: 'P002 AirPure S', value: 280000000 },
+      { label: 'P003 FocusCam Pro', value: 108500000 },
+      { label: 'P004 WorkHub License', value: 95000000 },
     ],
     sources: ['sales_transactions', 'inventory_daily', 'marketing_campaigns'],
     formulas: [
       'revenue_delta = revenue_t - revenue_baseline',
-      'roas = attributed_revenue / ad_spend',
-      'conversion_rate = orders / clicks',
+      'roas = attributed_revenue / spend',
+      'conversion_rate = orders / leads',
     ],
   },
   {
     id: 'q3',
     question: 'Which products generate the highest profit?',
-    intent: 'product_profitability_leaderboard',
-    sql: `SELECT 
-  p.sku,
-  p.name,
+    intent: 'action="rank" · tool="rank_dimension"',
+    sql: `SELECT
+  p.product_id,
+  p.product_name,
   p.category,
-  SUM(s.gross_revenue - s.cogs) AS gross_profit,
-  ROUND(SUM(s.gross_revenue - s.cogs)::numeric / NULLIF(SUM(s.gross_revenue), 0), 4) AS margin
+  SUM(s.gross_profit) AS gross_profit,
+  ROUND(CAST(SUM(s.gross_profit) AS NUMERIC) / NULLIF(SUM(s.revenue), 0), 4) AS margin
 FROM sales_transactions s
-JOIN products p ON s.product_id = p.id
-GROUP BY p.sku, p.name, p.category
+JOIN products p ON s.product_id = p.product_id
+GROUP BY p.product_id, p.product_name, p.category
 ORDER BY gross_profit DESC
 LIMIT 5;`,
     answer:
-      'SKU P001 (SmartDesk Mini) is the top profit driver, generating 168,000,000 ₫ in gross profit (40.0% margin, 420 units sold). It is followed by P002 (ErgoChair Air) with 112,000,000 ₫ gross profit (40.0% margin) and P003 (FocusCam Pro) with 108,500,000 ₫ (35.0% margin).',
+      'SKU P001 (SmartDesk Mini) leads product profitability across the dataset window, followed by AirPure S (P002), FocusCam Pro (P003), and CarePlus Support (P005). Exact profit figures are aggregated directly via SQLAlchemy parameterized queries.',
     latencyMs: 1729,
     chartType: 'bar',
     chartData: [
       { label: 'SmartDesk Mini (P001)', value: 168000000, secondary: 420000000 },
-      { label: 'ErgoChair Air (P002)', value: 112000000, secondary: 280000000 },
+      { label: 'AirPure S (P002)', value: 112000000, secondary: 280000000 },
       { label: 'FocusCam Pro (P003)', value: 108500000, secondary: 310000000 },
-      { label: 'SoundBar Ultra (P005)', value: 84000000, secondary: 240000000 },
+      { label: 'CarePlus Support (P005)', value: 84000000, secondary: 240000000 },
     ],
     sources: ['sales_transactions', 'products'],
-    formulas: ['gross_profit = gross_revenue - cogs', 'margin = gross_profit / gross_revenue'],
+    formulas: ['gross_profit = revenue - total_cost', 'margin = gross_profit / revenue'],
   },
   {
     id: 'q4',
     question: 'Which region performs best?',
-    intent: 'regional_sales_breakdown',
-    sql: `SELECT 
+    intent: 'action="rank" · metric="revenue" · dimension="region"',
+    sql: `SELECT
   region,
-  SUM(gross_revenue) AS total_revenue,
-  COUNT(id) AS total_orders,
-  ROUND(AVG(gross_revenue), 0) AS avg_ticket
+  SUM(revenue) AS total_revenue,
+  COUNT(transaction_id) AS orders,
+  ROUND(AVG(revenue), 0) AS avg_ticket
 FROM sales_transactions
 GROUP BY region
 ORDER BY total_revenue DESC;`,
     answer:
-      'Hồ Chí Minh represents the largest market, contributing 685,000,000 ₫ (47.9% of total revenue) across 1,620 orders. Hà Nội follows with 480,000,000 ₫ (33.6%), and Đà Nẵng contributes 263,500,000 ₫ (18.5%). HCMC exhibits the highest average ticket size at 422,840 ₫.',
+      'Regional revenue rankings span all 4 core markets in DecisionPilot AI (HCMC, Hanoi, Da Nang, and Can Tho), topped by HCMC with Hanoi second.',
     latencyMs: 1145,
     chartType: 'bar',
     chartData: [
-      { label: 'Hồ Chí Minh', value: 685000000 },
-      { label: 'Hà Nội', value: 480000000 },
-      { label: 'Đà Nẵng', value: 263500000 },
+      { label: 'HCMC', value: 685000000 },
+      { label: 'Hanoi', value: 480000000 },
+      { label: 'Da Nang', value: 263500000 },
+      { label: 'Can Tho', value: 142000000 },
     ],
     sources: ['sales_transactions', 'customers'],
     formulas: ['regional_share = regional_revenue / total_revenue'],
@@ -182,7 +182,7 @@ export const ANOMALY_INCIDENTS: AnomalyIncident[] = [
       'High impression volume with saturated creative fatigue',
     ],
     suggestedAction:
-      'Cap daily Facebook ad budget at 4,000,000 ₫ and shift capital to Google Search and Shopee Mall ads.',
+      'Cap daily Facebook ad budget at 4,000,000 ₫ and shift capital to Google Ads and Email campaigns.',
   },
   {
     id: 'anom-03',

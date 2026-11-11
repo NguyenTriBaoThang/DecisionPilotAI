@@ -14,7 +14,7 @@ export function Section04Schema() {
       </h2>
 
       <p className="lead">
-        The data model is engineered in Third Normal Form (3NF) to guarantee referential integrity across multi-branch retail transactions, marketing spend, and warehouse inventory movements.
+        The data model is engineered in Third Normal Form (3NF) across 6 core relational business tables (plus 3 system tables: <code>dataset_metadata</code>, <code>audit_events</code>, and <code>simulation_runs</code>) to guarantee referential integrity across transactions, marketing spend, and inventory movements.
       </p>
 
       {/* Stats summary bar */}

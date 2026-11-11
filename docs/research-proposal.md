@@ -46,8 +46,8 @@ flowchart LR
     end
     
     subgraph ML["3. Machine Learning Core"]
-        IF["Isolation Forest<br/>Anomaly Detection"]
-        LGBM["LightGBM Regressor<br/>14 Temporal Features"]
+        IF["Isolation Forest<br/>56d Shifted Anomaly"]
+        LGBM["LightGBM Regressor<br/>17 Temporal Features"]
     end
     
     subgraph Econometric["4. Econometric Engine"]

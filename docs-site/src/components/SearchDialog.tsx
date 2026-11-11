@@ -4,16 +4,24 @@ import { NAV_SECTIONS } from '../data/site'
 import { API_ENDPOINTS } from '../data/api'
 import { ARCH_NODES } from '../data/architecture'
 import { RELATIONAL_TABLES } from '../data/schema'
-import { FORECAST_BENCHMARKS, ANOMALY_BENCHMARKS, COPILOT_BENCHMARKS } from '../data/benchmarks'
+import { COPILOT_BENCHMARKS, FORECAST_BENCHMARKS, ANOMALY_BENCHMARKS } from '../data/benchmarks'
+import { buildHref, type IntelTabId, type PageId } from '../routes'
 
 interface SearchItem {
   title: string
-  kind: 'Section' | 'API' | 'Architecture' | 'Schema' | 'Benchmark'
-  anchor: string
+  kind: 'Page' | 'API' | 'Architecture' | 'Schema' | 'Benchmark' | 'Showcase'
+  pageId: PageId
+  tab?: IntelTabId
+  hashId?: string
   snippet: string
 }
 
-export function SearchDialog({ onClose }: { onClose: () => void }) {
+interface SearchDialogProps {
+  onClose: () => void
+  onNavigate: (page: PageId, options?: { tab?: IntelTabId; hashId?: string }) => void
+}
+
+export function SearchDialog({ onClose, onNavigate }: SearchDialogProps) {
   const [query, setQuery] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -27,13 +35,48 @@ export function SearchDialog({ onClose }: { onClose: () => void }) {
   }, [onClose])
 
   const searchIndex: SearchItem[] = useMemo(() => {
-    const list: SearchItem[] = []
+    const list: SearchItem[] = [
+      {
+        title: 'Home Portal — DecisionPilot AI Overview & Workflow',
+        kind: 'Page',
+        pageId: 'home',
+        snippet: 'Landing page featuring Ask -> Understand -> Predict -> Simulate -> Decide flow and chapter directory.',
+      },
+      {
+        title: 'Track 5 Tab: Ask Business Data (Natural Language Analytics)',
+        kind: 'Showcase',
+        pageId: 'data-decision-intelligence',
+        tab: 'ask',
+        snippet: 'Typed intent classification routed to fixed read-only analytics tools with chart rendering.',
+      },
+      {
+        title: 'Track 5 Tab: Understand Business Performance & Anomalies',
+        kind: 'Showcase',
+        pageId: 'data-decision-intelligence',
+        tab: 'analyze',
+        snippet: 'Isolation Forest + 56-day trailing baseline robust Z-score anomaly radar and variance decomposition.',
+      },
+      {
+        title: 'Track 5 Tab: Forecast Demand & Revenue',
+        kind: 'Showcase',
+        pageId: 'data-decision-intelligence',
+        tab: 'forecast',
+        snippet: 'Chronological LightGBM forecaster with 17 features, 2% validation gate, and 90% intervals.',
+      },
+      {
+        title: 'Track 5 Tab: Scenario Simulation & Decisions',
+        kind: 'Showcase',
+        pageId: 'data-decision-intelligence',
+        tab: 'simulate',
+        snippet: 'Price elasticity, diminishing-returns advertising response, and inventory lead-time trade-offs.',
+      },
+    ]
 
     NAV_SECTIONS.forEach((s) => {
       list.push({
         title: `${s.num}. ${s.title}`,
-        kind: 'Section',
-        anchor: `#sec-${s.id}`,
+        kind: 'Page',
+        pageId: s.id,
         snippet: `${s.group} — ${s.blurb}`,
       })
     })
@@ -42,7 +85,7 @@ export function SearchDialog({ onClose }: { onClose: () => void }) {
       list.push({
         title: `${e.method} ${e.path}`,
         kind: 'API',
-        anchor: '#sec-api-reference',
+        pageId: 'api-reference',
         snippet: `${e.summary}. ${e.description}`,
       })
     })
@@ -51,7 +94,7 @@ export function SearchDialog({ onClose }: { onClose: () => void }) {
       list.push({
         title: n.label,
         kind: 'Architecture',
-        anchor: '#sec-architecture',
+        pageId: 'architecture',
         snippet: `${n.tier} — ${n.sub}. ${n.responsibility}`,
       })
     })
@@ -60,8 +103,26 @@ export function SearchDialog({ onClose }: { onClose: () => void }) {
       list.push({
         title: `Table: ${t.name} (${t.rowCount})`,
         kind: 'Schema',
-        anchor: '#sec-data-schema',
+        pageId: 'data-schema',
         snippet: `${t.description} Columns: ${t.columns.map((c) => c.name).join(', ')}`,
+      })
+    })
+
+    FORECAST_BENCHMARKS.forEach((f) => {
+      list.push({
+        title: `Forecast (${f.target} / ${f.scope}): ${f.wape} WAPE`,
+        kind: 'Benchmark',
+        pageId: 'benchmarks',
+        snippet: `Selected model: ${f.model}, MAE ${f.mae}, 90% coverage ${f.coverage}.`,
+      })
+    })
+
+    ANOMALY_BENCHMARKS.forEach((a) => {
+      list.push({
+        title: `Anomaly (${a.signal}): ${a.precision} Precision / ${a.recall} Recall`,
+        kind: 'Benchmark',
+        pageId: 'benchmarks',
+        snippet: `Method ${a.method}, F1 ${a.f1}, FPR ${a.fpr}.`,
       })
     })
 
@@ -69,7 +130,7 @@ export function SearchDialog({ onClose }: { onClose: () => void }) {
       list.push({
         title: `${b.metric} (${b.score})`,
         kind: 'Benchmark',
-        anchor: '#sec-benchmarks',
+        pageId: 'benchmarks',
         snippet: b.description,
       })
     })
@@ -85,12 +146,9 @@ export function SearchDialog({ onClose }: { onClose: () => void }) {
       .slice(0, 15)
   }, [query, searchIndex])
 
-  const handleSelect = (anchor: string) => {
+  const handleSelect = (item: SearchItem) => {
     onClose()
-    const el = document.querySelector(anchor)
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' })
-    }
+    onNavigate(item.pageId, { tab: item.tab, hashId: item.hashId })
   }
 
   return (
@@ -103,9 +161,9 @@ export function SearchDialog({ onClose }: { onClose: () => void }) {
             className="search-input"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search documentation, APIs, schema, benchmarks... (ESC to close)"
+            placeholder="Search chapters, APIs, schema, benchmarks... (ESC to close)"
           />
-          <button type="button" className="btn-copy" onClick={onClose}>
+          <button type="button" className="btn-copy" onClick={onClose} aria-label="Close search">
             <X size={16} />
           </button>
         </div>
@@ -118,15 +176,23 @@ export function SearchDialog({ onClose }: { onClose: () => void }) {
             filtered.map((item, idx) => (
               <li key={idx} className="search-result-item">
                 <a
-                  href={item.anchor}
+                  href={buildHref(item.pageId, { tab: item.tab, hashId: item.hashId })}
                   onClick={(e) => {
                     e.preventDefault()
-                    handleSelect(item.anchor)
+                    handleSelect(item)
                   }}
                 >
                   <div className="search-result-header">
                     <span className="search-result-title">{item.title}</span>
-                    <span className={`badge badge-${item.kind === 'API' ? 'cyan' : item.kind === 'Architecture' ? 'indigo' : 'green'}`}>
+                    <span
+                      className={`badge badge-${
+                        item.kind === 'API' || item.kind === 'Showcase'
+                          ? 'cyan'
+                          : item.kind === 'Architecture'
+                          ? 'indigo'
+                          : 'green'
+                      }`}
+                    >
                       {item.kind}
                     </span>
                   </div>
@@ -140,4 +206,3 @@ export function SearchDialog({ onClose }: { onClose: () => void }) {
     </div>
   )
 }
-

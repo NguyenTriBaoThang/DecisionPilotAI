@@ -36,7 +36,7 @@ export function TabAskData() {
           &ldquo;Turn natural language questions into actionable business reports.&rdquo;
         </p>
         <p style={{ color: '#CBD5E1', fontSize: '0.95rem', maxWidth: '850px', lineHeight: 1.6 }}>
-          Small and medium enterprises often waste days compiling manual Excel spreadsheets and pivot tables just to diagnose a metric change. DecisionPilot AI provides an executive conversational intelligence layer that translates plain business questions into audited, read-only SQL queries and grounded analytical charts in under 1.5 seconds.
+          Small and medium enterprises often waste days compiling manual Excel spreadsheets just to diagnose a metric change. DecisionPilot AI provides an executive conversational intelligence layer that classifies plain Vietnamese or English questions into typed intents and runs fixed, read-only analytics tools to produce grounded answers and interactive charts.
         </p>
       </div>
 
@@ -206,7 +206,7 @@ export function TabAskData() {
             Zero-Hallucination Grounding Architecture
           </div>
           <p className="card-desc">
-            The core LLM (orchestrated in <code>ai_service/llm_orchestrator.py</code>) is strictly prohibited from generating numerical predictions out of thin air. Instead, the model only outputs parameterized SQL queries. The database engine executes the query over immutable tables, and the resulting dataset is injected back into the context to generate the explanatory narrative.
+            The query orchestrator in <code>ai_service/llm_orchestrator.py</code> strictly prohibits guessing numbers or executing arbitrary model-written SQL. Instead, a typed Pydantic <code>Intent</code> router (<code>local_rules</code> default, or optional Gemini/OpenAI) invokes fixed, read-only analytics tools via SQLAlchemy, and every output metric traces directly to returned database evidence.
           </p>
         </div>
 

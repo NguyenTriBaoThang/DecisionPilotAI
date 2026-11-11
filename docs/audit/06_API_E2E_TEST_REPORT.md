@@ -1,73 +1,57 @@
 # DecisionPilot AI — API & End-to-End Test Report
 
 **Document ID:** AUD-06-API-TESTING  
-**Audit Date:** November 8, 2026  
-**Auditor:** QA Automation & Integration Lead  
-**Scope:** Backend HTTP Endpoints, Frontend Integration Tests, Browser Workflow  
+**Audit Date:** November 11, 2026  
+**Scope:** 16 FastAPI REST Endpoints, Frontend Vitest Suite, Playwright Browser Workflows, Backend Pytest Suite
 
 ---
 
-## 1. Backend REST API Matrix & Status
+## 1. Backend REST API Matrix ([`backend/app/main.py`](../../backend/app/main.py))
 
-All endpoints verified against OpenAPI 3.1 specification (`/openapi.json`):
+All 16 endpoints are exposed with OpenAPI documentation (`/api/docs` via Nginx/Vite proxy; `/docs` on direct Uvicorn) and enforce strict Pydantic v2 validation (`extra="forbid"`). When `WORKSPACE_ACCESS_TOKENS` is active (`APP_ENV=production`), Bearer tokens map callers to `viewer`, `analyst`, or `admin`:
 
-| Endpoint | Method | Scope / Description | Auth Required | Status |
-| :--- | :---: | :--- | :---: | :---: |
-| `/health` | GET | System status, database connectivity, model readiness | No | **200 OK** |
-| `/dataset` | GET | Active dataset metadata, date range, table record counts | No | **200 OK** |
-| `/options` | GET | Dynamic filter values (regions, categories, SKUs, channels) | No | **200 OK** |
-| `/kpi/summary` | GET | Aggregated revenue, gross profit, margin, ROAS, trends | No | **200 OK** |
-| `/query` | POST | Natural language business question to SQL answering | Yes (Token) | **200 OK** |
-| `/anomalies` | GET | Anomaly feed with severity filtering and contribution drill-down | No | **200 OK** |
-| `/anomalies/{id}` | GET | Detailed time-series chart and driver analysis for single alert | No | **200 OK** |
-| `/forecast` | POST | Multi-horizon demand and revenue predictions with intervals | No | **200 OK** |
-| `/simulate` | POST | Multi-scenario simulation (price elasticity, inventory, ad spend) | No | **200 OK** |
-| `/recommendations` | GET | Actionable business recommendations ranked by ROI | No | **200 OK** |
-| `/recommendations/feedback` | POST | Approve / Reject / Defer recommendation with audit logging | Yes (Token) | **200 OK** |
-| `/import` | POST | Upload and validate new dataset snapshot (.zip / .xlsx) | Yes (Admin) | **200 OK** |
-| `/audit` | GET | Historical audit log entries for executive governance | Yes (Token) | **200 OK** |
-
----
-
-## 2. Frontend Vitest Automated Test Results
-
-Executed with Vitest 5.1 and JSDOM:
-
-```
- RUN  v5.1.0 G:/GITHUB/DecisionPilotAI/frontend
-
- ✓ src/test/preferences.test.tsx (2 tests) 495ms
-   ✓ saves preferences, applies formatting, and restores saved selections
-   ✓ recovers from malformed or unsupported stored preferences
- ✓ src/test/decisions.test.tsx (3 tests) 585ms
-   ✓ records the scenario ID and waits for server confirmation
-   ✓ updates decision state on approval
-   ✓ prevents duplicate submissions
- ✓ src/test/import.test.tsx (1 test) 951ms
-   ✓ requires confirmation, sends expected snapshot ID, and displays conflicts
- ✓ src/test/api.test.ts (2 tests) 15ms
-   ✓ handles standard network responses
-   ✓ transparently triggers mock fallback in static demo environments
-
- Test Files  4 passed (4)
-      Tests  8 passed (8)
-   Duration  9.83s
-```
+| Endpoint | Method | Role (`token` mode) | Contract & Functionality |
+| :--- | :---: | :---: | :--- |
+| `/health` | GET | Public probe / Viewer detail | Minimal liveness when unauthenticated; full DB/dataset/model (`dp-1.1`) readiness when authorized |
+| `/session` | GET | `viewer` | Authenticated workspace actor, role, auth mode (`local`/`token`), import policy flag |
+| `/dataset` | GET | `viewer` | Active snapshot SHA-256 `dataset_id`, row counts, calendar bounds, quality status |
+| `/options` | GET | `viewer` | Filter options (`categories`, `products`, `regions`, `channels`, `marketing_channels`, `segments`) |
+| `/models/quality` | GET | `viewer` | Model bundle version, holdout anomaly metrics, scenario replay stats & disclosed limitations |
+| `/kpi/summary` | GET | `viewer` | Multi-grain (`daily`/`weekly`/`monthly`) KPIs with prior-period comparison & group tables |
+| `/query` | POST | `viewer` | Bilingual VI/EN natural-language question -> Pydantic `Intent` -> read-only analytics + `audit_events` log |
+| `/anomalies` | GET | `viewer` | Severity-ranked (`critical`/`high`/`medium`) observed alerts (`limit` 1–100, default 40) |
+| `/anomalies/{alert_id}` | GET | `viewer` | Single alert observed vs. 56d shifted baseline curve & additive driver attribution |
+| `/forecast` | POST | `viewer` | `7` or `30`-day predictions for `revenue`/`orders`/`demand`, 90% empirical bounds & top feature drivers |
+| `/simulate` | POST | `viewer` | `price`, `marketing`, or `inventory` scenario simulation persisted to `simulation_runs` |
+| `/scenarios/feedback` | POST | `analyst` | Idempotent `accepted` / `rejected` recording for exact `simulation_id` (optionally linked to `recommendation_id` atomically) |
+| `/recommendations` | GET | `viewer` | Ranked review actions, assumptions, risks and latest decision for the active dataset |
+| `/recommendations/feedback` | POST | `analyst` | Idempotent `accepted` / `rejected` recommendation approval into `audit_events` |
+| `/audit` | GET | `viewer` | Cursor-paginated (`before`/`next_before`, `limit` 1–100) `audit_events` filtered by kind or `decisions` |
+| `/import` | POST | `admin` + `X-Import-Token` | Atomic CSV ZIP / XLSX snapshot replacement (`<= 40 MiB`) gated by `DEMO_ALLOW_IMPORT=true` |
 
 ---
 
-## 3. End-to-End Decision Workflow Validation
+## 2. Automated Test Suites Summary
 
-The 4-stage business loop was verified end-to-end:
-1. **Overview Cockpit (`/`):** Total revenue (₫1.45B), Gross margin (43.1%), ROAS (3.42x), top SKUs, and anomaly alert banner display accurately.
-2. **AI Copilot (`/ask`):** User submits: *"Why did revenue drop in September?"*. System analyzes sales and marketing channels, attributing drop to Meta Ads saturation and SKU P003 stockout.
-3. **Scenario Simulator (`/scenarios`):** Executive models 5% discount vs 10% discount on SmartDesk Mini. Real-time 3D Three.js mesh displays profit surface and stockout risk boundary.
-4. **Actionable Recommendations (`/recommendations`):** System generates prioritized cards. Executive clicks **"Approve & Execute"**; decision is immutably committed to audit log.
+1. **Frontend Vitest Unit & Component Tests (`frontend/src/test/`):**
+   - `preferences.test.tsx` (2 tests): default `'vi'` storage persistence, VND currency formatting, malformed storage fallback.
+   - `decisions.test.tsx` (4 tests): exact `simulation_id`, waiting for server confirmation, atomic recommendation binding, error/duplicate guard.
+   - `import.test.tsx` (1 test): snapshot replacement confirmation, `expected_dataset_id` header, `409 Conflict` handling.
+   - `api.test.ts` (2 tests): Bearer auth header injection and upload client validation.
+   - **Total:** `4` test files, **`9/9` passing tests**.
+2. **Backend & AI Integration Suite (`tests/test_decisionpilot.py`):**
+   - **Total:** `16` collected test items across `14` test functions (including parametrized 7d/30d forecast slices and `46`-case `benchmark_cases.json` conversational accuracy/safety suite).
+3. **Browser End-to-End Suites (`frontend/e2e/`):**
+   - `workspace.spec.ts` (`2` tests): authenticated preference restoration, exact scenario approval & audit evidence persistence, plus ZIP import & model invalidation against a disposable fixture.
+   - `demo-flow.spec.ts` (`1` test): end-to-end connected loop (`dashboard warning -> /ask?q=... -> /recommendations -> Try first in simulator -> Accept scenario with recommendation_id -> settled card & audit_events`).
+   - **Total:** **`3` Playwright tests** across `2` spec files.
 
 ---
 
-## 4. Test Verification Verdict
+## 3. End-to-End 5-Stage Decision Loop Coverage
 
-**Status:** **100% PASS**  
-Zero regressions, zero broken routes, and fully verified end-to-end user journeys.
-
+- **Ask (`/ask`):** Queries parse into strict `Intent` structs (`46/46` benchmark match, `1,432.2 ms` median); supports direct `?q=` investigation links from Dashboard warnings (`utils/investigate.ts`).
+- **Understand (`/anomalies`):** Surfaces injected September/July 2026 shocks & driver deltas without lookahead leakage.
+- **Predict (`/forecast`):** Switches seamlessly between `7d` and `30d` horizons with `>2%` gate proof and 90% empirical bounds.
+- **Simulate (`/scenarios`):** Interactive Three.js 3D workspace comparing alternatives and saving immutable `simulation_runs`.
+- **Decide (`/recommendations`):** Human `Accept`/`Reject` recorded to trigger-protected `audit_events`, atomically settling linked scenarios and recommendations in one transaction.
