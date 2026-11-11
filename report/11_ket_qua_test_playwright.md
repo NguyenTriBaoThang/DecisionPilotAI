@@ -37,7 +37,7 @@ Khóa dịch trùng trong `preferences.tsx` (xem lần chạy đầu tiên).
 5. Dashboard có "Can Tho" trong danh sách khu vực (README chỉ nói Hanoi/HCMC/Da Nang).
 6. Trên Dashboard, nhãn "Across 730 Days" ở thẻ Orders của simulator trong khi số đơn (1.537) chỉ của tháng 9 — nhãn gây hiểu nhầm.
 7. Biểu đồ waterfall ở Ask bị cắt phần trên trục (thanh lớn nhất chạm mép) — lỗi hiển thị nhỏ.
-8. Mặc định UI là **EN** ở lần mở đầu (preferences), mâu thuẫn với commit "Vietnamese default" của PR #14 → kiểm tra lại nếu muốn mặc định VI.
+8. Mặc định UI: commit `88885bb` đã vô tình đổi sang EN làm 2 test `preferences` và CI của `main` đỏ; PR #15 khôi phục mặc định **VI** (đúng ý PR #14). Khi quay demo, bấm nút EN ở thanh trên một lần (được ghi nhớ trong trình duyệt).
 
 ## Dữ liệu sinh ra khi test (cần biết)
 - 1 dòng audit `scenario_feedback = accepted` (append-only, không xóa thông thường). Nếu muốn demo sạch: `docker compose down -v && docker compose up -d` (xóa volume Postgres, dữ liệu tự bootstrap lại).
