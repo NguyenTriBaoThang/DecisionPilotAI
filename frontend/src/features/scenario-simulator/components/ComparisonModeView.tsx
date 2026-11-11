@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { Check, Layers, SlidersHorizontal, Table as TableIcon } from 'lucide-react'
-import { decimal, integer, moneyCompact, percent, type Row, type Scenario } from '../../../api'
-import { Card, Pill, SectionTitle, Table } from '../../../ui'
+import { Layers } from 'lucide-react'
+import { decimal, moneyCompact, percent, type Row, type Scenario } from '../../../api'
+import { Button, Card, SectionTitle, StatusBadge, Table } from '../../../ui'
 import { Scenario3DLandscape } from '../../../components/Scenario3DLandscape'
 
 interface ComparisonModeViewProps {
@@ -53,40 +53,30 @@ export function ComparisonModeView({ scenarioData }: ComparisonModeViewProps) {
 
   return (
     <div className="space-y-6">
-      {/* 3D Comparative Landscape */}
-      <div>
-        <div className="flex items-center justify-between pb-3">
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <Layers className="text-cyan-400" size={18} />
-            <h3 className="text-base font-extrabold text-white">Interactive 3D Scenario Landscape</h3>
+            <Layers size={17} style={{ color: 'var(--primary)' }} />
+            <h3 className="text-base font-semibold" style={{ color: 'var(--heading)' }}>
+              Interactive 3D Scenario Landscape
+            </h3>
           </div>
 
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-slate-400">Height Metric:</span>
-            <button
-              onClick={() => setMetricKey('profit')}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold ${
-                metricKey === 'profit' ? 'bg-cyan-500 text-black' : 'bg-slate-800 text-slate-300'
-              }`}
-            >
-              Profit
-            </button>
-            <button
-              onClick={() => setMetricKey('revenue')}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold ${
-                metricKey === 'revenue' ? 'bg-cyan-500 text-black' : 'bg-slate-800 text-slate-300'
-              }`}
-            >
-              Revenue
-            </button>
-            <button
-              onClick={() => setMetricKey('demand')}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold ${
-                metricKey === 'demand' ? 'bg-cyan-500 text-black' : 'bg-slate-800 text-slate-300'
-              }`}
-            >
-              Demand
-            </button>
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="mr-1" style={{ color: 'var(--text-secondary)' }}>
+              Height Metric:
+            </span>
+            {(['profit', 'revenue', 'demand'] as const).map((m) => (
+              <Button
+                key={m}
+                size="sm"
+                variant={metricKey === m ? 'primary' : 'outline'}
+                onClick={() => setMetricKey(m)}
+                className="capitalize"
+              >
+                {m}
+              </Button>
+            ))}
           </div>
         </div>
 
@@ -97,27 +87,27 @@ export function ComparisonModeView({ scenarioData }: ComparisonModeViewProps) {
         />
       </div>
 
-      {/* Side-by-Side 2D Matrix Table */}
       <Card>
         <SectionTitle
           title="Full Comparative Matrix (2D View)"
           detail="Direct evaluation across financial and operational dimensions"
-          aside={<Pill tone="success">Validated Model Calculations</Pill>}
+          aside={<StatusBadge tone="success">Validated Model Calculations</StatusBadge>}
         />
 
         <Table
           rows={variants}
           columns={[
             { key: 'name', title: 'Scenario Candidate' },
-            { key: 'demand', title: 'Simulated Demand', format: decimal },
-            { key: 'fulfilled', title: 'Fulfillment Capacity', format: decimal },
-            { key: 'revenue', title: 'Total Revenue', format: moneyCompact },
-            { key: 'profit', title: 'Contribution Profit', format: moneyCompact },
-            { key: 'margin', title: 'Gross Margin', format: percent },
+            { key: 'demand', title: 'Simulated Demand', format: decimal, align: 'right' },
+            { key: 'fulfilled', title: 'Fulfillment Capacity', format: decimal, align: 'right' },
+            { key: 'revenue', title: 'Total Revenue', format: moneyCompact, align: 'right' },
+            { key: 'profit', title: 'Contribution Profit', format: moneyCompact, align: 'right' },
+            { key: 'margin', title: 'Gross Margin', format: percent, align: 'right' },
             {
               key: 'risk',
               title: 'Stockout Risk Units',
               format: (v) => (v != null && v > 0 ? `${v} unfulfilled` : 'None'),
+              align: 'right',
             },
           ]}
         />
@@ -125,4 +115,3 @@ export function ComparisonModeView({ scenarioData }: ComparisonModeViewProps) {
     </div>
   )
 }
-

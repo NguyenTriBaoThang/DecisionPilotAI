@@ -6,35 +6,46 @@ export function LanguageSwitcher() {
   const isVi = preferences.language === 'vi'
 
   return (
-    <div className="flex items-center rounded-xl border border-indigo-500/25 bg-slate-900/80 p-0.5 shadow-sm">
+    <div
+      className="inline-flex items-center gap-1 rounded-lg border p-0.5"
+      style={{
+        background: 'var(--surface-muted)',
+        borderColor: 'var(--border)',
+      }}
+      role="group"
+      aria-label="Interface language"
+    >
+      <span className="px-1.5 flex items-center" style={{ color: 'var(--text-muted)' }} aria-hidden="true">
+        <Globe size={13} />
+      </span>
       <button
         type="button"
         onClick={() => setLanguage('vi')}
-        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-          isVi
-            ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/20'
-            : 'text-slate-400 hover:text-slate-200'
-        }`}
+        aria-pressed={isVi}
         title="Tiếng Việt"
+        style={
+          isVi
+            ? { background: 'var(--surface)', color: 'var(--heading)', boxShadow: 'var(--shadow-xs)' }
+            : { color: 'var(--text-secondary)' }
+        }
+        className="px-2 py-1 rounded-md text-[11px] font-semibold transition-all"
       >
-        <span>🇻🇳</span>
-        <span>VI</span>
+        VI
       </button>
-
       <button
         type="button"
         onClick={() => setLanguage('en')}
-        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-          !isVi
-            ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/20'
-            : 'text-slate-400 hover:text-slate-200'
-        }`}
+        aria-pressed={!isVi}
         title="English"
+        style={
+          !isVi
+            ? { background: 'var(--surface)', color: 'var(--heading)', boxShadow: 'var(--shadow-xs)' }
+            : { color: 'var(--text-secondary)' }
+        }
+        className="px-2 py-1 rounded-md text-[11px] font-semibold transition-all"
       >
-        <span>🇬🇧</span>
-        <span>EN</span>
+        EN
       </button>
     </div>
   )
 }
-

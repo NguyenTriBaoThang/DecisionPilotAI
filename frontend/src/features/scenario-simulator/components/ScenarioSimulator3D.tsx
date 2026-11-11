@@ -1,97 +1,74 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import {
   Boxes,
   CircleDollarSign,
-  ChevronLeft,
-  ChevronRight,
-  Eye,
   Layers,
   LineChart,
   Maximize2,
   Minimize2,
-  RotateCcw,
   SlidersHorizontal,
   Sparkles,
-  TrendingUp,
   Zap,
 } from 'lucide-react'
 import {
-  params,
+  decimal,
+  integer,
+  label,
+  moneyCompact,
+  percent,
   request,
   type KPI,
   type Options,
-  type Recommendation,
+  type Row,
   type Scenario,
 } from '../../../api'
-import { Button, Card, ErrorState, Heading, Loading, Pill } from '../../../ui'
-import type { InteractionMode, SimulatorTab, TabConfig } from '../types'
-import { HolographicAIDataSphere } from './HolographicAIDataSphere'
-import { HolographicPanel } from './HolographicPanel'
+import {
+  Button,
+  Card,
+  Chart,
+  ErrorState,
+  Loading,
+  PageHeader,
+  SectionHeader,
+  Source,
+  StatusBadge,
+  Table,
+} from '../../../ui'
+import type { SimulatorTab } from '../types'
+import { Scenario3DLandscape } from '../../../components/Scenario3DLandscape'
 import { BusinessOverviewTab } from './tabs/BusinessOverviewTab'
 import { PricingScenarioTab } from './tabs/PricingScenarioTab'
 import { MarketingScenarioTab } from './tabs/MarketingScenarioTab'
 import { InventoryScenarioTab } from './tabs/InventoryScenarioTab'
 import { RecommendationsTab } from './tabs/RecommendationsTab'
 import { ComparisonModeView } from './ComparisonModeView'
-import { useT } from '../../../preferences'
-import { WorkflowNavigationFooter } from '../../../components/EndToEndStepper'
 
-const tabConfigs: TabConfig[] = [
-  {
-    id: 'overview',
-    title: 'Business Overview',
-    subtitle: 'Financial baseline & 8 core KPIs',
-    iconName: 'LineChart',
-    glowColor: '#22d3ee',
-  },
-  {
-    id: 'pricing',
-    title: 'Pricing & Discount',
-    subtitle: 'Price elasticity simulation (0-20%)',
-    iconName: 'CircleDollarSign',
-    glowColor: '#6366f1',
-  },
-  {
-    id: 'marketing',
-    title: 'Marketing Budget',
-    subtitle: 'ROAS & channel spend reallocation',
-    iconName: 'Zap',
-    glowColor: '#f59e0b',
-  },
-  {
-    id: 'inventory',
-    title: 'Inventory Planning',
-    subtitle: 'Lead-time & stockout risk prevention',
-    iconName: 'Boxes',
-    glowColor: '#10b981',
-  },
-  {
-    id: 'recommendations',
-    title: 'AI Recommendations',
-    subtitle: 'Synthesized actions & human approval',
-    iconName: 'Sparkles',
-    glowColor: '#8b5cf6',
-  },
+const tabList: { id: SimulatorTab; title: string; icon: typeof CircleDollarSign }[] = [
+  { id: 'pricing', title: 'Pricing & Discount', icon: CircleDollarSign },
+  { id: 'marketing', title: 'Marketing Budget', icon: Zap },
+  { id: 'inventory', title: 'Inventory Planning', icon: Boxes },
+  { id: 'overview', title: 'Business Overview', icon: LineChart },
+  { id: 'recommendations', title: 'AI Recommendations', icon: Sparkles },
 ]
 
 export function ScenarioSimulator3D({ options }: { options: Options }) {
-  const { t, language } = useT()
-  const isVi = language === 'vi'
-  // Deep link from a recommendation: /scenarios?tab=marketing&channel=...&autorun=1&rec=<recommendation id>
   const [search] = useSearchParams()
   const [preset] = useState(() =>
     search.get('autorun') === '1' && search.get('tab') === 'marketing' && search.get('channel')
       ? { channel: search.get('channel') as string, pct: -15, changes: [-0.15, 0.15, 0.3] }
-      : null,
+      : null
   )
   const [recId] = useState(() => search.get('rec') || undefined)
   const [activeTab, setActiveTab] = useState<SimulatorTab>(preset ? 'marketing' : 'pricing')
-  const [mode, setMode] = useState<InteractionMode>('focus')
+  const [controlTab, setControlTab] = useState<'overview' | 'pricing' | 'marketing' | 'inventory'>(
+    preset ? 'marketing' : 'pricing'
+  )
+  const [viewMode, setViewMode] = useState<'studio' | 'comparison'>('studio')
+  const [metricKey, setMetricKey] = useState<'profit' | 'revenue' | 'demand'>('profit')
   const [isFullscreen, setIsFullscreen] = useState(false)
 
-  // 1. Fetch real Baseline KPI data
   const kpiQuery = useQuery({
     queryKey: ['simulator-baseline-kpi'],
     queryFn: () => request<KPI>('/kpi/summary?grain=daily'),
@@ -101,7 +78,6 @@ export function ScenarioSimulator3D({ options }: { options: Options }) {
     mutationFn: (values: unknown) => request<Scenario>('/simulate', values),
   })
 
-  // Default initial simulation on mount
   useEffect(() => {
     const defaultProduct =
       options.products.find((p) => p.product_name === 'SmartDesk Mini')?.product_id ||
@@ -109,7 +85,6 @@ export function ScenarioSimulator3D({ options }: { options: Options }) {
       'P001'
 
     if (preset) {
-      // Same inputs as the recommendation card, so both screens show the same numbers.
       simulateMutation.mutate({
         type: 'marketing',
         horizon: 30,
@@ -129,32 +104,16 @@ export function ScenarioSimulator3D({ options }: { options: Options }) {
     })
   }, [])
 
-  // Deep-linked runs scroll the result into view (the 3D sphere fills the first screen).
-  useEffect(() => {
-    if (preset && simulateMutation.data) {
-      document.getElementById('sim-panel-' + activeTab)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }
-  }, [simulateMutation.data?.simulation_id])
-
-  // Navigation handlers
-  const tabIndex = tabConfigs.findIndex((t) => t.id === activeTab)
-  const handlePrevTab = () => {
-    const nextIdx = (tabIndex - 1 + tabConfigs.length) % tabConfigs.length
-    setActiveTab(tabConfigs[nextIdx].id)
-    if (mode === 'overview') setMode('focus')
-  }
-  const handleNextTab = () => {
-    const nextIdx = (tabIndex + 1) % tabConfigs.length
-    setActiveTab(tabConfigs[nextIdx].id)
-    if (mode === 'overview') setMode('focus')
-  }
-
   const handleSelectTab = (tabId: SimulatorTab) => {
     setActiveTab(tabId)
-    setMode('focus')
+    setViewMode('studio')
+    if (tabId === 'recommendations') {
+      document.getElementById('sim-panel-recommendations')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    } else {
+      setControlTab(tabId)
+    }
   }
 
-  // Real Simulation triggers
   const handleSimulatePrice = (params: {
     product: string
     discounts: number[]
@@ -216,237 +175,270 @@ export function ScenarioSimulator3D({ options }: { options: Options }) {
     })
   }
 
+  const data = simulateMutation.data
+  const variants: Row[] = data ? [data.baseline, ...data.alternatives] : []
 
   return (
     <div
-      className={`relative space-y-6 ${
-        isFullscreen ? 'fixed inset-0 z-50 bg-[#070b17] overflow-y-auto p-6' : ''
-      }`}
+      style={isFullscreen ? { background: 'var(--bg)' } : undefined}
+      className={`space-y-6 ${isFullscreen ? 'fixed inset-0 z-50 overflow-y-auto p-6' : ''}`}
     >
-      {/* Page Title & Mission */}
-      <Heading
-        eyebrow="FUTURISTIC 3D DECISION INTELLIGENCE"
+      <PageHeader
+        eyebrow="DECISION SCENARIO STUDIO"
         title="Interactive 3D Scenario Simulator"
-        subtitle="Explore Decisions Before Making Them · Holographic AI control center with floating interactive scenario tabs and real microeconomic simulation."
+        subtitle="Test pricing elasticity, marketing budget shifts, and inventory replenishment plans with interactive 3D comparison and human governance."
         aside={
-          <div className="flex items-center gap-2">
-            <Button
-              className="px-3 py-1.5 text-xs flex items-center gap-1.5 border border-slate-700 bg-slate-900/60"
-              onClick={() => setIsFullscreen(!isFullscreen)}
-            >
-              {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-              <span>{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen 3D'}</span>
-            </Button>
-          </div>
+          <Button size="sm" onClick={() => setIsFullscreen(!isFullscreen)}>
+            {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+            <span>{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen 3D'}</span>
+          </Button>
         }
       />
 
-      {/* Control Navigation Bar (Mode Switcher & Tab Selector) */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 rounded-2xl border border-indigo-500/20 bg-gradient-to-r from-[#0c1224] to-[#070b17] shadow-xl">
-        {/* Interaction Mode Toggle */}
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1">
-            Mode:
-          </span>
-          <button
-            onClick={() => setMode('overview')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
-              mode === 'overview'
-                ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/25'
-                : 'bg-slate-900/60 text-slate-300 border border-slate-800 hover:border-slate-700'
-            }`}
-          >
-            <Eye size={14} />
-            <span>Overview Mode</span>
-          </button>
-
-          <button
-            onClick={() => setMode('focus')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
-              mode === 'focus'
-                ? 'bg-gradient-to-r from-cyan-600 to-indigo-600 text-white shadow-md shadow-cyan-500/25'
-                : 'bg-slate-900/60 text-slate-300 border border-slate-800 hover:border-slate-700'
-            }`}
-          >
-            <SlidersHorizontal size={14} />
-            <span>Focus Mode</span>
-          </button>
-
-          <button
-            onClick={() => setMode('comparison')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
-              mode === 'comparison'
-                ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-500/25'
-                : 'bg-slate-900/60 text-slate-300 border border-slate-800 hover:border-slate-700'
-            }`}
-          >
-            <Layers size={14} />
-            <span>Compare Scenarios</span>
-          </button>
+      {/* Domain & Studio Mode Strip */}
+      <div
+        className="dp-surface p-3 flex flex-col lg:flex-row lg:items-center justify-between gap-3"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+      >
+        <div className="flex flex-wrap items-center gap-1.5">
+          {tabList.map((tab) => {
+            const Icon = tab.icon
+            const isActive = viewMode === 'studio' && activeTab === tab.id
+            return (
+              <Button
+                key={tab.id}
+                size="sm"
+                variant={isActive ? 'primary' : 'outline'}
+                onClick={() => handleSelectTab(tab.id)}
+              >
+                <Icon size={14} />
+                <span>{tab.title}</span>
+              </Button>
+            )
+          })}
         </div>
 
-        {/* Previous / Next Tab Controls */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handlePrevTab}
-            className="p-2 rounded-xl border border-slate-800 bg-slate-900/60 text-slate-300 hover:text-white hover:border-indigo-400 transition-colors"
-            aria-label="Previous holographic tab"
-          >
-            <ChevronLeft size={16} />
-          </button>
-
-          {/* Quick Tab Select Chips */}
-          <div className="flex items-center gap-1 overflow-x-auto max-w-md py-1">
-            {tabConfigs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => handleSelectTab(tab.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-                  activeTab === tab.id
-                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                {tab.title}
-              </button>
-            ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1 rounded-lg border p-0.5" style={{ borderColor: 'var(--border)' }}>
+            <Button
+              size="sm"
+              variant={viewMode === 'studio' ? 'primary' : 'ghost'}
+              onClick={() => setViewMode('studio')}
+            >
+              <SlidersHorizontal size={13} />
+              <span>Planning Studio</span>
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === 'comparison' ? 'primary' : 'ghost'}
+              onClick={() => setViewMode('comparison')}
+            >
+              <Layers size={13} />
+              <span>Compare Scenarios</span>
+            </Button>
           </div>
-
-          <button
-            onClick={handleNextTab}
-            className="p-2 rounded-xl border border-slate-800 bg-slate-900/60 text-slate-300 hover:text-white hover:border-indigo-400 transition-colors"
-            aria-label="Next holographic tab"
-          >
-            <ChevronRight size={16} />
-          </button>
         </div>
       </div>
 
       <ErrorState error={simulateMutation.error} />
 
-      {/* ========================================================
-          MODE 3: COMPARISON MODE
-          ======================================================== */}
-      {mode === 'comparison' ? (
-        <ComparisonModeView scenarioData={simulateMutation.data} />
+      {viewMode === 'comparison' ? (
+        <ComparisonModeView scenarioData={data} />
       ) : (
-        /* ========================================================
-            MODES 1 & 2: OVERVIEW & FOCUS 3D HOLOGRAPHIC ENVIRONMENT
-            ======================================================== */
-        <div className="relative rounded-3xl border border-indigo-500/20 bg-gradient-to-b from-[#090e1f] via-[#070b17] to-[#040710] p-4 sm:p-6 shadow-2xl overflow-hidden min-h-[700px]">
-          {/* Ambient Lighting & Hologram Background Grid */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full bg-gradient-to-tr from-indigo-600/15 via-violet-600/10 to-cyan-400/10 blur-[140px] pointer-events-none" />
+        <div className="space-y-6">
+          {/* 3-Column Planning Studio */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+            {/* Left: Interactive Simulation Parameters */}
+            <Card className="lg:col-span-4 space-y-4">
+              <SectionHeader
+                title={tabList.find((t) => t.id === controlTab)?.title || 'Scenario Controls'}
+                detail={
+                  controlTab === 'pricing'
+                    ? 'Price elasticity simulation (0–20%)'
+                    : controlTab === 'marketing'
+                    ? 'ROAS & channel spend reallocation'
+                    : controlTab === 'inventory'
+                    ? 'Lead-time & stockout risk prevention'
+                    : 'Financial baseline & core KPIs'
+                }
+              />
 
-          {/* Centered Holographic 3D AI Data Sphere */}
-          <div className="relative z-10 flex flex-col items-center justify-center my-2 pointer-events-none">
-            <HolographicAIDataSphere activeTab={activeTab} mode={mode} className="max-w-[420px] max-h-[380px]" />
+              {controlTab === 'overview' && <BusinessOverviewTab kpiData={kpiQuery.data} />}
+              {controlTab === 'pricing' && (
+                <PricingScenarioTab
+                  options={options}
+                  onSimulatePrice={handleSimulatePrice}
+                  isLoading={simulateMutation.isPending}
+                  scenarioData={data?.type === 'price' ? data : undefined}
+                />
+              )}
+              {controlTab === 'marketing' && (
+                <MarketingScenarioTab
+                  options={options}
+                  onSimulateMarketing={handleSimulateMarketing}
+                  preset={preset ?? undefined}
+                  isLoading={simulateMutation.isPending}
+                  scenarioData={data?.type === 'marketing' ? data : undefined}
+                />
+              )}
+              {controlTab === 'inventory' && (
+                <InventoryScenarioTab
+                  options={options}
+                  onSimulateInventory={handleSimulateInventory}
+                  isLoading={simulateMutation.isPending}
+                  scenarioData={data?.type === 'inventory' ? data : undefined}
+                />
+              )}
+            </Card>
+
+            {/* Center: Interactive 3D WebGL Studio + 2D Baseline vs Simulation Comparison */}
+            <div className="lg:col-span-4 space-y-5">
+              {variants.length > 0 ? (
+                <>
+                  <div className="flex items-center justify-end gap-1.5 text-xs">
+                    <span style={{ color: 'var(--text-secondary)' }}>3D Height:</span>
+                    {(['profit', 'revenue', 'demand'] as const).map((m) => (
+                      <Button
+                        key={m}
+                        size="sm"
+                        variant={metricKey === m ? 'primary' : 'outline'}
+                        onClick={() => setMetricKey(m)}
+                        className="capitalize"
+                      >
+                        {m}
+                      </Button>
+                    ))}
+                  </div>
+                  <Scenario3DLandscape
+                    variants={variants}
+                    recommendedName={data ? String(data.recommended.name) : undefined}
+                    metricKey={metricKey}
+                  />
+                  <Card>
+                    <SectionHeader
+                      title="Baseline vs. Simulation (2D)"
+                      detail="Revenue and Contribution Profit comparison"
+                    />
+                    <Chart
+                      data={variants}
+                      x="name"
+                      height={220}
+                      format={moneyCompact}
+                      series={[
+                        { key: 'revenue', name: 'Revenue', kind: 'bar', color: '#2563EB' },
+                        { key: 'profit', name: 'Contribution Profit', kind: 'bar', color: '#16A34A' },
+                      ]}
+                    />
+                  </Card>
+                </>
+              ) : (
+                <Card>
+                  <Loading labelText="Running scenario studio…" />
+                </Card>
+              )}
+            </div>
+
+            {/* Right: Recommended Action & Human Approval Panel */}
+            <div
+              id="sim-panel-recommendations"
+              className="lg:col-span-4"
+            >
+              <Card
+                className={
+                  activeTab === 'recommendations'
+                    ? 'ring-2 ring-[var(--primary)] ring-offset-2 ring-offset-[var(--bg)]'
+                    : ''
+                }
+              >
+                <SectionHeader
+                  title="AI Recommendations"
+                  detail="Synthesized action & human approval"
+                  aside={<StatusBadge tone="accent">Human-in-the-Loop</StatusBadge>}
+                />
+                <RecommendationsTab
+                  scenarioData={data}
+                  key={data?.simulation_id || 'empty'}
+                  recommendationId={recId}
+                  isSimulating={simulateMutation.isPending || simulateMutation.isError}
+                />
+              </Card>
+            </div>
           </div>
 
-          {/* Interactive Floating Holographic Panels */}
-          <div
-            className={`relative z-20 gap-5 ${
-              mode === 'overview'
-                ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
-                : 'max-w-3xl mx-auto'
-            }`}
-          >
-            {/* Tab 1: Business Overview */}
-            <HolographicPanel
-              id="overview"
-              title="Business Overview"
-              subtitle="Baseline KPI health & operations"
-              icon={<LineChart size={18} />}
-              activeTab={activeTab}
-              mode={mode}
-              onClickTab={handleSelectTab}
-            >
-              <BusinessOverviewTab kpiData={kpiQuery.data} />
-            </HolographicPanel>
+          {/* Bottom: Comparison Matrix, Sensitivity Analysis & Explicit Assumptions */}
+          {data && (
+            <div className="space-y-5">
+              <Card>
+                <SectionHeader
+                  title="Simulation Outcome Comparison Matrix"
+                  detail={`Recommended variant: ${String(data.recommended.name)} for objective: ${label(data.objective)}`}
+                  aside={<StatusBadge tone="success">Validated Optimization</StatusBadge>}
+                />
+                <Table
+                  rows={variants}
+                  columns={[
+                    { key: 'name', title: 'Scenario Variant' },
+                    { key: 'demand', title: 'Simulated Demand', format: decimal, align: 'right' },
+                    { key: 'fulfilled', title: 'Fulfillment Capacity', format: decimal, align: 'right' },
+                    { key: 'revenue', title: 'Projected Revenue', format: moneyCompact, align: 'right' },
+                    { key: 'profit', title: 'Contribution Profit', format: moneyCompact, align: 'right' },
+                    { key: 'margin', title: 'Gross Margin', format: percent, align: 'right' },
+                    { key: 'risk', title: 'Unfulfilled Risk', format: integer, align: 'right' },
+                  ]}
+                />
+              </Card>
 
-            {/* Tab 2: Pricing & Discount Simulator */}
-            <HolographicPanel
-              id="pricing"
-              title="Pricing & Discount"
-              subtitle="Elasticity slider (0–20%)"
-              icon={<CircleDollarSign size={18} />}
-              activeTab={activeTab}
-              mode={mode}
-              onClickTab={handleSelectTab}
-            >
-              <PricingScenarioTab
-                options={options}
-                onSimulatePrice={handleSimulatePrice}
-                isLoading={simulateMutation.isPending}
-                scenarioData={simulateMutation.data?.type === 'price' ? simulateMutation.data : undefined}
-              />
-            </HolographicPanel>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <Card>
+                  <SectionHeader
+                    title="Sensitivity Analysis"
+                    detail="Outcomes tested under alternate elasticity or response parameters"
+                  />
+                  <div className="space-y-3">
+                    {data.sensitivity.map((group, i) => (
+                      <details key={i} className="text-xs" style={{ color: 'var(--text)' }}>
+                        <summary
+                          className="cursor-pointer font-semibold py-1"
+                          style={{ color: 'var(--primary-text)' }}
+                        >
+                          {group.name}
+                        </summary>
+                        <div className="pt-2">
+                          <Table
+                            rows={group.alternatives.map((item) => ({
+                              case: String(item.elasticity ?? item.exponent ?? item.demand_path),
+                              ...item.result,
+                            }))}
+                            columns={[
+                              { key: 'case', title: 'Assumed Value' },
+                              { key: 'profit', title: 'Profit', format: moneyCompact, align: 'right' },
+                              { key: 'revenue', title: 'Revenue', format: moneyCompact, align: 'right' },
+                              { key: 'risk', title: 'Unfulfilled Risk', format: integer, align: 'right' },
+                            ]}
+                          />
+                        </div>
+                      </details>
+                    ))}
+                  </div>
+                </Card>
 
-            {/* Tab 3: Marketing Budget Simulator */}
-            <HolographicPanel
-              id="marketing"
-              title="Marketing Budget"
-              subtitle="Channel spend & diminishing returns"
-              icon={<Zap size={18} />}
-              activeTab={activeTab}
-              mode={mode}
-              onClickTab={handleSelectTab}
-            >
-              <MarketingScenarioTab
-                options={options}
-                onSimulateMarketing={handleSimulateMarketing}
-                preset={preset ?? undefined}
-                isLoading={simulateMutation.isPending}
-                scenarioData={simulateMutation.data?.type === 'marketing' ? simulateMutation.data : undefined}
-              />
-            </HolographicPanel>
-
-            {/* Tab 4: Inventory Planning */}
-            <HolographicPanel
-              id="inventory"
-              title="Inventory Planning"
-              subtitle="Lead-time & safety stock risk"
-              icon={<Boxes size={18} />}
-              activeTab={activeTab}
-              mode={mode}
-              onClickTab={handleSelectTab}
-            >
-              <InventoryScenarioTab
-                options={options}
-                onSimulateInventory={handleSimulateInventory}
-                isLoading={simulateMutation.isPending}
-                scenarioData={simulateMutation.data?.type === 'inventory' ? simulateMutation.data : undefined}
-              />
-            </HolographicPanel>
-
-            {/* Tab 5: AI Recommendations */}
-            <HolographicPanel
-              id="recommendations"
-              title="AI Recommendations"
-              subtitle="Optimized action & human approval"
-              icon={<Sparkles size={18} />}
-              activeTab={activeTab}
-              mode={mode}
-              onClickTab={handleSelectTab}
-            >
-              <RecommendationsTab
-                scenarioData={simulateMutation.data}
-                key={simulateMutation.data?.simulation_id || 'empty'}
-                recommendationId={recId}
-                isSimulating={simulateMutation.isPending || simulateMutation.isError}
-              />
-            </HolographicPanel>
-          </div>
+                <Card>
+                  <SectionHeader
+                    title="Explicit Model Assumptions & Evidence"
+                    detail="Mathematical boundaries & operational constraints"
+                  />
+                  <ul className="space-y-2 text-xs list-disc list-inside" style={{ color: 'var(--text)' }}>
+                    {data.assumptions.map((a, idx) => (
+                      <li key={idx}>{a}</li>
+                    ))}
+                  </ul>
+                  <Source>Microeconomic Elasticity Formulation · Lead-Time Capacity Cap</Source>
+                </Card>
+              </div>
+            </div>
+          )}
         </div>
       )}
-
-      {/* Step 3 End-to-End Workflow Navigation Footer */}
-      <WorkflowNavigationFooter
-        prevPath="/ask"
-        prevLabelKey="Back to AI Copilot Investigation"
-        nextPath="/recommendations"
-        nextLabelKey="Next: Review & Approve AI Recommendations"
-      />
     </div>
   )
 }
-

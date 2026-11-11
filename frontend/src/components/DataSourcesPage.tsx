@@ -2,41 +2,66 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, Database, FileSpreadsheet, HardDrive, RefreshCw, ShieldCheck, UploadCloud } from 'lucide-react'
 import { dateLabel, integer, request, uploadSnapshot, type Dataset, type Session } from '../api'
-import { Button, Card, Empty, ErrorState, Heading, Loading, Pill, SectionTitle, Source, Table } from '../ui'
+import { Button, Card, ErrorState, Heading, Pill, SectionTitle, Source, Table, useToast } from '../ui'
 
 export function DataSourcesPage({ dataset, session }: { dataset?: Dataset; session: Session }) {
   const [token, setToken] = useState('')
   const client = useQueryClient()
+  const { notify } = useToast()
   const [file, setFile] = useState<File | null>(null)
   const [confirmed, setConfirmed] = useState(false)
   const [notice, setNotice] = useState(() => sessionStorage.getItem('dp-import-notice') || '')
+
   const upload = useMutation({
     mutationFn: async () => {
       if (!file || !confirmed) throw new Error('Choose a file and confirm snapshot replacement.')
       return uploadSnapshot(file, dataset?.dataset_id || 'empty', token)
     },
     onSuccess: async (next) => {
-      setToken(''); setFile(null); setConfirmed(false)
-      setNotice('Snapshot imported successfully. Forecasts and price/inventory simulations require a model trained for this dataset.')
-      sessionStorage.setItem('dp-import-notice', 'Snapshot imported successfully. Train a matching model before requesting forecasts or price/inventory simulations.')
-      await client.cancelQueries({ predicate: query => !['session'].includes(String(query.queryKey[0])) })
-      client.removeQueries({ predicate: query => !['session', 'dataset'].includes(String(query.queryKey[0])) })
+      setToken('')
+      setFile(null)
+      setConfirmed(false)
+      const msg =
+        'Snapshot imported successfully. Forecasts and price/inventory simulations require a model trained for this dataset.'
+      setNotice(msg)
+      sessionStorage.setItem(
+        'dp-import-notice',
+        'Snapshot imported successfully. Train a matching model before requesting forecasts or price/inventory simulations.'
+      )
+      notify({
+        tone: 'success',
+        title: 'Dataset snapshot updated',
+        description: `Active dataset ID: ${next.dataset_id.slice(0, 12)}…`,
+      })
+      await client.cancelQueries({ predicate: (query) => !['session'].includes(String(query.queryKey[0])) })
+      client.removeQueries({ predicate: (query) => !['session', 'dataset'].includes(String(query.queryKey[0])) })
       client.setQueryData(['dataset'], next)
       await client.invalidateQueries({ queryKey: ['dataset'] })
     },
   })
+
   const selectFile = (next: File | null) => {
     if (upload.isPending) return
-    setFile(next); setConfirmed(false); setNotice(''); sessionStorage.removeItem('dp-import-notice'); upload.reset()
+    setFile(next)
+    setConfirmed(false)
+    setNotice('')
+    sessionStorage.removeItem('dp-import-notice')
+    upload.reset()
   }
+
   const duration = dataset ? Math.round((Date.parse(dataset.end) - Date.parse(dataset.start)) / 86_400_000) + 1 : 0
 
   const health = useQuery({
     queryKey: ['health'],
     queryFn: () =>
-      request<{ status: string; database: string; database_dialect: string; dataset_ready: boolean; model_ready: boolean; model_version: string }>(
-        '/health'
-      ),
+      request<{
+        status: string
+        database: string
+        database_dialect: string
+        dataset_ready: boolean
+        model_ready: boolean
+        model_version: string
+      }>('/health'),
   })
 
   const tableRows = Object.entries(dataset?.counts || {}).map(([name, count]) => {
@@ -56,7 +81,7 @@ export function DataSourcesPage({ dataset, session }: { dataset?: Dataset; sessi
   })
 
   return (
-    <>
+    <div className="space-y-6">
       <Heading
         eyebrow="DATA ARCHITECTURE"
         title="Data Sources & Integrity"
@@ -64,57 +89,98 @@ export function DataSourcesPage({ dataset, session }: { dataset?: Dataset; sessi
       />
 
       <ErrorState error={health.error} retry={() => void health.refetch()} />
-      {/* Snapshot Overview Banner */}
+
+      {/* Snapshot Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="border-indigo-500/20 bg-gradient-to-br from-[#111a30] to-[#070b17]">
+        <Card className="space-y-4">
           <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-indigo-500/10 text-indigo-400">
-              <Database size={22} />
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-lg border flex-shrink-0"
+              style={{
+                background: 'var(--primary-soft)',
+                borderColor: 'var(--primary-border)',
+                color: 'var(--primary)',
+              }}
+            >
+              <Database size={18} />
             </div>
-            <div>
-              <small className="text-xs text-slate-400">Dataset Identity (SHA-256)</small>
-              <div className="font-mono text-sm font-bold text-white tracking-wider">{dataset?.dataset_id || 'No active snapshot'}</div>
+            <div className="min-w-0">
+              <small className="block text-[11px] font-medium" style={{ color: 'var(--text-secondary)' }}>
+                Dataset Identity (SHA-256)
+              </small>
+              <div className="font-mono text-xs font-bold truncate mt-0.5" style={{ color: 'var(--heading)' }}>
+                {dataset?.dataset_id || 'No active snapshot'}
+              </div>
             </div>
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-800 text-xs text-slate-400 flex items-center justify-between">
+          <div
+            className="pt-3 border-t text-xs flex items-center justify-between"
+            style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+          >
             <span>Snapshot Type</span>
             <Pill tone="accent">{dataset?.kind.toUpperCase() || 'EMPTY'}</Pill>
           </div>
         </Card>
 
-        <Card className="border-cyan-500/20 bg-gradient-to-br from-[#111a30] to-[#070b17]">
+        <Card className="space-y-4">
           <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-cyan-500/10 text-cyan-400">
-              <HardDrive size={22} />
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-lg border flex-shrink-0"
+              style={{
+                background: 'var(--info-bg)',
+                borderColor: 'var(--info-border)',
+                color: 'var(--info)',
+              }}
+            >
+              <HardDrive size={18} />
             </div>
-            <div>
-              <small className="text-xs text-slate-400">Date Range Boundary</small>
-              <div className="text-sm font-bold text-white">
+            <div className="min-w-0">
+              <small className="block text-[11px] font-medium" style={{ color: 'var(--text-secondary)' }}>
+                Date Range Boundary
+              </small>
+              <div className="text-xs font-bold mt-0.5" style={{ color: 'var(--heading)' }}>
                 {dataset ? `${dateLabel(dataset.start)} – ${dateLabel(dataset.end)}` : 'No active dataset'}
               </div>
             </div>
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-800 text-xs text-slate-400 flex items-center justify-between">
+          <div
+            className="pt-3 border-t text-xs flex items-center justify-between"
+            style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+          >
             <span>Total Duration</span>
-            <span className="font-semibold text-cyan-300">{integer(duration)} Calendar Days</span>
+            <span className="font-semibold tabular-nums" style={{ color: 'var(--heading)' }}>
+              {integer(duration)} Calendar Days
+            </span>
           </div>
         </Card>
 
-        <Card className="border-emerald-500/20 bg-gradient-to-br from-[#111a30] to-[#070b17]">
+        <Card className="space-y-4">
           <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-400">
-              <ShieldCheck size={22} />
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-lg border flex-shrink-0"
+              style={{
+                background: 'var(--success-bg)',
+                borderColor: 'var(--success-border)',
+                color: 'var(--success)',
+              }}
+            >
+              <ShieldCheck size={18} />
             </div>
-            <div>
-              <small className="text-xs text-slate-400">Pipeline Quality Status</small>
-              <div className="text-sm font-bold text-emerald-400 flex items-center gap-1.5">
-                <CheckCircle2 size={16} /> {dataset ? 'Validated snapshot' : 'Awaiting import'}
+            <div className="min-w-0">
+              <small className="block text-[11px] font-medium" style={{ color: 'var(--text-secondary)' }}>
+                Pipeline Quality Status
+              </small>
+              <div className="text-xs font-bold flex items-center gap-1.5 mt-0.5" style={{ color: 'var(--success-text)' }}>
+                <CheckCircle2 size={14} /> {dataset ? 'Validated snapshot' : 'Awaiting import'}
               </div>
             </div>
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-800 text-xs text-slate-400 flex items-center justify-between">
+          <div
+            className="pt-3 border-t text-xs flex items-center justify-between"
+            style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+          >
             <span>Database Dialect</span>
-            <span className="font-semibold text-slate-200 capitalize">
+            <span className="font-semibold capitalize" style={{ color: 'var(--heading)' }}>
               {health.data?.database_dialect || 'SQLite / PostgreSQL'}
             </span>
           </div>
@@ -133,57 +199,125 @@ export function DataSourcesPage({ dataset, session }: { dataset?: Dataset; sessi
           columns={[
             { key: 'table', title: 'Table Name' },
             { key: 'grain', title: 'Data Grain' },
-            { key: 'count', title: 'Verified Records', format: integer },
+            { key: 'count', title: 'Verified Records', format: integer, align: 'right' },
             { key: 'status', title: 'Integrity Check' },
           ]}
         />
-        <Source>
-          SQLite / PostgreSQL engine · Point-in-time snapshot · Non-leaking features
-        </Source>
+        <Source>SQLite / PostgreSQL engine · Point-in-time snapshot · Non-leaking features</Source>
       </Card>
 
-      {/* Snapshot Import & Replacement Portal */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Import Portal & Model Lineage */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <Card>
           <SectionTitle
             title="Import New Business Snapshot"
             detail="Replace current dataset with a validated ZIP of 6 CSVs or a 6-sheet Excel workbook (.xlsx)."
-            aside={<UploadCloud size={20} className="text-indigo-400" />}
+            aside={<UploadCloud size={18} style={{ color: 'var(--primary)' }} />}
           />
-          <div className="space-y-4 pt-2">
-            <p className="text-xs text-slate-400 leading-relaxed">
+          <div className="space-y-4 pt-1">
+            <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
               Import enforces atomic loading: if any row violates accounting balance (e.g. Sales Revenue ≠ Quantity × Price × (1 - Discount)) or breaks inventory movement, the entire upload is rejected with HTTP 422.
             </p>
 
-            <label className="field">
-              <span>Security Import Token (X-Import-Token)</span>
+            <label className="dp-field">
+              <span className="dp-field-label">Security Import Token (X-Import-Token)</span>
               <input
                 type="password"
                 placeholder="Enter IMPORT_TOKEN from server .env"
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
+                className="dp-input"
               />
             </label>
 
-            <input type="file" aria-label="Business snapshot file" accept=".zip,.xlsx" disabled={upload.isPending} onChange={e => selectFile(e.target.files?.[0] || null)} />
-            <div className="border-2 border-dashed border-indigo-500/20 rounded-xl p-6 text-center hover:border-indigo-500/40 transition-colors"
-              onDragOver={e => e.preventDefault()}
-              onDrop={e => { e.preventDefault(); selectFile(e.dataTransfer.files[0] || null) }}>
-              <FileSpreadsheet className="mx-auto text-indigo-400 mb-2" size={32} />
-              <div className="text-sm font-semibold text-slate-200">Drag and drop business.zip or business.xlsx here</div>
-              <div className="text-xs text-slate-400 mt-1">Maximum file size: 40 MiB</div>
+            <div className="space-y-2">
+              <input
+                type="file"
+                aria-label="Business snapshot file"
+                accept=".zip,.xlsx"
+                disabled={upload.isPending}
+                onChange={(e) => selectFile(e.target.files?.[0] || null)}
+                className="block w-full text-xs"
+                style={{ color: 'var(--text-secondary)' }}
+              />
+              <div
+                className="border-2 border-dashed rounded-xl p-6 text-center transition-colors"
+                style={{
+                  background: 'var(--surface-muted)',
+                  borderColor: 'var(--border-strong)',
+                }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  selectFile(e.dataTransfer.files[0] || null)
+                }}
+              >
+                <FileSpreadsheet className="mx-auto mb-2" size={28} style={{ color: 'var(--primary)' }} />
+                <div className="text-xs font-semibold" style={{ color: 'var(--heading)' }}>
+                  Drag and drop business.zip or business.xlsx here
+                </div>
+                <div className="text-[11px] mt-1" style={{ color: 'var(--text-secondary)' }}>
+                  Maximum file size: 40 MiB
+                </div>
+              </div>
             </div>
 
-            {file && <p className="text-xs">Selected: {file.name} · {integer(file.size)} bytes</p>}
-            <label className="flex gap-2 text-xs"><input type="checkbox" checked={confirmed} disabled={upload.isPending} onChange={e => setConfirmed(e.target.checked)} />
-              I understand that importing replaces the active business data. Existing decision history is retained.
+            {file && (
+              <p className="text-xs font-medium" style={{ color: 'var(--heading)' }}>
+                Selected: {file.name} · {integer(file.size)} bytes
+              </p>
+            )}
+
+            <label className="flex items-start gap-2 text-xs cursor-pointer" style={{ color: 'var(--text)' }}>
+              <input
+                type="checkbox"
+                checked={confirmed}
+                disabled={upload.isPending}
+                onChange={(e) => setConfirmed(e.target.checked)}
+                className="mt-0.5 accent-[#2563EB]"
+              />
+              <span>
+                I understand that importing replaces the active business data. Existing decision history is retained.
+              </span>
             </label>
-            <p className="text-xs text-slate-400">{!session.import_enabled ? 'Import is disabled on this server.' : session.role !== 'admin' ? 'An administrator role is required to replace data.' : 'Ready to accept validated snapshots.'}</p>
-            <Button className="primary" disabled={!file || !confirmed || !token.trim() || upload.isPending || !session.import_enabled || session.role !== 'admin'} onClick={() => upload.mutate()}>
+
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              {!session.import_enabled
+                ? 'Import is disabled on this server.'
+                : session.role !== 'admin'
+                ? 'An administrator role is required to replace data.'
+                : 'Ready to accept validated snapshots.'}
+            </p>
+
+            <Button
+              variant="primary"
+              disabled={
+                !file ||
+                !confirmed ||
+                !token.trim() ||
+                upload.isPending ||
+                !session.import_enabled ||
+                session.role !== 'admin'
+              }
+              onClick={() => upload.mutate()}
+            >
               {upload.isPending ? 'Validating and importing…' : 'Replace snapshot'}
             </Button>
+
             <ErrorState error={upload.error} />
-            {notice && <p role="status" className="text-xs text-amber-300">{notice}</p>}
+            {notice && (
+              <p
+                role="status"
+                className="rounded-lg border px-3 py-2 text-xs font-medium"
+                style={{
+                  background: 'var(--warning-bg)',
+                  borderColor: 'var(--warning-border)',
+                  color: 'var(--warning-text)',
+                }}
+              >
+                {notice}
+              </p>
+            )}
           </div>
         </Card>
 
@@ -191,35 +325,42 @@ export function DataSourcesPage({ dataset, session }: { dataset?: Dataset; sessi
           <SectionTitle
             title="Model Artifact Lineage"
             detail="Trained models are pinned to the active dataset SHA-256 identifier."
-            aside={<RefreshCw size={18} className="text-cyan-400" />}
+            aside={<RefreshCw size={16} style={{ color: 'var(--primary)' }} />}
           />
-          <div className="space-y-3 pt-1 text-xs text-slate-300">
-            <div className="flex justify-between py-2 border-b border-slate-800">
-              <span className="text-slate-400">Forecasting Model Bundle:</span>
-              <span className="font-mono font-semibold text-white">{health.data?.model_version || 'No matching trained artifact'}</span>
+          <div className="space-y-3 pt-1 text-xs">
+            <div className="flex justify-between gap-3 py-2.5 border-b" style={{ borderColor: 'var(--border)' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>Forecasting Model Bundle:</span>
+              <span className="font-mono font-semibold" style={{ color: 'var(--heading)' }}>
+                {health.data?.model_version || 'No matching trained artifact'}
+              </span>
             </div>
-            <div className="flex justify-between py-2 border-b border-slate-800">
-              <span className="text-slate-400">Model Readiness:</span>
+            <div className="flex justify-between gap-3 py-2.5 border-b" style={{ borderColor: 'var(--border)' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>Model Readiness:</span>
               <Pill tone={health.data?.model_ready ? 'success' : 'critical'}>
                 {health.data?.model_ready ? 'READY FOR INFERENCE' : 'TRAINING REQUIRED'}
               </Pill>
             </div>
-            <div className="flex justify-between py-2 border-b border-slate-800">
-              <span className="text-slate-400">Anomaly Radar Engine:</span>
-              <span className="font-semibold text-white">Hybrid Isolation Forest + Rolling Z-Score</span>
+            <div className="flex justify-between gap-3 py-2.5 border-b" style={{ borderColor: 'var(--border)' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>Anomaly Radar Engine:</span>
+              <span className="font-medium text-right" style={{ color: 'var(--heading)' }}>
+                Hybrid Isolation Forest + Rolling Z-Score
+              </span>
             </div>
-            <div className="flex justify-between py-2 border-b border-slate-800">
-              <span className="text-slate-400">What-If Simulation Engine:</span>
-              <span className="font-semibold text-white">Microeconomic Elasticity + Lead Time Cap</span>
+            <div className="flex justify-between gap-3 py-2.5 border-b" style={{ borderColor: 'var(--border)' }}>
+              <span style={{ color: 'var(--text-secondary)' }}>What-If Simulation Engine:</span>
+              <span className="font-medium text-right" style={{ color: 'var(--heading)' }}>
+                Microeconomic Elasticity + Lead Time Cap
+              </span>
             </div>
-            <div className="flex justify-between py-2">
-              <span className="text-slate-400">Intent Routing Abstraction:</span>
-              <span className="font-semibold text-indigo-300">Google Gemini / OpenAI / Local Rule-based</span>
+            <div className="flex justify-between gap-3 py-2.5">
+              <span style={{ color: 'var(--text-secondary)' }}>Intent Routing Abstraction:</span>
+              <span className="font-medium text-right" style={{ color: 'var(--primary-text)' }}>
+                Google Gemini / OpenAI / Local Rule-based
+              </span>
             </div>
           </div>
         </Card>
       </div>
-    </>
+    </div>
   )
 }
-

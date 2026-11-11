@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { CircleGauge, MessageSquareText, SlidersHorizontal, Compass, ArrowRight, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, CheckCircle2, CircleGauge, Compass, MessageSquareText, SlidersHorizontal } from 'lucide-react'
 import { useT } from '../preferences'
 
 export interface WorkflowStep {
@@ -45,24 +45,31 @@ export function EndToEndStepper() {
   const { pathname } = useLocation()
   const { t } = useT()
 
-  // Determine current active step
-  const currentStep = WORKFLOW_STEPS.find((s) => s.path === pathname)?.step || (pathname.startsWith('/ask') ? 2 : pathname.startsWith('/scenarios') ? 3 : pathname.startsWith('/recommendations') ? 4 : 1)
+  const currentStep =
+    WORKFLOW_STEPS.find((s) => s.path === pathname)?.step ||
+    (pathname.startsWith('/ask') ? 2 : pathname.startsWith('/scenarios') ? 3 : pathname.startsWith('/recommendations') ? 4 : 1)
 
   return (
-    <div className="w-full rounded-2xl border border-indigo-500/20 bg-gradient-to-r from-[#0d1428]/95 via-[#0b1020]/90 to-[#070b17]/95 p-3.5 sm:p-4 backdrop-blur-xl shadow-xl shadow-indigo-950/20">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 mb-3 border-b border-indigo-500/15">
-        <div className="flex items-center gap-2">
-          <span className="flex h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
-          <span className="text-[11px] font-bold uppercase tracking-widest text-cyan-400">
-            {t('End-to-End Decision Flow')}
-          </span>
-        </div>
-        <div className="text-[11px] font-mono text-slate-400">
-          {t('Step')} <strong className="text-cyan-300">{currentStep}</strong> / 4
-        </div>
+    <div
+      className="dp-surface p-3.5 sm:p-4"
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+    >
+      <div
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 mb-3 border-b"
+        style={{ borderColor: 'var(--border)' }}
+      >
+        <span
+          className="text-[11px] font-semibold uppercase tracking-wider"
+          style={{ color: 'var(--primary-text)' }}
+        >
+          {t('End-to-End Decision Flow')}
+        </span>
+        <span className="text-[11px] tabular-nums" style={{ color: 'var(--text-secondary)' }}>
+          {t('Step')} <strong style={{ color: 'var(--heading)' }}>{currentStep}</strong> / 4
+        </span>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
         {WORKFLOW_STEPS.map((s) => {
           const Icon = s.icon
           const isActive = s.step === currentStep
@@ -72,35 +79,39 @@ export function EndToEndStepper() {
             <Link
               key={s.path}
               to={s.path}
-              className={`group relative flex items-center gap-3 p-2.5 sm:p-3 rounded-xl border transition-all text-left ${
-                isActive
-                  ? 'bg-gradient-to-tr from-indigo-900/60 to-violet-900/40 border-cyan-400/50 shadow-lg shadow-indigo-500/20 ring-1 ring-cyan-400/40'
+              style={{
+                background: isActive ? 'var(--primary-soft)' : 'var(--surface-muted)',
+                borderColor: isActive
+                  ? 'var(--primary-border)'
                   : isPassed
-                  ? 'bg-slate-900/40 border-emerald-500/30 hover:border-emerald-500/60 text-slate-300'
-                  : 'bg-slate-900/30 border-slate-800 hover:border-indigo-500/30 text-slate-400 hover:text-slate-200'
-              }`}
+                  ? 'var(--success-border)'
+                  : 'var(--border)',
+              }}
+              className="flex items-center gap-2.5 rounded-lg border p-2.5 text-left transition-colors hover:border-[var(--border-strong)]"
             >
-              <div
-                className={`flex h-8 w-8 sm:h-9 sm:w-9 flex-shrink-0 items-center justify-center rounded-lg transition-colors ${
-                  isActive
-                    ? 'bg-cyan-400/20 text-cyan-300'
+              <span
+                className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md border"
+                style={{
+                  background: 'var(--surface)',
+                  borderColor: 'var(--border)',
+                  color: isActive
+                    ? 'var(--primary)'
                     : isPassed
-                    ? 'bg-emerald-500/15 text-emerald-400'
-                    : 'bg-slate-800/80 text-slate-400 group-hover:text-slate-200'
-                }`}
+                    ? 'var(--success)'
+                    : 'var(--text-secondary)',
+                }}
               >
-                {isPassed ? <CheckCircle2 size={18} /> : <Icon size={18} />}
-              </div>
+                {isPassed ? <CheckCircle2 size={16} /> : <Icon size={16} />}
+              </span>
 
               <div className="min-w-0 flex-1">
                 <span
-                  className={`block text-xs font-bold truncate ${
-                    isActive ? 'text-white' : isPassed ? 'text-slate-200' : 'text-slate-400 group-hover:text-slate-300'
-                  }`}
+                  className="block text-xs font-semibold truncate"
+                  style={{ color: isActive ? 'var(--primary-text)' : 'var(--heading)' }}
                 >
                   {t(s.titleKey)}
                 </span>
-                <span className="block text-[10px] text-slate-400 truncate">
+                <span className="block text-[11px] truncate" style={{ color: 'var(--text-secondary)' }}>
                   {t(s.descKey)}
                 </span>
               </div>
@@ -126,14 +137,27 @@ export function WorkflowNavigationFooter({
   const { t } = useT()
 
   return (
-    <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-2xl border border-indigo-500/20 bg-gradient-to-r from-slate-900/60 via-[#0e162c]/60 to-slate-900/60 backdrop-blur-md">
+    <div
+      className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3 rounded-xl border px-4 py-3"
+      style={{
+        background: 'var(--surface)',
+        borderColor: 'var(--border)',
+        boxShadow: 'var(--shadow-xs)',
+      }}
+    >
       <div>
         {prevPath && prevLabelKey ? (
           <Link
             to={prevPath}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-700 bg-slate-800/60 text-xs sm:text-sm font-semibold text-slate-300 hover:bg-slate-700/60 hover:text-white transition-all"
+            className="inline-flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-medium transition-colors hover:bg-[var(--surface-muted)]"
+            style={{
+              background: 'var(--surface)',
+              borderColor: 'var(--border-strong)',
+              color: 'var(--heading)',
+            }}
           >
-            <span>&larr; {t(prevLabelKey)}</span>
+            <ArrowLeft size={14} />
+            <span>{t(prevLabelKey)}</span>
           </Link>
         ) : (
           <div />
@@ -144,14 +168,22 @@ export function WorkflowNavigationFooter({
         {nextPath && nextLabelKey ? (
           <Link
             to={nextPath}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-cyan-500 text-xs sm:text-sm font-bold text-white shadow-lg shadow-indigo-500/25 hover:shadow-cyan-500/25 hover:scale-[1.02] transition-all"
+            className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold text-white transition-colors hover:brightness-95"
+            style={{ background: 'var(--primary)', boxShadow: 'var(--shadow-xs)' }}
           >
             <span>{t(nextLabelKey)}</span>
-            <ArrowRight size={16} />
+            <ArrowRight size={14} />
           </Link>
         ) : (
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs font-bold text-emerald-400">
-            <CheckCircle2 size={16} />
+          <div
+            className="inline-flex items-center gap-2 rounded-lg border px-3.5 py-1.5 text-xs font-semibold"
+            style={{
+              background: 'var(--success-bg)',
+              borderColor: 'var(--success-border)',
+              color: 'var(--success-text)',
+            }}
+          >
+            <CheckCircle2 size={14} />
             <span>{t('Decision Process Complete')}</span>
           </div>
         )}
@@ -159,4 +191,3 @@ export function WorkflowNavigationFooter({
     </div>
   )
 }
-

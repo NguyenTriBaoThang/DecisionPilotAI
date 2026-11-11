@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { ArrowRight, Check, SlidersHorizontal, Sparkles } from 'lucide-react'
-import { decimal, moneyCompact, percent, type Options, type Scenario } from '../../../../api'
+import { Check, SlidersHorizontal } from 'lucide-react'
+import { decimal, moneyCompact, type Options, type Scenario } from '../../../../api'
 import { Button } from '../../../../ui'
 
 interface PricingScenarioTabProps {
@@ -46,19 +46,13 @@ export function PricingScenarioTab({
   }
 
   const recommended = scenarioData?.recommended
-  const alternatives = scenarioData?.alternatives || []
 
   return (
     <div className="space-y-4">
-      {/* Interactive Controls */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-        <label className="field">
-          <span className="text-slate-400 font-semibold text-[11px] uppercase">Product SKU</span>
-          <select
-            value={productId}
-            onChange={(e) => setProductId(e.target.value)}
-            className="w-full rounded-xl border border-indigo-500/20 bg-[#0c1224] px-3 py-2 text-xs font-medium text-slate-200 outline-none focus:border-indigo-400"
-          >
+      <div className="grid grid-cols-1 gap-3 text-xs">
+        <label className="dp-field">
+          <span className="dp-field-label">Product SKU</span>
+          <select value={productId} onChange={(e) => setProductId(e.target.value)} className="dp-select">
             {options.products.map((p) => (
               <option key={p.product_id} value={p.product_id}>
                 {p.product_name} ({p.category})
@@ -67,25 +61,32 @@ export function PricingScenarioTab({
           </select>
         </label>
 
-        <label className="field">
-          <span className="text-slate-400 font-semibold text-[11px] uppercase">Business Objective</span>
+        <label className="dp-field">
+          <span className="dp-field-label">Business Objective</span>
           <select
             value={objective}
-            onChange={(e) => setObjective(e.target.value as any)}
-            className="w-full rounded-xl border border-indigo-500/20 bg-[#0c1224] px-3 py-2 text-xs font-medium text-slate-200 outline-none focus:border-indigo-400"
+            onChange={(e) => setObjective(e.target.value as 'profit' | 'revenue' | 'balanced')}
+            className="dp-select"
           >
             <option value="profit">Maximize Contribution Profit</option>
             <option value="revenue">Maximize Revenue</option>
-            <option value="balanced">Balance Risk & Return</option>
+            <option value="balanced">Balance Risk &amp; Return</option>
           </select>
         </label>
       </div>
 
-      {/* Discount Rate Interactive Slider (0% - 20%) */}
-      <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
+      {/* Discount Rate Slider */}
+      <div
+        className="rounded-lg border p-3.5 space-y-2"
+        style={{ background: 'var(--surface-muted)', borderColor: 'var(--border)' }}
+      >
         <div className="flex items-center justify-between text-xs">
-          <span className="text-slate-400 font-semibold uppercase text-[11px]">Proposed Discount Rate:</span>
-          <span className="text-sm font-black text-cyan-400 font-mono">{discountPct}% Discount</span>
+          <span className="text-[11px] font-semibold uppercase" style={{ color: 'var(--text-secondary)' }}>
+            Proposed Discount Rate:
+          </span>
+          <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--primary-text)' }}>
+            {discountPct}% Discount
+          </span>
         </div>
         <input
           type="range"
@@ -94,9 +95,9 @@ export function PricingScenarioTab({
           step={1}
           value={discountPct}
           onChange={(e) => setDiscountPct(Number(e.target.value))}
-          className="w-full accent-cyan-400 cursor-pointer h-2 bg-slate-800 rounded-lg"
+          className="w-full accent-[#2563EB] cursor-pointer"
         />
-        <div className="flex justify-between text-[10px] text-slate-400 font-mono">
+        <div className="flex justify-between text-[10px] tabular-nums" style={{ color: 'var(--text-secondary)' }}>
           <span>0% (Full Price)</span>
           <span>5%</span>
           <span>10%</span>
@@ -105,64 +106,88 @@ export function PricingScenarioTab({
         </div>
       </div>
 
-      <div className="flex items-center justify-between pt-1">
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] text-slate-400">Horizon:</span>
-          <button
-            type="button"
-            onClick={() => setHorizon(7)}
-            className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
-              horizon === 7 ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'
-            }`}
-          >
-            7 Days
-          </button>
-          <button
-            type="button"
-            onClick={() => setHorizon(30)}
-            className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
-              horizon === 30 ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'
-            }`}
-          >
-            30 Days
-          </button>
+      <label className="dp-field">
+        <span className="dp-field-label">Price Elasticity Override (Optional)</span>
+        <input
+          type="number"
+          step="0.1"
+          min={-5}
+          max={0}
+          placeholder="Catalog default (-1.4 to -0.8)"
+          value={customElasticity}
+          onChange={(e) => setCustomElasticity(e.target.value)}
+          className="dp-input"
+        />
+      </label>
+
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+            Horizon:
+          </span>
+          {[7, 30].map((d) => (
+            <Button
+              key={d}
+              size="sm"
+              variant={horizon === d ? 'primary' : 'outline'}
+              onClick={() => setHorizon(d)}
+            >
+              {d} Days
+            </Button>
+          ))}
         </div>
 
-        <Button
-          className="primary px-4 py-2 text-xs flex items-center gap-2"
-          onClick={handleRun}
-          disabled={isLoading}
-        >
-          <Sparkles size={14} />
+        <Button variant="primary" onClick={handleRun} disabled={isLoading}>
+          <SlidersHorizontal size={14} />
           <span>{isLoading ? 'Simulating…' : 'Simulate Price Impact'}</span>
         </Button>
       </div>
 
-      {/* Dynamic Simulation Outcome Cards */}
       {recommended && (
-        <div className="pt-2 space-y-2.5 border-t border-indigo-500/10">
-          <div className="p-3 rounded-xl bg-emerald-950/20 border border-emerald-500/30 flex items-start gap-2.5 text-xs">
-            <Check size={16} className="text-emerald-400 mt-0.5 flex-shrink-0" />
+        <div className="pt-3 space-y-2.5 border-t" style={{ borderColor: 'var(--border)' }}>
+          <div
+            className="rounded-lg border p-3 flex items-start gap-2.5 text-xs"
+            style={{ background: 'var(--success-bg)', borderColor: 'var(--success-border)' }}
+          >
+            <Check size={15} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--success)' }} />
             <div>
-              <span className="font-bold text-white block">Optimal Strategy: {String(recommended.name)}</span>
-              <p className="text-slate-300 text-[11px] mt-0.5">
-                Expected Profit Delta: <strong className="text-emerald-400 font-mono">+{moneyCompact(Number(recommended.profit_delta))}</strong> vs baseline.
+              <span className="font-semibold block" style={{ color: 'var(--heading)' }}>
+                Optimal Strategy: {String(recommended.name)}
+              </span>
+              <p className="text-[11px] mt-0.5" style={{ color: 'var(--text)' }}>
+                Expected Profit Delta:{' '}
+                <strong className="tabular-nums font-bold" style={{ color: 'var(--success-text)' }}>
+                  +{moneyCompact(Number(recommended.profit_delta))}
+                </strong>{' '}
+                vs baseline.
               </p>
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-2 text-center text-xs">
-            <div className="p-2.5 rounded-xl bg-slate-900/50 border border-slate-800">
-              <span className="text-slate-400 block text-[10px] uppercase">Simulated Demand</span>
-              <strong className="text-sm font-mono text-white">{decimal(Number(recommended.demand))} units</strong>
+            <div className="rounded-lg border p-2.5" style={{ background: 'var(--surface-muted)', borderColor: 'var(--border)' }}>
+              <span className="block text-[10px] uppercase" style={{ color: 'var(--text-secondary)' }}>
+                Demand
+              </span>
+              <strong className="text-xs font-bold tabular-nums" style={{ color: 'var(--heading)' }}>
+                {decimal(Number(recommended.demand))}
+              </strong>
             </div>
-            <div className="p-2.5 rounded-xl bg-slate-900/50 border border-slate-800">
-              <span className="text-slate-400 block text-[10px] uppercase">Projected Revenue</span>
-              <strong className="text-sm font-mono text-cyan-300">{moneyCompact(Number(recommended.revenue))}</strong>
+            <div className="rounded-lg border p-2.5" style={{ background: 'var(--surface-muted)', borderColor: 'var(--border)' }}>
+              <span className="block text-[10px] uppercase" style={{ color: 'var(--text-secondary)' }}>
+                Revenue
+              </span>
+              <strong className="text-xs font-bold tabular-nums" style={{ color: 'var(--primary-text)' }}>
+                {moneyCompact(Number(recommended.revenue))}
+              </strong>
             </div>
-            <div className="p-2.5 rounded-xl bg-slate-900/50 border border-slate-800">
-              <span className="text-slate-400 block text-[10px] uppercase">Contribution Profit</span>
-              <strong className="text-sm font-mono text-emerald-400">{moneyCompact(Number(recommended.profit))}</strong>
+            <div className="rounded-lg border p-2.5" style={{ background: 'var(--surface-muted)', borderColor: 'var(--border)' }}>
+              <span className="block text-[10px] uppercase" style={{ color: 'var(--text-secondary)' }}>
+                Profit
+              </span>
+              <strong className="text-xs font-bold tabular-nums" style={{ color: 'var(--success-text)' }}>
+                {moneyCompact(Number(recommended.profit))}
+              </strong>
             </div>
           </div>
         </div>
@@ -170,4 +195,3 @@ export function PricingScenarioTab({
     </div>
   )
 }
-

@@ -1,21 +1,21 @@
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import {
+  Activity,
   ArrowRight,
   Bell,
   Check,
   ChevronRight,
   CircleAlert,
   Database,
-  Layers,
-  LineChart,
+  History,
+  MessageSquareText,
   Send,
+  ShieldCheck,
   SlidersHorizontal,
-  Sparkles,
-  TrendingDown,
   TrendingUp,
   X,
   Zap,
@@ -45,10 +45,28 @@ import {
   request,
 } from './api'
 import { alertName } from './Dashboard'
-import { Button, Card, Chart, Empty, ErrorState, Heading, Loading, Pill, SectionTitle, Select, Source, Table } from './ui'
+import {
+  Button,
+  Card,
+  Chart,
+  ChartCard,
+  ConfirmDialog,
+  Empty,
+  ErrorState,
+  FilterBar,
+  KPIStatCard,
+  Loading,
+  PageHeader,
+  Pill,
+  SectionHeader,
+  Select,
+  Source,
+  StatusBadge,
+  Table,
+  useToast,
+} from './ui'
 import { Scenario3DLandscape } from './components/Scenario3DLandscape'
 import { useT } from './preferences'
-import { WorkflowNavigationFooter } from './components/EndToEndStepper'
 export { ScenarioSimulator3D } from './features/scenario-simulator/components/ScenarioSimulator3D'
 
 const promptsEN = [
@@ -78,31 +96,56 @@ function Contribution({
   interpretation?: string
   metric?: string
 }) {
-  const [dimension, setDimension] = useState('product')
+  const keys = Object.keys(rows)
+  const [dimension, setDimension] = useState(keys[0] || 'product')
+  const activeKey = rows[dimension] ? dimension : keys[0] || 'product'
+  const activeRows = (rows[activeKey] || []).slice(0, 8)
   const format = metric === 'units' ? decimal : moneyCompact
 
   return (
-    <div className="contribution space-y-3 pt-2">
-      <div className="flex items-center justify-between">
-        <Select
-          label="Breakdown Dimension"
-          value={dimension}
-          onChange={setDimension}
-          options={Object.keys(rows).map<[string, string]>((key) => [key, label(key)])}
-        />
-        <Pill tone="accent">Waterfall Decomposition</Pill>
+    <div className="space-y-4 pt-2">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+        <div className="w-full sm:max-w-xs">
+          <Select
+            label="Breakdown Dimension"
+            value={activeKey}
+            onChange={setDimension}
+            options={keys.map<[string, string]>((key) => [key, label(key)])}
+          />
+        </div>
+        <StatusBadge tone="accent">Waterfall Variance Decomposition</StatusBadge>
       </div>
+
+      {activeRows.length > 0 && (
+        <div
+          className="rounded-xl border p-3.5"
+          style={{ background: 'var(--surface-muted)', borderColor: 'var(--border)' }}
+        >
+          <div className="text-[11px] font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--text-secondary)' }}>
+            Variance Contribution by {label(activeKey)}
+          </div>
+          <Chart
+            data={activeRows}
+            x="name"
+            horizontal
+            height={Math.max(170, activeRows.length * 32)}
+            format={format}
+            series={[{ key: 'delta', name: 'Absolute Delta', kind: 'bar', color: '#2563EB' }]}
+          />
+        </div>
+      )}
+
       <Table
-        rows={(rows[dimension] || []).slice(0, 8)}
+        rows={activeRows}
         columns={[
           { key: 'name', title: 'Group / Dimension' },
-          { key: 'actual', title: 'Current Period', format },
-          { key: 'baseline', title: 'Previous Period', format },
-          { key: 'delta', title: 'Absolute Delta', format },
-          { key: 'share_of_net_change', title: 'Share of Net Change', format: percent },
+          { key: 'actual', title: 'Current Period', format, align: 'right' },
+          { key: 'baseline', title: 'Previous Period', format, align: 'right' },
+          { key: 'delta', title: 'Absolute Delta', format, align: 'right' },
+          { key: 'share_of_net_change', title: 'Share of Net Change', format: percent, align: 'right' },
         ]}
       />
-      <p className="text-xs text-slate-400 italic">
+      <p className="text-xs italic" style={{ color: 'var(--text-secondary)' }}>
         {interpretation ||
           'Each dimension independently reconciles to 100% of the total observed delta. Contributions are descriptive, not causal claims.'}
       </p>
@@ -139,11 +182,21 @@ export function Ask({
   const query = useMutation({
     mutationFn: async (question: string) => {
       setThinkingStep(isVi ? 'Đang phân tích ý định câu hỏi…' : 'Parsing natural language intent…')
-      setTimeout(() => setThinkingStep(isVi ? 'Truy vấn các bảng dữ liệu đã kiểm thực…' : 'Querying verified business tables…'), 400)
-      setTimeout(() => setThinkingStep(isVi ? 'Tổng hợp bằng chứng và biểu đồ phân tích…' : 'Synthesizing evidence and chart artifacts…'), 800)
-      const res = await request<QueryResult>('/query', { question })
-      setThinkingStep(null)
-      return res
+      const t1 = window.setTimeout(
+        () => setThinkingStep(isVi ? 'Truy vấn các bảng dữ liệu đã kiểm thực…' : 'Querying verified business tables…'),
+        400
+      )
+      const t2 = window.setTimeout(
+        () => setThinkingStep(isVi ? 'Tổng hợp bằng chứng và biểu đồ phân tích…' : 'Synthesizing evidence and chart artifacts…'),
+        800
+      )
+      try {
+        return await request<QueryResult>('/query', { question })
+      } finally {
+        window.clearTimeout(t1)
+        window.clearTimeout(t2)
+        setThinkingStep(null)
+      }
     },
     onSuccess: (result, question) => {
       setThinkingStep(null)
@@ -162,7 +215,6 @@ export function Ask({
     }
   }
 
-  // Deep link from an alert: /ask?q=... sends the question once, then clears the parameter.
   const [search, setSearch] = useSearchParams()
   const autoSent = useRef(false)
   useEffect(() => {
@@ -174,190 +226,359 @@ export function Ask({
     }
   }, [])
 
+  const recentQuestions = useMemo(() => {
+    const seen = new Set<string>()
+    return messages
+      .map((m) => m.question)
+      .reverse()
+      .filter((q) => {
+        if (seen.has(q)) return false
+        seen.add(q)
+        return true
+      })
+      .slice(0, 5)
+  }, [messages])
+
   return (
-    <>
-      <Heading
-        eyebrow={isVi ? 'TRÍ TUỆ NHÂN TẠO ĐỐI THOẠI KINH DOANH' : 'CONVERSATIONAL BUSINESS INTELLIGENCE'}
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow={isVi ? 'TRỢ LÝ PHÂN TÍCH KINH DOANH' : 'CONVERSATIONAL BUSINESS INTELLIGENCE'}
         title="Ask Business Data"
         subtitle={
           isVi
-            ? 'Đặt câu hỏi phân tích kinh doanh bằng tiếng Việt hoặc tiếng Anh. Hệ thống tự động tạo câu lệnh SQL chuẩn xác và biểu đồ trực quan không ảo giác.'
+            ? 'Đặt câu hỏi phân tích kinh doanh bằng ngôn ngữ tự nhiên; kiểm tra công cụ truy vấn, công thức, giới hạn dữ liệu và căn cứ thực chứng.'
             : 'Ask complex business questions in natural language. Inspect executed analytics tools, formulas, data bounds and evidence.'
+        }
+        aside={
+          <StatusBadge tone="accent">
+            <ShieldCheck size={12} />
+            <span>{isVi ? 'Truy vấn SQL Kiểm thực · Không ảo giác' : 'Verified Deterministic Analytics'}</span>
+          </StatusBadge>
         }
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <Card className="lg:col-span-3 chat flex flex-col min-h-[580px]">
-          <SectionTitle
-            title={isVi ? 'Phiên Phân tích Kinh doanh' : 'Analysis Conversation'}
-            detail={(isVi ? 'Dữ liệu kết nối đến ' : 'Connected snapshot through ') + dateLabel(dataset.end)}
-            aside={
-              <span className="p-2 rounded-xl bg-indigo-500/10 text-cyan-400">
-                <Sparkles size={18} />
+      {/* Analytical Copilot Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        {/* Main BI Workspace */}
+        <div className="lg:col-span-8 space-y-5">
+          {/* Prominent Query Composer Card */}
+          <Card>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: 'var(--heading)' }}>
+                <MessageSquareText size={15} style={{ color: 'var(--primary)' }} />
+                <span>{isVi ? 'Đặt câu hỏi cho Trợ lý Phân tích' : 'Ask the Analytical Copilot'}</span>
+              </div>
+              <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                {(isVi ? 'Dữ liệu cập nhật đến ' : 'Snapshot through ') + dateLabel(dataset.end)}
               </span>
-            }
-          />
-
-          {!messages.length && !query.isPending && (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 space-y-4">
-              <div className="p-4 rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shadow-inner">
-                <Sparkles size={32} />
-              </div>
-              <h2 className="text-xl font-bold text-white">
-                {isVi ? 'Bạn muốn tìm hiểu và chẩn đoán điều gì?' : 'What would you like to understand?'}
-              </h2>
-              <p className="text-xs text-slate-400 max-w-md">
-                {isVi
-                  ? 'Hỏi về xu hướng doanh thu, áp lực biên lợi nhuận, hiệu quả SKU, tỷ lệ ROAS quảng cáo hoặc dự báo 30 ngày.'
-                  : 'Ask about revenue trends, margin pressure, product popularity, marketing ROAS or run a 30-day forecast.'}
-              </p>
             </div>
-          )}
 
-          <div className="messages flex-1 overflow-y-auto space-y-6 pr-2" aria-live="polite">
-            {messages.map(({ question, result, error }, i) => (
-              <div key={i} className="space-y-3">
-                {/* User Message */}
-                <div className="flex justify-end">
-                  <div className="rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-sm font-medium text-white shadow-md max-w-xl">
-                    {question}
-                  </div>
+            <form
+              className="flex flex-col sm:flex-row gap-2.5"
+              onSubmit={form.handleSubmit(({ question }) => send(question))}
+            >
+              <input
+                aria-label={isVi ? 'Câu hỏi kinh doanh' : 'Business question'}
+                placeholder={
+                  isVi
+                    ? 'Hỏi về doanh thu, biên lợi nhuận SKU, hiệu quả ROAS hoặc dự báo nhu cầu…'
+                    : 'Ask about revenue, SKU margins, marketing ROAS, or demand forecasts…'
+                }
+                maxLength={500}
+                className="dp-input flex-1 h-10"
+                {...form.register('question')}
+              />
+              <Button variant="primary" type="submit" disabled={query.isPending} className="h-10 px-5">
+                <Send size={14} />
+                <span>{isVi ? 'Gửi' : 'Send'}</span>
+              </Button>
+            </form>
+            {form.formState.errors.question && (
+              <p className="text-xs mt-1.5" style={{ color: 'var(--danger-text)' }}>
+                {form.formState.errors.question.message}
+              </p>
+            )}
+          </Card>
+
+          {/* Analytical Stream / Structured Report Cards */}
+          <Card className="min-h-[420px] flex flex-col">
+            <SectionHeader
+              title={isVi ? 'Báo cáo & Phiên Phân tích' : 'Analysis Conversation'}
+              detail={
+                isVi
+                  ? 'Câu trả lời có căn cứ từ dữ liệu thực, kèm biểu đồ và nhật ký kiểm tra công thức'
+                  : 'Grounded responses sourced directly from verified database queries and trained models'
+              }
+            />
+
+            {!messages.length && !query.isPending && (
+              <div className="flex-1 flex flex-col items-center justify-center text-center py-12 px-4 space-y-3">
+                <div
+                  className="flex h-12 w-12 items-center justify-center rounded-xl border"
+                  style={{
+                    background: 'var(--primary-soft)',
+                    borderColor: 'var(--primary-border)',
+                    color: 'var(--primary)',
+                  }}
+                >
+                  <MessageSquareText size={22} />
                 </div>
-
-                {error && <ErrorState error={new Error(error)} />}
-
-                {/* Assistant Grounded Message */}
-                {result && (
-                  <div className="rounded-2xl border border-indigo-500/20 bg-slate-900/60 p-5 space-y-4 shadow-xl">
-                    <div className="flex items-center justify-between pb-2 border-b border-indigo-500/10">
-                      <div className="flex items-center gap-2 text-xs font-bold text-cyan-300">
-                        <Sparkles size={16} />
-                        <span>DecisionPilot AI</span>
-                      </div>
-                      <Pill tone="accent">{isVi ? 'Công cụ:' : 'Tool:'} {result.trace.tool}</Pill>
-                    </div>
-
-                    <p className="text-sm text-slate-100 leading-relaxed font-normal">{result.answer}</p>
-
-                    {/* Chart Visualization if present */}
-                    {result.chart && (
-                      <div className="pt-2">
-                        <Chart
-                          data={result.chart.rows}
-                          x={result.chart.x}
-                          date={result.chart.x === 'date'}
-                          height={240}
-                          series={[
-                            {
-                              key: result.chart.y,
-                              name: label(result.chart.y),
-                              kind: result.chart.type === 'bar' ? 'bar' : 'line',
-                            },
-                          ]}
-                        />
-                      </div>
-                    )}
-
-                    {/* Multi-dimensional Contribution Breakdown if present */}
-                    {result.evidence.contributions && (
-                      <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
-                        <Contribution rows={result.evidence.contributions} />
-                      </div>
-                    )}
-
-                    {/* Grounded Trace & Verification Drawer */}
-                    <details className="text-xs text-slate-400 pt-2 border-t border-indigo-500/10">
-                      <summary className="cursor-pointer font-semibold text-indigo-300 hover:text-indigo-200 py-1">
-                        {isVi ? 'Xem Nguồn dữ liệu, Phạm vi & Công thức thực thi' : 'View Sources, Data Bounds & Executed Formulas'}
-                      </summary>
-                      <div className="mt-2 space-y-2 p-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] font-mono">
-                        <div>
-                          <strong className="text-slate-300">{isVi ? 'Nguồn dữ liệu:' : 'Data Sources:'}</strong>{' '}
-                          {result.trace.sources?.join(' · ') || (isVi ? 'Phân tích Đã kiểm thực' : 'Verified Analytics')}
-                        </div>
-                        {result.trace.range && (
-                          <div>
-                            <strong className="text-slate-300">{isVi ? 'Khoảng thời gian:' : 'Range:'}</strong> {result.trace.range.join(' to ')}
-                          </div>
-                        )}
-                        {Object.values(result.trace.formulas).map((formula, idx) => (
-                          <div key={idx} className="text-cyan-400">
-                            <strong>{isVi ? 'Công thức:' : 'Formula:'}</strong> {formula}
-                          </div>
-                        ))}
-                      </div>
-                    </details>
-                  </div>
-                )}
-              </div>
-            ))}
-
-            {query.isPending && (
-              <div className="flex items-center gap-3 p-4 rounded-xl border border-indigo-500/30 bg-indigo-950/40 text-xs font-semibold text-cyan-300 animate-pulse">
-                <Sparkles size={16} />
-                <span>{thinkingStep || (isVi ? 'Đang phân tích chuỗi dữ liệu kinh doanh…' : 'Analyzing business intelligence streams…')}</span>
+                <h3 className="text-base font-semibold" style={{ color: 'var(--heading)' }}>
+                  {isVi ? 'Bạn muốn tìm hiểu điều gì?' : 'What would you like to understand?'}
+                </h3>
+                <p className="text-xs max-w-md leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                  {isVi
+                    ? 'Hỏi về xu hướng doanh thu, áp lực biên lợi nhuận, hiệu quả sản phẩm, ROAS tiếp thị hoặc chạy dự báo 30 ngày.'
+                    : 'Ask about revenue trends, margin pressure, product popularity, marketing ROAS or run a 30-day forecast.'}
+                </p>
               </div>
             )}
-          </div>
 
-          {/* Chat Input */}
-          <form
-            className="pt-4 border-t border-indigo-500/10 flex gap-2"
-            onSubmit={form.handleSubmit(({ question }) => send(question))}
-          >
-            <input
-              aria-label={isVi ? 'Câu hỏi kinh doanh' : 'Business question'}
-              placeholder={
-                isVi
-                  ? 'Hỏi về doanh thu, biên lợi nhuận SKU, hiệu quả ROAS hoặc dự báo nhu cầu…'
-                  : 'Ask about revenue, SKU margins, marketing ROAS, or demand forecasts…'
-              }
-              maxLength={500}
-              className="flex-1 rounded-xl border border-indigo-500/20 bg-[#0c1224] px-4 py-3 text-xs text-white placeholder-slate-500 outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition-all"
-              {...form.register('question')}
+            <div className="space-y-6" aria-live="polite">
+              {messages.map(({ question, result, error }, i) => (
+                <div
+                  key={i}
+                  className="space-y-4 pb-6 border-b last:border-b-0 last:pb-0"
+                  style={{ borderColor: 'var(--border)' }}
+                >
+                  {/* Prompt Header */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div
+                      className="rounded-lg border px-3.5 py-2 text-xs font-semibold"
+                      style={{
+                        background: 'var(--primary-soft)',
+                        borderColor: 'var(--primary-border)',
+                        color: 'var(--primary-text)',
+                      }}
+                    >
+                      {question}
+                    </div>
+                    {result && (
+                      <StatusBadge tone="muted">
+                        {isVi ? 'Công cụ:' : 'Tool:'} {result.trace.tool}
+                      </StatusBadge>
+                    )}
+                  </div>
+
+                  {error && <ErrorState error={new Error(error)} />}
+
+                  {/* Structured Analytical Report */}
+                  {result && (
+                    <div
+                      className="rounded-xl border p-4 sm:p-5 space-y-4"
+                      style={{
+                        background: 'var(--surface-muted)',
+                        borderColor: 'var(--border)',
+                      }}
+                    >
+                      {/* Executive Summary Section */}
+                      <div>
+                        <div
+                          className="text-[11px] font-semibold uppercase tracking-wider mb-1.5"
+                          style={{ color: 'var(--text-secondary)' }}
+                        >
+                          {isVi ? 'Tóm tắt điều hành' : 'Executive Summary'}
+                        </div>
+                        <p className="text-sm leading-relaxed" style={{ color: 'var(--heading)' }}>
+                          {result.answer}
+                        </p>
+                      </div>
+
+                      {/* Key Chart Findings */}
+                      {result.chart && (
+                        <div
+                          className="rounded-xl border p-4"
+                          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+                        >
+                          <div
+                            className="text-[11px] font-semibold uppercase tracking-wider mb-2"
+                            style={{ color: 'var(--text-secondary)' }}
+                          >
+                            {isVi ? 'Biểu đồ trực quan' : 'Key Findings Visualization'}
+                          </div>
+                          <Chart
+                            data={result.chart.rows}
+                            x={result.chart.x}
+                            date={result.chart.x === 'date'}
+                            height={240}
+                            series={[
+                              {
+                                key: result.chart.y,
+                                name: label(result.chart.y),
+                                kind: result.chart.type === 'bar' ? 'bar' : 'line',
+                                color: '#2563EB',
+                              },
+                            ]}
+                          />
+                        </div>
+                      )}
+
+                      {/* Supporting Breakdown */}
+                      {result.evidence.contributions && (
+                        <div
+                          className="rounded-xl border p-4"
+                          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+                        >
+                          <Contribution rows={result.evidence.contributions} />
+                        </div>
+                      )}
+
+                      {/* Contextual Recommended Next Steps */}
+                      <div
+                        className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t text-xs"
+                        style={{ borderColor: 'var(--border)' }}
+                      >
+                        <span className="font-medium" style={{ color: 'var(--text-secondary)' }}>
+                          {isVi ? 'Bước tiếp theo đề xuất:' : 'Recommended next steps:'}
+                        </span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Link
+                            to="/scenarios"
+                            className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1 font-medium hover:bg-[var(--surface)] transition-colors"
+                            style={{ borderColor: 'var(--border-strong)', color: 'var(--heading)' }}
+                          >
+                            <SlidersHorizontal size={12} />
+                            <span>{t('Simulate Scenarios')}</span>
+                          </Link>
+                          <Link
+                            to="/recommendations"
+                            className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1 font-medium hover:bg-[var(--surface)] transition-colors"
+                            style={{ borderColor: 'var(--border-strong)', color: 'var(--primary-text)' }}
+                          >
+                            <span>{t('Recommendations')}</span>
+                            <ArrowRight size={12} />
+                          </Link>
+                        </div>
+                      </div>
+
+                      {/* Grounded Trace & Calculation Provenance */}
+                      <details
+                        className="rounded-lg border p-3 text-xs"
+                        style={{
+                          background: 'var(--surface)',
+                          borderColor: 'var(--border)',
+                          color: 'var(--text-secondary)',
+                        }}
+                      >
+                        <summary
+                          className="cursor-pointer font-semibold select-none"
+                          style={{ color: 'var(--primary-text)' }}
+                        >
+                          {isVi
+                            ? 'Xem Nguồn dữ liệu, Phạm vi & Công thức thực thi'
+                            : 'View Sources, Data Bounds & Executed Formulas'}
+                        </summary>
+                        <div
+                          className="mt-2.5 pt-2.5 border-t space-y-1.5 text-[11px] font-mono"
+                          style={{ borderColor: 'var(--border)' }}
+                        >
+                          <div>
+                            <strong style={{ color: 'var(--heading)' }}>
+                              {isVi ? 'Nguồn dữ liệu:' : 'Data Sources:'}
+                            </strong>{' '}
+                            {result.trace.sources?.join(' · ') ||
+                              (isVi ? 'Phân tích Đã kiểm thực' : 'Verified Analytics')}
+                          </div>
+                          {result.trace.range && (
+                            <div>
+                              <strong style={{ color: 'var(--heading)' }}>
+                                {isVi ? 'Khoảng thời gian:' : 'Range:'}
+                              </strong>{' '}
+                              {result.trace.range.join(' to ')}
+                            </div>
+                          )}
+                          {Object.values(result.trace.formulas).map((formula, idx) => (
+                            <div key={idx} style={{ color: 'var(--primary-text)' }}>
+                              <strong>{isVi ? 'Công thức:' : 'Formula:'}</strong> {formula}
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {query.isPending && (
+                <div
+                  className="flex items-center gap-2.5 rounded-xl border px-4 py-3 text-xs font-medium"
+                  style={{
+                    background: 'var(--primary-soft)',
+                    borderColor: 'var(--primary-border)',
+                    color: 'var(--primary-text)',
+                  }}
+                >
+                  <Activity size={15} className="animate-spin" />
+                  <span>
+                    {thinkingStep ||
+                      (isVi ? 'Đang phân tích chuỗi dữ liệu kinh doanh…' : 'Analyzing business intelligence streams…')}
+                  </span>
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
+
+        {/* Right Panel: Suggested & Recent Queries */}
+        <div className="lg:col-span-4 space-y-5">
+          <Card>
+            <SectionHeader
+              title={isVi ? 'Câu hỏi Gợi ý' : 'Suggested Queries'}
+              detail={isVi ? 'Dựa trên tập dữ liệu đang kích hoạt' : 'Grounded in active workspace dataset'}
+              aside={<Zap size={15} style={{ color: 'var(--primary)' }} />}
             />
-            <Button className="primary px-5 py-3 text-xs flex items-center gap-2" type="submit" disabled={query.isPending}>
-              <Send size={15} />
-              <span>{isVi ? 'Gửi' : 'Send'}</span>
-            </Button>
-          </form>
-          {form.formState.errors.question && (
-            <p className="text-xs text-rose-400 mt-1">{form.formState.errors.question.message}</p>
+            <div className="space-y-2">
+              {prompts.map((text) => (
+                <button
+                  key={text}
+                  type="button"
+                  onClick={() => send(text)}
+                  disabled={query.isPending}
+                  className="w-full text-left rounded-lg border px-3 py-2.5 text-xs transition-colors flex items-center justify-between gap-2 hover:bg-[var(--surface-muted)]"
+                  style={{
+                    background: 'var(--surface)',
+                    borderColor: 'var(--border)',
+                    color: 'var(--text)',
+                  }}
+                >
+                  <span className="font-medium leading-snug">{text}</span>
+                  <ChevronRight size={14} className="flex-shrink-0" style={{ color: 'var(--text-muted)' }} />
+                </button>
+              ))}
+            </div>
+            <Source>
+              {isVi
+                ? 'Phân tích Xác định · Công cụ Kiểm thực CSDL'
+                : 'Deterministic Analytics · Fixed Read-Only Tools'}
+            </Source>
+          </Card>
+
+          {recentQuestions.length > 0 && (
+            <Card>
+              <SectionHeader
+                title={isVi ? 'Truy vấn gần đây' : 'Recent Session Queries'}
+                aside={<History size={15} style={{ color: 'var(--text-secondary)' }} />}
+              />
+              <div className="space-y-1.5">
+                {recentQuestions.map((q) => (
+                  <button
+                    key={q}
+                    type="button"
+                    onClick={() => send(q)}
+                    disabled={query.isPending}
+                    className="w-full text-left rounded-lg px-2.5 py-2 text-xs truncate hover:bg-[var(--surface-muted)] transition-colors"
+                    style={{ color: 'var(--text-secondary)' }}
+                    title={q}
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            </Card>
           )}
-        </Card>
-
-        {/* Suggested Business Questions Sidebar */}
-        <Card className="prompts space-y-4">
-          <SectionTitle
-            title={isVi ? 'Câu hỏi Gợi ý' : 'Suggested Queries'}
-            detail={isVi ? 'Dựa trên tập dữ liệu đang kích hoạt' : 'Grounded in active workspace dataset'}
-            aside={<Zap size={16} className="text-cyan-400" />}
-          />
-          <div className="space-y-2">
-            {prompts.map((text) => (
-              <button
-                key={text}
-                onClick={() => send(text)}
-                disabled={query.isPending}
-                className="w-full text-left p-3 rounded-xl border border-slate-800 bg-slate-900/40 hover:bg-indigo-950/30 hover:border-indigo-500/30 text-xs text-slate-300 transition-all flex items-center justify-between group"
-              >
-                <span>{text}</span>
-                <ChevronRight size={14} className="text-slate-500 group-hover:text-cyan-400 transition-colors flex-shrink-0" />
-              </button>
-            ))}
-          </div>
-          <Source>{isVi ? 'Phân tích Xác định · Công cụ Kiểm thực CSDL' : 'Deterministic Analytics · Fixed Read-Only Tools'}</Source>
-        </Card>
+        </div>
       </div>
-
-      {/* Step 2 End-to-End Workflow Navigation Footer */}
-      <WorkflowNavigationFooter
-        prevPath="/"
-        prevLabelKey="Back to Overview & Diagnostics"
-        nextPath="/scenarios"
-        nextLabelKey="Next: Simulate What-If Scenarios in 3D"
-      />
-    </>
+    </div>
   )
 }
 
@@ -371,6 +592,7 @@ const alertFormat = (metric: string) =>
     : decimal
 
 export function Alerts({ dataset }: { dataset: Dataset }) {
+  const { t } = useT()
   const [severity, setSeverity] = useState('')
   const [window, setWindow] = useState({
     start: [dataset.end.slice(0, 7) + '-01', dataset.start].sort()[1],
@@ -397,39 +619,66 @@ export function Alerts({ dataset }: { dataset: Dataset }) {
   const highCount = allAlerts.filter((a) => a.severity === 'high').length
   const mediumCount = allAlerts.filter((a) => a.severity === 'medium').length
 
+  const timelineRows = useMemo(
+    () =>
+      allAlerts.map((a) => ({
+        date: a.end,
+        label: alertName[a.metric] || label(a.metric),
+        score: a.score,
+      })),
+    [allAlerts]
+  )
+
   return (
-    <>
-      <Heading
+    <div className="space-y-6">
+      <PageHeader
         eyebrow="RISK RADAR & ANOMALY DETECTION"
         title="Anomaly Center"
         subtitle="Monitor sudden revenue contractions, ad spend spikes, margin pressure and stockout risks detected via Hybrid Isolation Forest & Rolling Z-Scores."
       />
 
-      <ModelQuality />
-
-      {/* Anomaly Stats Summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card className="border-indigo-500/20">
-          <small className="text-xs text-slate-400">Total Detected Anomalies</small>
-          <div className="text-2xl font-black text-white font-mono mt-1">{allAlerts.length}</div>
+      {/* Severity Overview Strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPIStatCard title="Total Detected Anomalies" value={integer(allAlerts.length)} icon={<Activity size={16} />} />
+        <Card className="p-4 flex flex-col justify-between gap-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+              {t('Critical Alerts')}
+            </span>
+            <StatusBadge tone="critical">CRITICAL</StatusBadge>
+          </div>
+          <div className="text-2xl font-bold tabular-nums" style={{ color: 'var(--danger-text)' }}>
+            {criticalCount}
+          </div>
         </Card>
-        <Card className="border-rose-500/20">
-          <small className="text-xs text-rose-300">Critical Alerts</small>
-          <div className="text-2xl font-black text-rose-400 font-mono mt-1">{criticalCount}</div>
+        <Card className="p-4 flex flex-col justify-between gap-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+              {t('High Priority Alerts')}
+            </span>
+            <StatusBadge tone="high">HIGH</StatusBadge>
+          </div>
+          <div className="text-2xl font-bold tabular-nums" style={{ color: 'var(--orange-text)' }}>
+            {highCount}
+          </div>
         </Card>
-        <Card className="border-amber-500/20">
-          <small className="text-xs text-amber-300">High Priority Alerts</small>
-          <div className="text-2xl font-black text-amber-400 font-mono mt-1">{highCount}</div>
-        </Card>
-        <Card className="border-blue-500/20">
-          <small className="text-xs text-blue-300">Medium Priority Alerts</small>
-          <div className="text-2xl font-black text-blue-400 font-mono mt-1">{mediumCount}</div>
+        <Card className="p-4 flex flex-col justify-between gap-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+              {t('Medium Priority Alerts')}
+            </span>
+            <StatusBadge tone="medium">MEDIUM</StatusBadge>
+          </div>
+          <div className="text-2xl font-bold tabular-nums" style={{ color: 'var(--warning-text)' }}>
+            {mediumCount}
+          </div>
         </Card>
       </div>
 
-      <Card className="filters">
-        <label className="field">
-          <span>From</span>
+      {/* Filters */}
+      <FilterBar>
+        <label className="dp-field">
+          <span className="dp-field-label">{t('From')}</span>
           <input
             type="date"
             min={dataset.start}
@@ -441,8 +690,8 @@ export function Alerts({ dataset }: { dataset: Dataset }) {
             }}
           />
         </label>
-        <label className="field">
-          <span>To</span>
+        <label className="dp-field">
+          <span className="dp-field-label">{t('To')}</span>
           <input
             type="date"
             min={window.start}
@@ -465,79 +714,126 @@ export function Alerts({ dataset }: { dataset: Dataset }) {
             ['medium', 'Medium Priority'],
           ]}
         />
-      </Card>
+      </FilterBar>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-1">
-          <SectionTitle
+      {/* Anomaly Timeline + Detection Table */}
+      {timelineRows.length > 0 && (
+        <ChartCard
+          title="Anomaly Severity Timeline"
+          detail="Chronological risk score (0–100) across detected operational shifts"
+          data={timelineRows}
+          x="date"
+          date
+          height={200}
+          series={[{ key: 'score', name: 'Severity Score', kind: 'bar', color: '#DC2626' }]}
+          format={integer}
+        />
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        {/* Ranked Detection Queue & Table */}
+        <Card className="lg:col-span-5">
+          <SectionHeader
             title="Ranked Anomalies"
             detail="Sorted by severity & deviation"
-            aside={<Bell size={18} className="text-rose-400" />}
+            aside={<Bell size={16} style={{ color: 'var(--danger)' }} />}
           />
           <ErrorState error={list.error} retry={() => void list.refetch()} />
           {list.isLoading && <Loading />}
-          {allAlerts.length === 0 && <Empty text="No alerts match the selected filters." />}
-          <div className="space-y-2 pt-1 max-h-[520px] overflow-y-auto pr-1">
-            {allAlerts.map((row) => (
-              <button
-                key={row.id}
-                className={`w-full text-left p-3 rounded-xl border transition-all flex items-center justify-between text-xs ${
-                  row.id === alertId
-                    ? 'border-indigo-500 bg-indigo-950/40 shadow-lg'
-                    : 'border-slate-800 bg-slate-900/40 hover:bg-slate-800/40'
-                }`}
-                onClick={() => setSearch({ alert: row.id })}
-              >
-                <div>
-                  <strong className="block text-slate-200">{alertName[row.metric] || label(row.metric)}</strong>
-                  <span className="text-[11px] text-slate-400">
-                    {row.scope} · {dateLabel(row.end)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Pill tone={row.severity}>{row.severity}</Pill>
-                  <ChevronRight size={15} className="text-slate-500" />
-                </div>
-              </button>
-            ))}
+          {allAlerts.length === 0 && !list.isLoading && <Empty text="No alerts match the selected filters." />}
+          <div className="space-y-2 max-h-[540px] overflow-y-auto pr-1">
+            {allAlerts.map((row) => {
+              const isSelected = row.id === alertId
+              return (
+                <button
+                  key={row.id}
+                  type="button"
+                  onClick={() => setSearch({ alert: row.id })}
+                  style={{
+                    background: isSelected ? 'var(--primary-soft)' : 'var(--surface)',
+                    borderColor: isSelected ? 'var(--primary)' : 'var(--border)',
+                  }}
+                  className="w-full text-left rounded-lg border p-3 transition-colors hover:bg-[var(--surface-muted)] flex items-center justify-between gap-2 text-xs"
+                >
+                  <div className="min-w-0">
+                    <strong className="block font-semibold truncate" style={{ color: 'var(--heading)' }}>
+                      {t(alertName[row.metric] || label(row.metric))}
+                    </strong>
+                    <span className="text-[11px] block truncate mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                      {row.scope} · {dateLabel(row.end)} · {alertFormat(row.metric)(row.actual)} vs{' '}
+                      {alertFormat(row.metric)(row.baseline)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <StatusBadge tone={row.severity}>{row.severity}</StatusBadge>
+                    <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />
+                  </div>
+                </button>
+              )
+            })}
           </div>
         </Card>
 
-        {/* Detail Inspection Card */}
-        <Card className="lg:col-span-2">
+        {/* Root Cause & Evidence Detail Panel */}
+        <Card className="lg:col-span-7">
           <ErrorState error={detail.error} retry={() => void detail.refetch()} />
           {detail.isLoading && <Loading />}
-          {!alertId && <Empty text="Select an anomaly card from the left panel to inspect root causes and charts." />}
+          {!alertId && (
+            <Empty text="Select an anomaly card from the left panel to inspect root causes and charts." />
+          )}
 
           {selected && (
             <div className="space-y-5">
-              <SectionTitle
+              <SectionHeader
                 title={alertName[selected.metric] || label(selected.metric)}
-                detail={selected.scope + ' · ' + dateLabel(selected.start) + ' – ' + dateLabel(selected.end)}
-                aside={<Pill tone={selected.severity}>{selected.severity.toUpperCase()} · SCORE {selected.score}/100</Pill>}
+                detail={`${selected.scope} · ${dateLabel(selected.start)} – ${dateLabel(selected.end)}`}
+                aside={
+                  <StatusBadge tone={selected.severity}>
+                    {selected.severity.toUpperCase()} · SCORE {selected.score}/100
+                  </StatusBadge>
+                }
               />
 
-              <div className="grid grid-cols-3 gap-3">
-                <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-xs">
-                  <span className="text-slate-400 block text-[11px]">Observed Value</span>
-                  <strong className="text-base text-rose-400 font-mono">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div
+                  className="rounded-lg border p-3 text-xs"
+                  style={{ background: 'var(--surface-muted)', borderColor: 'var(--border)' }}
+                >
+                  <span className="block text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                    Observed Value
+                  </span>
+                  <strong className="text-base font-bold tabular-nums" style={{ color: 'var(--danger-text)' }}>
                     {alertFormat(selected.metric)(selected.actual)}
                   </strong>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-xs">
-                  <span className="text-slate-400 block text-[11px]">Historical Baseline</span>
-                  <strong className="text-base text-slate-200 font-mono">
+                <div
+                  className="rounded-lg border p-3 text-xs"
+                  style={{ background: 'var(--surface-muted)', borderColor: 'var(--border)' }}
+                >
+                  <span className="block text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                    Historical Baseline
+                  </span>
+                  <strong className="text-base font-bold tabular-nums" style={{ color: 'var(--heading)' }}>
                     {alertFormat(selected.metric)(selected.baseline)}
                   </strong>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-xs">
-                  <span className="text-slate-400 block text-[11px]">Deviation Rate</span>
-                  <strong className="text-base text-amber-400 font-mono">{percent(selected.deviation)}</strong>
+                <div
+                  className="rounded-lg border p-3 text-xs"
+                  style={{ background: 'var(--surface-muted)', borderColor: 'var(--border)' }}
+                >
+                  <span className="block text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                    Deviation Rate
+                  </span>
+                  <strong className="text-base font-bold tabular-nums" style={{ color: 'var(--warning-text)' }}>
+                    {percent(selected.deviation)}
+                  </strong>
                 </div>
               </div>
 
-              {/* Observed vs Baseline Chart */}
-              <div>
+              <div
+                className="rounded-xl border p-3.5"
+                style={{ background: 'var(--surface-muted)', borderColor: 'var(--border)' }}
+              >
                 <Chart
                   data={selected.chart}
                   x="date"
@@ -545,24 +841,45 @@ export function Alerts({ dataset }: { dataset: Dataset }) {
                   height={240}
                   format={alertFormat(selected.metric)}
                   series={[
-                    { key: 'actual', name: 'Observed', kind: selected.chart.length === 1 ? 'bar' : 'line' },
-                    { key: 'baseline', name: 'Baseline', kind: selected.chart.length === 1 ? 'bar' : 'line', dashed: true },
+                    {
+                      key: 'actual',
+                      name: 'Observed',
+                      kind: selected.chart.length === 1 ? 'bar' : 'line',
+                      color: '#2563EB',
+                    },
+                    {
+                      key: 'baseline',
+                      name: 'Baseline',
+                      kind: selected.chart.length === 1 ? 'bar' : 'line',
+                      dashed: true,
+                      color: '#64748B',
+                    },
                   ]}
                 />
               </div>
 
-              {/* Actionable Recommendation Callout */}
-              <div className="p-4 rounded-xl border border-indigo-500/20 bg-indigo-950/30 flex items-start gap-3 text-xs">
-                <CircleAlert size={18} className="text-cyan-400 flex-shrink-0 mt-0.5" />
+              <div
+                className="rounded-xl border p-4 flex items-start gap-3 text-xs"
+                style={{
+                  background: 'var(--primary-soft)',
+                  borderColor: 'var(--primary-border)',
+                }}
+              >
+                <CircleAlert size={17} className="flex-shrink-0 mt-0.5" style={{ color: 'var(--primary)' }} />
                 <div>
-                  <strong className="text-white block font-semibold mb-0.5">Recommended Action:</strong>
-                  <p className="text-slate-300 leading-relaxed">{selected.action}</p>
+                  <strong className="block font-semibold mb-1" style={{ color: 'var(--heading)' }}>
+                    Recommended Action:
+                  </strong>
+                  <p className="leading-relaxed" style={{ color: 'var(--text)' }}>
+                    {selected.action}
+                  </p>
                   <Link
                     to={investigateHref(selected.metric)}
-                    className="inline-flex items-center gap-1.5 mt-2 font-semibold text-cyan-400 hover:text-cyan-300"
+                    className="inline-flex items-center gap-1.5 mt-2.5 font-semibold hover:underline"
+                    style={{ color: 'var(--primary-text)' }}
                   >
                     <span>Investigate with AI Copilot</span>
-                    <ArrowRight size={14} />
+                    <ArrowRight size={13} />
                   </Link>
                 </div>
               </div>
@@ -578,7 +895,53 @@ export function Alerts({ dataset }: { dataset: Dataset }) {
           )}
         </Card>
       </div>
-    </>
+
+      {/* All Anomalies Structured Table */}
+      {allAlerts.length > 0 && (
+        <Card>
+          <SectionHeader title="Anomaly Detection Log" detail="Full tabular breakdown of flagged deviations" />
+          <Table
+            rows={allAlerts.map((a) => ({
+              id: a.id,
+              date: dateLabel(a.end),
+              metricLabel: alertName[a.metric] || label(a.metric),
+              scope: a.scope,
+              actualFormatted: alertFormat(a.metric)(a.actual),
+              baselineFormatted: alertFormat(a.metric)(a.baseline),
+              deviation: a.deviation,
+              severity: a.severity,
+              score: a.score,
+            }))}
+            pageSize={8}
+            columns={[
+              { key: 'date', title: 'Date' },
+              { key: 'metricLabel', title: 'Metric' },
+              { key: 'scope', title: 'Scope' },
+              { key: 'actualFormatted', title: 'Observed', align: 'right' },
+              { key: 'baselineFormatted', title: 'Expected', align: 'right' },
+              { key: 'deviation', title: 'Deviation', format: percent, align: 'right' },
+              {
+                key: 'severity',
+                title: 'Severity',
+                render: (r) => <StatusBadge tone={String(r.severity)}>{String(r.severity).toUpperCase()}</StatusBadge>,
+              },
+              {
+                key: 'action',
+                title: 'Inspect',
+                sortable: false,
+                render: (r) => (
+                  <Button size="sm" onClick={() => setSearch({ alert: String(r.id) })}>
+                    Inspect
+                  </Button>
+                ),
+              },
+            ]}
+          />
+        </Card>
+      )}
+
+      <ModelQuality />
+    </div>
   )
 }
 
@@ -591,7 +954,6 @@ export function ForecastPage({ options }: { options: Options }) {
     mutationFn: (values: unknown) => request<Forecast>('/forecast', values),
   })
 
-  const result = mutation.data
   const run = () =>
     mutation.mutate({
       target,
@@ -603,6 +965,16 @@ export function ForecastPage({ options }: { options: Options }) {
         : {}),
     })
 
+  // Auto-generate initial baseline projection on load
+  const initialized = useRef(false)
+  useEffect(() => {
+    if (!initialized.current) {
+      initialized.current = true
+      run()
+    }
+  }, [])
+
+  const result = mutation.data
   const format = result?.target === 'revenue' ? moneyCompact : decimal
   const chart = result
     ? [
@@ -616,20 +988,28 @@ export function ForecastPage({ options }: { options: Options }) {
     : []
 
   const metrics = result ? Object.entries(result.metrics.test).map(([model, m]) => ({ model, ...m })) : []
+  const driverRows = result
+    ? Object.entries(result.drivers)
+        .map(([name, value]) => ({ name, value: Number(value) || 0 }))
+        .sort((a, b) => b.value - a.value)
+    : []
 
   return (
-    <>
-      <Heading
+    <div className="space-y-6">
+      <PageHeader
         eyebrow="PREDICTIVE INTELLIGENCE"
         title="Forecast Center"
         subtitle="Compare baseline and LightGBM forecasts using historical holdout errors and empirical prediction intervals."
       />
 
-      <Card className="filters">
+      <FilterBar>
         <Select
           label="Target Metric"
           value={target}
-          onChange={value => { setTarget(value); mutation.reset() }}
+          onChange={(value) => {
+            setTarget(value)
+            mutation.reset()
+          }}
           options={[
             ['revenue', 'Revenue (₫ VND)'],
             ['orders', 'Order Volume'],
@@ -639,7 +1019,10 @@ export function ForecastPage({ options }: { options: Options }) {
         <Select
           label="Scope"
           value={scope}
-          onChange={value => { setScope(value); mutation.reset() }}
+          onChange={(value) => {
+            setScope(value)
+            mutation.reset()
+          }}
           options={[
             ['', 'Entire Business'],
             ...options.categories.map<[string, string]>((c) => ['c:' + c, 'Category · ' + c]),
@@ -649,17 +1032,20 @@ export function ForecastPage({ options }: { options: Options }) {
         <Select
           label="Forecast Horizon"
           value={horizon}
-          onChange={value => { setHorizon(value); mutation.reset() }}
+          onChange={(value) => {
+            setHorizon(value)
+            mutation.reset()
+          }}
           options={[
             ['7', '7 Days Forward'],
             ['30', '30 Days Forward'],
           ]}
         />
-        <Button className="primary px-5 py-2.5 text-xs flex items-center gap-2" onClick={run} disabled={mutation.isPending}>
+        <Button variant="primary" onClick={run} disabled={mutation.isPending}>
           <span>Run Forecast</span>
-          <ArrowRight size={15} />
+          <ArrowRight size={14} />
         </Button>
-      </Card>
+      </FilterBar>
 
       <ErrorState error={mutation.error} />
       {mutation.isPending && <Loading />}
@@ -672,45 +1058,65 @@ export function ForecastPage({ options }: { options: Options }) {
 
       {result && (
         <div className="space-y-6">
+          {/* Forecast KPI Summary */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <KPIStatCard
+              title="Cumulative Forecast Total"
+              value={format(result.total)}
+              icon={<TrendingUp size={16} />}
+            />
+            <KPIStatCard
+              title="Forecast Horizon"
+              value={`${result.horizon} Days`}
+              subtitle={result.scope}
+            />
+            <KPIStatCard
+              title="Selected Model Test WAPE"
+              value={percent(result.metrics.test[result.metrics.selected]?.wape)}
+              subtitle={`Model: ${result.metrics.selected === 'lightgbm' ? 'LightGBM 4.6.0' : label(result.metrics.selected)}`}
+            />
+            <Card className="p-4 flex flex-col justify-between gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                  Test Set Interval Coverage
+                </span>
+                <StatusBadge tone={result.metrics.test_coverage < 0.9 ? 'warning' : 'success'}>
+                  Nominal 90%
+                </StatusBadge>
+              </div>
+              <div
+                className="text-2xl font-bold tabular-nums"
+                style={{
+                  color: result.metrics.test_coverage < 0.9 ? 'var(--warning-text)' : 'var(--success-text)',
+                }}
+              >
+                {percent(result.metrics.test_coverage)}
+              </div>
+            </Card>
+          </div>
+
           <Card>
-            <SectionTitle
-              title={label(result.target) + ' Multi-Day Projection'}
-              detail={result.horizon + ' Days Horizon · ' + result.scope + ' · Model: ' + result.model_version}
+            <SectionHeader
+              title={`${label(result.target)} Multi-Day Projection`}
+              detail={`${result.horizon} Days Horizon · ${result.scope} · Artifact: ${result.model_version}`}
               aside={
-                <Pill tone="accent">
+                <StatusBadge tone="accent">
                   Selected Model: {result.metrics.selected === 'lightgbm' ? 'LightGBM 4.6.0' : label(result.metrics.selected)}
-                </Pill>
+                </StatusBadge>
               }
             />
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 py-2">
-              <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-xs">
-                <span className="text-slate-400 block text-[11px]">Cumulative Forecast Total</span>
-                <strong className="text-lg text-white font-mono">{format(result.total)}</strong>
-              </div>
-              <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-xs">
-                <span className="text-slate-400 block text-[11px]">Test Set Interval Coverage</span>
-                <strong className={`text-lg font-mono ${result.metrics.test_coverage < .90 ? 'text-amber-400' : 'text-emerald-400'}`}>{percent(result.metrics.test_coverage)}</strong>
-              </div>
-              <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-xs">
-                <span className="text-slate-400 block text-[11px]">Selected Model Test WAPE</span>
-                <strong className="text-lg text-cyan-300 font-mono">
-                  {percent(result.metrics.test[result.metrics.selected]?.wape)}
-                </strong>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-6 text-xs text-slate-300 py-1">
-              <span className="flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full bg-indigo-500 shadow-sm" />
+            <div className="flex flex-wrap items-center gap-5 text-xs pb-2" style={{ color: 'var(--text-secondary)' }}>
+              <span className="inline-flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-sm inline-block bg-[#2563EB]" />
                 <span>Historical Observations</span>
               </span>
-              <span className="flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full bg-cyan-400 shadow-sm" />
+              <span className="inline-flex items-center gap-2">
+                <span className="h-0.5 w-4 inline-block border-t-2 border-dashed border-[#D97706]" />
                 <span>Predicted Mean</span>
               </span>
-              <span className="flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full bg-violet-500/40 shadow-sm" />
+              <span className="inline-flex items-center gap-2">
+                <span className="h-3 w-3 rounded-sm inline-block bg-[#2563EB]/20 border border-[#2563EB]/40" />
                 <span>90% nominal daily prediction band · verify observed coverage above</span>
               </span>
             </div>
@@ -723,25 +1129,42 @@ export function ForecastPage({ options }: { options: Options }) {
               height={320}
               format={format}
               series={[
-                { key: 'observed', name: 'Observed' },
-                { key: 'projected', name: 'Forecast', dashed: true },
+                { key: 'observed', name: 'Observed', color: '#2563EB' },
+                { key: 'projected', name: 'Forecast', dashed: true, color: '#D97706' },
               ]}
             />
 
-            <div className="p-3 rounded-xl bg-indigo-950/20 border border-indigo-500/20 flex items-center gap-2.5 text-xs text-slate-300">
-              <CircleAlert size={16} className="text-cyan-400 flex-shrink-0" />
+            <div
+              className="mt-4 rounded-lg border px-3.5 py-2.5 flex items-start gap-2.5 text-xs leading-relaxed"
+              style={{
+                background: 'var(--info-bg)',
+                borderColor: 'var(--info-border)',
+                color: 'var(--info-text)',
+              }}
+            >
+              <CircleAlert size={15} className="flex-shrink-0 mt-0.5" />
               <span>{result.stockout_note}</span>
             </div>
           </Card>
 
-          <Card><SectionTitle title="Forecast reliability" detail={result.interval_method} />
-            <ul className="list-disc list-inside text-xs space-y-2">{result.warnings?.map(warning => <li key={warning} className="text-amber-300">{warning}</li>)}</ul>
-          </Card>
-
-          {/* Model Comparison & Feature Drivers */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {result.warnings?.length > 0 && (
             <Card>
-              <SectionTitle
+              <SectionHeader title="Forecast reliability" detail={result.interval_method} />
+              <ul
+                className="list-disc list-inside text-xs space-y-1.5 leading-relaxed"
+                style={{ color: 'var(--warning-text)' }}
+              >
+                {result.warnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
+            </Card>
+          )}
+
+          {/* Holdout Comparison & Feature Drivers */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <Card>
+              <SectionHeader
                 title="Holdout Model Performance Comparison"
                 detail="LightGBM must beat the better baseline by >2% validation MAE to be chosen"
               />
@@ -749,21 +1172,33 @@ export function ForecastPage({ options }: { options: Options }) {
                 rows={metrics}
                 columns={[
                   { key: 'model', title: 'Model' },
-                  { key: 'mae', title: 'MAE', format },
-                  { key: 'rmse', title: 'RMSE', format },
-                  { key: 'wape', title: 'WAPE', format: percent },
-                  { key: 'bias', title: 'Forecast Bias', format },
+                  { key: 'mae', title: 'MAE', format, align: 'right' },
+                  { key: 'rmse', title: 'RMSE', format, align: 'right' },
+                  { key: 'wape', title: 'WAPE', format: percent, align: 'right' },
+                  { key: 'bias', title: 'Forecast Bias', format, align: 'right' },
                 ]}
               />
             </Card>
 
             <Card>
-              <SectionTitle title="Model Feature Drivers" detail="Global feature importance gain" />
+              <SectionHeader title="Model Feature Drivers" detail="Global feature importance gain" />
+              {driverRows.length > 0 && (
+                <div className="mb-4">
+                  <Chart
+                    data={driverRows.slice(0, 8)}
+                    x="name"
+                    horizontal
+                    height={210}
+                    series={[{ key: 'value', name: 'Gain Importance', kind: 'bar', color: '#0284C7' }]}
+                  />
+                </div>
+              )}
               <Table
-                rows={Object.entries(result.drivers).map(([name, value]) => ({ name, value }))}
+                rows={driverRows}
+                pageSize={6}
                 columns={[
                   { key: 'name', title: 'Feature Driver' },
-                  { key: 'value', title: 'Gain Importance' },
+                  { key: 'value', title: 'Gain Importance', align: 'right' },
                 ]}
               />
               <Source>Sales Transactions · Versioned Artifact Bundle {result.model_version}</Source>
@@ -771,7 +1206,7 @@ export function ForecastPage({ options }: { options: Options }) {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }
 
@@ -803,7 +1238,13 @@ function valuesOf(raw: string, min: number, max: number, whole = false) {
     values.some((x) => !Number.isFinite(x) || x < min || x > max || (whole && !Number.isInteger(x)))
   )
     throw new Error(
-      'Enter up to eight comma-separated ' + (whole ? 'whole numbers' : 'numbers') + ' between ' + min + ' and ' + max + '.'
+      'Enter up to eight comma-separated ' +
+        (whole ? 'whole numbers' : 'numbers') +
+        ' between ' +
+        min +
+        ' and ' +
+        max +
+        '.'
     )
   return values
 }
@@ -895,21 +1336,18 @@ export function Simulator({ options }: { options: Options }) {
   const variants = data ? [data.baseline, ...data.alternatives] : []
 
   return (
-    <>
-      <Heading
+    <div className="space-y-6">
+      <PageHeader
         eyebrow="SIGNATURE DECISION SIMULATOR"
         title="Scenario Simulator"
         subtitle="Simulate business strategies, understand trade-offs and choose the path that fits your goals before taking action."
       />
 
-      {/* Scenario Type Selection Tabs */}
-      <div className="flex flex-wrap gap-2 pt-2">
+      <div className="flex flex-wrap gap-2">
         {Object.entries(scenarioTitles).map(([key, title]) => (
           <Button
             key={key}
-            className={`px-4 py-2 text-xs font-semibold ${
-              key === kind ? 'primary' : 'border border-slate-800 bg-slate-900/40 text-slate-300'
-            }`}
+            variant={key === kind ? 'primary' : 'outline'}
             disabled={mutation.isPending}
             onClick={() => setType(key)}
           >
@@ -919,13 +1357,13 @@ export function Simulator({ options }: { options: Options }) {
       </div>
 
       <Card>
-        <SectionTitle
+        <SectionHeader
           title={scenarioTitles[kind]}
           detail="Adjust parameters to simulate market elasticity and fulfillment bottlenecks"
         />
-        <form className="scenario-form grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4" onSubmit={form.handleSubmit(run)}>
-          <label className="field">
-            <span>{kind === 'marketing' ? 'Marketing Channel' : 'Product SKU'}</span>
+        <form className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4" onSubmit={form.handleSubmit(run)}>
+          <label className="dp-field">
+            <span className="dp-field-label">{kind === 'marketing' ? 'Marketing Channel' : 'Product SKU'}</span>
             <select {...form.register('subject')}>
               {kind === 'marketing'
                 ? options.marketing_channels.map((s) => <option key={s}>{s}</option>)
@@ -937,26 +1375,26 @@ export function Simulator({ options }: { options: Options }) {
             </select>
           </label>
 
-          <label className="field">
-            <span>Objective Function</span>
+          <label className="dp-field">
+            <span className="dp-field-label">Objective Function</span>
             <select {...form.register('objective')}>
               <option value="profit">Maximize Contribution Profit</option>
               <option value="revenue">Maximize Revenue</option>
               {kind !== 'marketing' && <option value="stockout">Minimize Stockout Risk</option>}
-              <option value="balanced">Balance Risk & Return</option>
+              <option value="balanced">Balance Risk &amp; Return</option>
             </select>
           </label>
 
-          <label className="field">
-            <span>Horizon</span>
+          <label className="dp-field">
+            <span className="dp-field-label">Horizon</span>
             <select {...form.register('horizon')}>
               <option value="7">7 Days</option>
               <option value="30">30 Days</option>
             </select>
           </label>
 
-          <label className="field">
-            <span>
+          <label className="dp-field">
+            <span className="dp-field-label">
               {kind === 'price'
                 ? 'Discount Rates (%)'
                 : kind === 'marketing'
@@ -971,22 +1409,24 @@ export function Simulator({ options }: { options: Options }) {
 
           {kind === 'inventory' ? (
             <>
-              <label className="field">
-                <span>Confirmed Incoming Units</span>
+              <label className="dp-field">
+                <span className="dp-field-label">Confirmed Incoming Units</span>
                 <input type="number" min="0" {...form.register('incoming')} />
               </label>
-              <label className="field">
-                <span>Confirmed Arrival Day</span>
+              <label className="dp-field">
+                <span className="dp-field-label">Confirmed Arrival Day</span>
                 <input type="number" min="1" max="90" {...form.register('arrival')} />
               </label>
-              <label className="field">
-                <span>Safety Stock Threshold</span>
+              <label className="dp-field">
+                <span className="dp-field-label">Safety Stock Threshold</span>
                 <input type="number" min="0" {...form.register('safety')} />
               </label>
             </>
           ) : (
-            <label className="field">
-              <span>{kind === 'price' ? 'Price Elasticity (Optional)' : 'Diminishing Returns Exponent'}</span>
+            <label className="dp-field">
+              <span className="dp-field-label">
+                {kind === 'price' ? 'Price Elasticity (Optional)' : 'Diminishing Returns Exponent'}
+              </span>
               <input
                 type="number"
                 step="0.01"
@@ -999,9 +1439,9 @@ export function Simulator({ options }: { options: Options }) {
           )}
 
           <div className="sm:col-span-2 md:col-span-4 flex justify-end pt-2">
-            <Button type="submit" className="primary px-6 py-2.5 text-xs flex items-center gap-2" disabled={mutation.isPending}>
+            <Button type="submit" variant="primary" disabled={mutation.isPending}>
               <span>Run Scenario Simulation</span>
-              <ArrowRight size={15} />
+              <ArrowRight size={14} />
             </Button>
           </div>
         </form>
@@ -1012,30 +1452,34 @@ export function Simulator({ options }: { options: Options }) {
 
       {data && (
         <div className="space-y-6">
-          {/* 3D Scenario Landscape (Signature Interactive Experience) */}
           <Scenario3DLandscape
             variants={variants}
             recommendedName={String(data.recommended.name)}
             metricKey="profit"
           />
 
-          {/* Outcome Comparison Matrix */}
           <Card>
-            <SectionTitle
+            <SectionHeader
               title="Simulation Outcome Comparison Matrix"
-              detail={'Recommended variant: ' + String(data.recommended.name) + ' for objective: ' + label(data.objective)}
-              aside={<Pill tone="success">Validated Optimization</Pill>}
+              detail={`Recommended variant: ${String(data.recommended.name)} for objective: ${label(data.objective)}`}
+              aside={<StatusBadge tone="success">Validated Optimization</StatusBadge>}
             />
 
-            <div className="p-4 rounded-xl border border-emerald-500/20 bg-emerald-950/20 flex items-start gap-3 text-xs mb-4">
-              <Check size={18} className="text-emerald-400 mt-0.5 flex-shrink-0" />
+            <div
+              className="rounded-xl border p-4 flex items-start gap-3 text-xs mb-4"
+              style={{ background: 'var(--success-bg)', borderColor: 'var(--success-border)' }}
+            >
+              <Check size={16} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--success)' }} />
               <div>
-                <strong className="text-white block font-bold text-sm">
+                <strong className="block font-semibold text-sm" style={{ color: 'var(--heading)' }}>
                   Recommended: {String(data.recommended.name)}
                 </strong>
-                <p className="text-slate-300 mt-0.5">
+                <p className="mt-0.5" style={{ color: 'var(--text)' }}>
                   Projected contribution profit difference vs baseline:{' '}
-                  <strong className="text-emerald-400 font-mono">{money(Number(data.recommended.profit_delta))}</strong>.
+                  <strong className="font-bold tabular-nums" style={{ color: 'var(--success-text)' }}>
+                    {money(Number(data.recommended.profit_delta))}
+                  </strong>
+                  .
                 </p>
               </div>
             </div>
@@ -1044,24 +1488,23 @@ export function Simulator({ options }: { options: Options }) {
               rows={variants}
               columns={[
                 { key: 'name', title: 'Scenario Variant' },
-                { key: 'demand', title: 'Simulated Demand', format: decimal },
-                { key: 'fulfilled', title: 'Fulfillment Capacity', format: decimal },
-                { key: 'revenue', title: 'Projected Revenue', format: moneyCompact },
-                { key: 'profit', title: 'Contribution Profit', format: moneyCompact },
-                { key: 'margin', title: 'Gross Margin', format: percent },
-                { key: 'risk', title: 'Unfulfilled Stockout Units', format: integer },
+                { key: 'demand', title: 'Simulated Demand', format: decimal, align: 'right' },
+                { key: 'fulfilled', title: 'Fulfillment Capacity', format: decimal, align: 'right' },
+                { key: 'revenue', title: 'Projected Revenue', format: moneyCompact, align: 'right' },
+                { key: 'profit', title: 'Contribution Profit', format: moneyCompact, align: 'right' },
+                { key: 'margin', title: 'Gross Margin', format: percent, align: 'right' },
+                { key: 'risk', title: 'Unfulfilled Stockout Units', format: integer, align: 'right' },
               ]}
             />
           </Card>
 
-          {/* Sensitivity Analysis & Explicit Assumptions */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <Card>
-              <SectionTitle title="Sensitivity Analysis" detail="Outcomes tested under alternate elasticity paths" />
+              <SectionHeader title="Sensitivity Analysis" detail="Outcomes tested under alternate elasticity paths" />
               <div className="space-y-3">
                 {data.sensitivity.map((group, i) => (
-                  <details key={i} className="text-xs text-slate-300">
-                    <summary className="cursor-pointer font-semibold text-indigo-300 hover:text-indigo-200 py-1">
+                  <details key={i} className="text-xs" style={{ color: 'var(--text)' }}>
+                    <summary className="cursor-pointer font-semibold py-1" style={{ color: 'var(--primary-text)' }}>
                       {group.name}
                     </summary>
                     <Table
@@ -1071,9 +1514,9 @@ export function Simulator({ options }: { options: Options }) {
                       }))}
                       columns={[
                         { key: 'case', title: 'Assumed Value' },
-                        { key: 'profit', title: 'Profit', format: moneyCompact },
-                        { key: 'revenue', title: 'Revenue', format: moneyCompact },
-                        { key: 'risk', title: 'Unfulfilled Risk', format: integer },
+                        { key: 'profit', title: 'Profit', format: moneyCompact, align: 'right' },
+                        { key: 'revenue', title: 'Revenue', format: moneyCompact, align: 'right' },
+                        { key: 'risk', title: 'Unfulfilled Risk', format: integer, align: 'right' },
                       ]}
                     />
                   </details>
@@ -1082,8 +1525,8 @@ export function Simulator({ options }: { options: Options }) {
             </Card>
 
             <Card>
-              <SectionTitle title="Explicit Model Assumptions & Evidence" detail="Mathematical boundaries" />
-              <ul className="space-y-2 text-xs text-slate-300 list-disc list-inside">
+              <SectionHeader title="Explicit Model Assumptions & Evidence" detail="Mathematical boundaries" />
+              <ul className="space-y-2 text-xs list-disc list-inside" style={{ color: 'var(--text)' }}>
                 {data.assumptions.map((a, idx) => (
                   <li key={idx}>{a}</li>
                 ))}
@@ -1093,14 +1536,22 @@ export function Simulator({ options }: { options: Options }) {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }
 
 export function Recommendations() {
   const client = useQueryClient()
+  const { notify } = useToast()
   const session = useQuery({ queryKey: ['session'], queryFn: () => request<Session>('/session') })
   const [auditBefore, setAuditBefore] = useState<string | undefined>()
+  const [priorityFilter, setPriorityFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [confirmState, setConfirmState] = useState<{
+    row: Recommendation
+    decision: 'accepted' | 'rejected'
+  } | null>(null)
+
   const data = useQuery({
     queryKey: ['recommendations'],
     queryFn: () => request<{ rows: Recommendation[]; dataset_id: string }>('/recommendations'),
@@ -1108,7 +1559,8 @@ export function Recommendations() {
 
   const audit = useQuery({
     queryKey: ['audit', auditBefore],
-    queryFn: () => request<{ rows: Audit[]; next_before: number | null }>('/audit?' + params({ kind: 'decisions', before: auditBefore })),
+    queryFn: () =>
+      request<{ rows: Audit[]; next_before: number | null }>('/audit?' + params({ kind: 'decisions', before: auditBefore })),
   })
 
   const feedback = useMutation({
@@ -1118,74 +1570,181 @@ export function Recommendations() {
         decision,
         dataset_id: data.data?.dataset_id,
       }),
-    onSuccess: () => {
+    onSuccess: (_res, vars) => {
+      setConfirmState(null)
+      notify({
+        tone: vars.decision === 'accepted' ? 'success' : 'info',
+        title: 'Recommendation decision saved',
+        description: `Status: ${vars.decision.toUpperCase()} · Executive sign-off logged to the append-only decision audit trail.`,
+      })
       void client.invalidateQueries({ queryKey: ['recommendations'] })
       void client.invalidateQueries({ queryKey: ['audit'] })
     },
+    onError: (err) => {
+      notify({
+        tone: 'danger',
+        title: 'Failed to record decision',
+        description: err.message,
+      })
+    },
   })
 
+  const allRows = data.data?.rows || []
+  const filteredRows = allRows.filter((row) => {
+    const matchPriority =
+      priorityFilter === 'all' ||
+      (priorityFilter === 'high' ? row.priority === 'critical' || row.priority === 'high' : row.priority === priorityFilter)
+    const matchStatus = statusFilter === 'all' || row.decision === statusFilter
+    return matchPriority && matchStatus
+  })
+
+  const pendingCount = allRows.filter((r) => r.decision === 'pending').length
+  const acceptedCount = allRows.filter((r) => r.decision === 'accepted').length
+  const auditEvents = audit.data?.rows.filter((r) => r.kind.endsWith('_feedback')) || []
+
   return (
-    <>
-      <Heading
+    <div className="space-y-6">
+      <PageHeader
         eyebrow="HUMAN-IN-THE-LOOP DECISION INTELLIGENCE"
         title="Recommendations & Decision Audit"
         subtitle="Review business evidence and record decisions against the active dataset. Decision history is protected against ordinary database updates and deletes."
       />
 
+      {/* Governance Overview Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPIStatCard title="Active Recommendations" value={integer(allRows.length)} />
+        <KPIStatCard title="Pending Human Review" value={integer(pendingCount)} />
+        <KPIStatCard title="Accepted Decisions" value={integer(acceptedCount)} />
+        <KPIStatCard title="Audit Log Entries" value={integer(auditEvents.length)} />
+      </div>
+
+      {/* Filters */}
+      <FilterBar>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] font-semibold uppercase tracking-wide mr-1" style={{ color: 'var(--text-secondary)' }}>
+            Priority:
+          </span>
+          {[
+            ['all', 'All'],
+            ['high', 'Critical & High'],
+            ['medium', 'Medium'],
+          ].map(([key, labelText]) => (
+            <Button
+              key={key}
+              size="sm"
+              variant={priorityFilter === key ? 'primary' : 'outline'}
+              onClick={() => setPriorityFilter(key)}
+            >
+              {labelText}
+            </Button>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5 ml-auto">
+          <span className="text-[11px] font-semibold uppercase tracking-wide mr-1" style={{ color: 'var(--text-secondary)' }}>
+            Status:
+          </span>
+          {[
+            ['all', 'All'],
+            ['pending', 'Pending'],
+            ['accepted', 'Accepted'],
+            ['rejected', 'Rejected'],
+          ].map(([key, labelText]) => (
+            <Button
+              key={key}
+              size="sm"
+              variant={statusFilter === key ? 'primary' : 'outline'}
+              onClick={() => setStatusFilter(key)}
+            >
+              {labelText}
+            </Button>
+          ))}
+        </div>
+      </FilterBar>
+
       <ErrorState error={data.error || feedback.error} retry={data.error ? () => void data.refetch() : undefined} />
       {data.isLoading && <Loading />}
-      {data.data?.rows.length === 0 && <Empty text="No active recommendations for the current snapshot." />}
+      {!data.isLoading && allRows.length === 0 && <Empty text="No active recommendations for the current snapshot." />}
+      {!data.isLoading && allRows.length > 0 && filteredRows.length === 0 && (
+        <Empty text="No recommendations match the current priority or status filter." />
+      )}
 
       <div className="space-y-4">
-        {data.data?.rows.map((row) => (
-          <Card key={row.id} className="space-y-3">
-            <SectionTitle
+        {filteredRows.map((row) => (
+          <Card key={row.id} className="space-y-4">
+            <SectionHeader
               title={row.title}
               detail={row.context}
               aside={
                 <div className="flex items-center gap-2">
                   <Pill tone={row.priority}>{row.priority.toUpperCase()}</Pill>
-                  <Pill tone={row.decision === 'accepted' ? 'success' : 'muted'}>
+                  <Pill tone={row.decision === 'accepted' ? 'success' : row.decision === 'rejected' ? 'critical' : 'muted'}>
                     STATUS: {row.decision.toUpperCase()}
                   </Pill>
                 </div>
               }
             />
 
-            <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 text-xs">
-              <strong className="text-white block font-semibold mb-1">Proposed Action:</strong>
-              <p className="text-slate-300 leading-relaxed">{row.action}</p>
+            <div
+              className="rounded-lg border p-3.5 text-xs"
+              style={{ background: 'var(--surface-muted)', borderColor: 'var(--border)' }}
+            >
+              <strong className="block font-semibold mb-1" style={{ color: 'var(--heading)' }}>
+                Proposed Action:
+              </strong>
+              <p className="leading-relaxed" style={{ color: 'var(--text)' }}>
+                {row.action}
+              </p>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
               {row.expected_impact ? (
                 Object.entries(row.expected_impact).map(([k, val]) => (
-                  <div key={k} className="p-2.5 rounded-lg bg-slate-950 border border-slate-800">
-                    <span className="text-slate-400 block text-[10px] uppercase">{label(k)}</span>
-                    <strong className="text-sm font-mono text-white">
+                  <div
+                    key={k}
+                    className="rounded-lg border p-3"
+                    style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+                  >
+                    <span className="block text-[10px] font-semibold uppercase" style={{ color: 'var(--text-secondary)' }}>
+                      {label(k)}
+                    </span>
+                    <strong className="text-sm font-bold tabular-nums mt-0.5 block" style={{ color: 'var(--heading)' }}>
                       {k.endsWith('vnd') || k === 'purchase_commitment' ? moneyCompact(val) : decimal(val)}
                     </strong>
                   </div>
                 ))
               ) : (
-                <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 col-span-2">
-                  <span className="text-slate-400 block text-[10px] uppercase">Estimated Impact</span>
-                  <strong className="text-xs text-amber-400">Insufficient evidence</strong>
+                <div
+                  className="rounded-lg border p-3 col-span-2"
+                  style={{ background: 'var(--warning-bg)', borderColor: 'var(--warning-border)' }}
+                >
+                  <span className="block text-[10px] font-semibold uppercase" style={{ color: 'var(--warning-text)' }}>
+                    Estimated Impact
+                  </span>
+                  <strong className="text-xs font-semibold" style={{ color: 'var(--warning-text)' }}>
+                    Insufficient evidence
+                  </strong>
                 </div>
               )}
             </div>
 
-            <p className="text-xs text-slate-400">{row.uncertainty}</p>
+            <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+              {row.uncertainty}
+            </p>
 
-            <details className="text-xs text-slate-400">
-              <summary className="cursor-pointer font-semibold text-indigo-300 hover:text-indigo-200">
+            <details className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              <summary className="cursor-pointer font-semibold" style={{ color: 'var(--primary-text)' }}>
                 Review Assumptions, Risks and Supporting Evidence
               </summary>
-              <div className="mt-2 space-y-2 p-3 rounded-xl bg-slate-950 border border-slate-800">
+              <div
+                className="mt-2.5 space-y-2 rounded-lg border p-3.5"
+                style={{ background: 'var(--surface-muted)', borderColor: 'var(--border)' }}
+              >
                 <div>
-                  <strong className="text-slate-200">Business Risk:</strong> {row.risk}
+                  <strong style={{ color: 'var(--heading)' }}>Business Risk:</strong>{' '}
+                  <span style={{ color: 'var(--text)' }}>{row.risk}</span>
                 </div>
-                <ul className="list-disc list-inside space-y-1 text-slate-400">
+                <ul className="list-disc list-inside space-y-1">
                   {row.assumptions.map((a, i) => (
                     <li key={i}>{a}</li>
                   ))}
@@ -1193,32 +1752,41 @@ export function Recommendations() {
               </div>
             </details>
 
-            {/* Human Decision Buttons */}
-            <div className="pt-2 flex items-center gap-3 flex-wrap">
+            <div className="pt-2 border-t flex items-center gap-3 flex-wrap" style={{ borderColor: 'var(--border)' }}>
               {row.id === 'marketing:facebook' && (
                 <Link
                   to={'/scenarios?tab=marketing&channel=Facebook%20Ads&autorun=1&rec=' + encodeURIComponent(row.id)}
-                  className="inline-flex items-center gap-2 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20"
+                  className="inline-flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-xs font-semibold transition-colors hover:bg-[var(--primary-soft)]"
+                  style={{
+                    borderColor: 'var(--primary-border)',
+                    background: 'var(--surface)',
+                    color: 'var(--primary-text)',
+                  }}
                 >
-                  <SlidersHorizontal size={16} />
+                  <SlidersHorizontal size={14} />
                   <span>Try first in simulator</span>
                 </Link>
               )}
+
               <Button
-                className="primary px-4 py-2 text-xs flex items-center gap-2"
-                disabled={feedback.isPending || row.decision === 'accepted' || !session.data || session.data.role === 'viewer'}
-                onClick={() => feedback.mutate({ id: row.id, decision: 'accepted' })}
+                variant="primary"
+                disabled={
+                  feedback.isPending || row.decision === 'accepted' || !session.data || session.data.role === 'viewer'
+                }
+                onClick={() => setConfirmState({ row, decision: 'accepted' })}
               >
-                <Check size={16} />
+                <Check size={14} />
                 <span>Accept Recommendation</span>
               </Button>
 
               <Button
-                className="px-4 py-2 text-xs flex items-center gap-2 border border-slate-700 bg-slate-900/60 hover:bg-rose-950/40 hover:border-rose-500/40 text-rose-300"
-                disabled={feedback.isPending || row.decision === 'rejected' || !session.data || session.data.role === 'viewer'}
-                onClick={() => feedback.mutate({ id: row.id, decision: 'rejected' })}
+                variant="danger"
+                disabled={
+                  feedback.isPending || row.decision === 'rejected' || !session.data || session.data.role === 'viewer'
+                }
+                onClick={() => setConfirmState({ row, decision: 'rejected' })}
               >
-                <X size={16} />
+                <X size={14} />
                 <span>Reject</span>
               </Button>
             </div>
@@ -1226,19 +1794,31 @@ export function Recommendations() {
         ))}
       </div>
 
-      {/* Decision Audit Trail Card */}
+      {/* Decision Audit Trail */}
       <Card>
-        <SectionTitle
+        <SectionHeader
           title="Decision Audit Trail"
           detail="Append-only record of executive human decisions. Times in Asia/Ho_Chi_Minh (UTC+7)"
-          aside={<Database size={18} className="text-cyan-400" />}
+          aside={<Database size={16} style={{ color: 'var(--primary)' }} />}
         />
         <ErrorState error={audit.error} />
         {audit.isLoading && <Loading />}
-        <div className="flex gap-2 mb-3"><Button disabled={!auditBefore} onClick={() => setAuditBefore(undefined)}>Latest events</Button><Button disabled={!audit.data?.next_before} onClick={() => setAuditBefore(String(audit.data?.next_before))}>Older events</Button></div>
+        <div className="flex gap-2 mb-3">
+          <Button size="sm" disabled={!auditBefore} onClick={() => setAuditBefore(undefined)}>
+            Latest events
+          </Button>
+          <Button
+            size="sm"
+            disabled={!audit.data?.next_before}
+            onClick={() => setAuditBefore(String(audit.data?.next_before))}
+          >
+            Older events
+          </Button>
+        </div>
         {audit.data && (
           <Table
-            rows={audit.data.rows.filter(r => r.kind.endsWith('_feedback')).map((r) => ({
+            pageSize={10}
+            rows={auditEvents.map((r) => ({
               actor: String(r.payload.actor || 'Legacy local event'),
               kind: r.kind,
               time: new Date(r.occurred_at).toLocaleString('en-GB', { timeZone: 'Asia/Ho_Chi_Minh' }),
@@ -1256,11 +1836,40 @@ export function Recommendations() {
         )}
       </Card>
 
-      {/* Step 4 End-to-End Workflow Navigation Footer */}
-      <WorkflowNavigationFooter
-        prevPath="/scenarios"
-        prevLabelKey="Back to 3D Scenario Simulator"
+      <ConfirmDialog
+        open={!!confirmState}
+        tone={confirmState?.decision === 'rejected' ? 'danger' : 'primary'}
+        title={
+          confirmState?.decision === 'accepted'
+            ? 'Confirm Recommendation Approval'
+            : 'Confirm Recommendation Rejection'
+        }
+        description={
+          confirmState
+            ? `Record "${confirmState.decision}" for "${confirmState.row.title}" into the immutable audit trail?`
+            : ''
+        }
+        detail={
+          confirmState ? (
+            <div className="space-y-1">
+              <div>
+                <strong>Action:</strong> {confirmState.row.action}
+              </div>
+              <div>
+                <strong>Risk note:</strong> {confirmState.row.risk}
+              </div>
+            </div>
+          ) : null
+        }
+        confirmLabel={confirmState?.decision === 'accepted' ? 'Accept Recommendation' : 'Reject Recommendation'}
+        isPending={feedback.isPending}
+        onCancel={() => setConfirmState(null)}
+        onConfirm={() => {
+          if (confirmState) {
+            feedback.mutate({ id: confirmState.row.id, decision: confirmState.decision })
+          }
+        }}
       />
-    </>
+    </div>
   )
 }

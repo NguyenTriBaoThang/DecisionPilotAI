@@ -1,0 +1,372 @@
+import { useEffect, useRef, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
+import {
+  Bell,
+  BookOpen,
+  Calendar,
+  ChevronDown,
+  Database,
+  LogOut,
+  Menu,
+  Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Search,
+  Settings,
+  Sun,
+  User,
+} from 'lucide-react'
+import { dateLabel, percent, request, type Alert, type Dataset, type Session } from '../../api'
+import { useT } from '../../preferences'
+import { StatusBadge } from '../../ui'
+import { LanguageSwitcher } from '../LanguageSwitcher'
+
+interface TopbarProps {
+  activeTitle: string
+  dataset?: Dataset
+  session: Session
+  dark: boolean
+  setDark: (dark: boolean) => void
+  collapsed: boolean
+  setCollapsed: (collapsed: boolean) => void
+  onOpenMobile: () => void
+  onOpenSearch: () => void
+}
+
+export function Topbar({
+  activeTitle,
+  dataset,
+  session,
+  dark,
+  setDark,
+  collapsed,
+  setCollapsed,
+  onOpenMobile,
+  onOpenSearch,
+}: TopbarProps) {
+  const { t } = useT()
+  const [notifOpen, setNotifOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const [deferredReady, setDeferredReady] = useState(false)
+  const notifRef = useRef<HTMLDivElement>(null)
+  const profileRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setDeferredReady(false)
+    if (!dataset) return
+    const timer = window.setTimeout(() => setDeferredReady(true), 6000)
+    return () => window.clearTimeout(timer)
+  }, [dataset?.dataset_id])
+
+  const alertsQuery = useQuery({
+    queryKey: ['anomalies-radar', dataset?.dataset_id],
+    queryFn: () => request<{ rows: Alert[] }>('/anomalies?limit=6'),
+    enabled: !!dataset && (notifOpen || deferredReady),
+    staleTime: 5 * 60_000,
+  })
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false)
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileOpen(false)
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const alerts = (alertsQuery.data?.rows || []).slice(0, 5)
+  const criticalCount = alerts.filter((a) => a.severity === 'critical' || a.severity === 'high').length
+
+  return (
+    <header className="dp-topbar px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
+      {/* Left: Nav Toggle + Breadcrumb */}
+      <div className="flex items-center gap-2.5 min-w-0">
+        <button
+          type="button"
+          className="dp-mobile-only p-2 rounded-lg border hover:bg-[var(--surface-muted)]"
+          style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+          aria-label={t('Open navigation')}
+          onClick={onOpenMobile}
+        >
+          <Menu size={17} />
+        </button>
+
+        <button
+          type="button"
+          className="dp-desktop-only p-1.5 rounded-lg border hover:bg-[var(--surface-muted)] transition-colors"
+          style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          onClick={() => setCollapsed(!collapsed)}
+        >
+          {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+        </button>
+
+        <div className="flex items-center gap-2 text-xs min-w-0">
+          <Link
+            to="/"
+            className="hidden sm:inline font-medium hover:text-[var(--heading)] transition-colors"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            DecisionPilot
+          </Link>
+          <span className="hidden sm:inline" style={{ color: 'var(--text-muted)' }}>
+            /
+          </span>
+          <strong className="font-semibold truncate text-[13px]" style={{ color: 'var(--heading)' }}>
+            {t(activeTitle)}
+          </strong>
+        </div>
+      </div>
+
+      {/* Center / Right Controls */}
+      <div className="flex items-center gap-2 sm:gap-2.5">
+        {/* Global Quick Search Trigger */}
+        <button
+          type="button"
+          onClick={onOpenSearch}
+          className="hidden md:flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs min-w-[210px] justify-between hover:border-[var(--text-muted)] transition-colors"
+          style={{
+            background: 'var(--surface-muted)',
+            borderColor: 'var(--border)',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          <span className="flex items-center gap-2">
+            <Search size={13} />
+            <span>{t('Quick jump or ask…')}</span>
+          </span>
+          <kbd
+            className="rounded border px-1.5 py-0.5 text-[10px] font-mono"
+            style={{
+              background: 'var(--surface)',
+              borderColor: 'var(--border)',
+              color: 'var(--text-muted)',
+            }}
+          >
+            Ctrl K
+          </kbd>
+        </button>
+
+        <button
+          type="button"
+          onClick={onOpenSearch}
+          aria-label="Open quick search"
+          className="md:hidden p-2 rounded-lg border hover:bg-[var(--surface-muted)]"
+          style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+        >
+          <Search size={15} />
+        </button>
+
+        {/* Dataset Snapshot Date Pill */}
+        {dataset && (
+          <Link
+            to="/data-sources"
+            className="hidden xl:inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium hover:bg-[var(--surface-muted)] transition-colors"
+            style={{
+              background: 'var(--surface)',
+              borderColor: 'var(--border)',
+              color: 'var(--text-secondary)',
+            }}
+            title={`${dataset.kind === 'synthetic' ? 'Synthetic Demo' : 'Imported Data'} (${dataset.start} – ${dataset.end})`}
+          >
+            <Calendar size={12} style={{ color: 'var(--primary)' }} />
+            <span>{dataset.kind === 'synthetic' ? t('Synthetic Demo') : t('Imported Data')}</span>
+            <span style={{ color: 'var(--text-muted)' }}>·</span>
+            <span className="tabular-nums">{dateLabel(dataset.end)}</span>
+          </Link>
+        )}
+
+        <LanguageSwitcher />
+
+        {/* Notification Center */}
+        <div className="relative" ref={notifRef}>
+          <button
+            type="button"
+            onClick={() => {
+              setNotifOpen((prev) => !prev)
+              setProfileOpen(false)
+            }}
+            aria-label={t('Notifications')}
+            aria-expanded={notifOpen}
+            className="relative flex h-8 w-8 items-center justify-center rounded-lg border hover:bg-[var(--surface-muted)] transition-colors"
+            style={{
+              background: 'var(--surface)',
+              borderColor: 'var(--border)',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            <Bell size={15} />
+            {criticalCount > 0 && (
+              <span
+                className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white"
+                style={{ background: 'var(--danger)' }}
+              >
+                {criticalCount}
+              </span>
+            )}
+          </button>
+
+          {notifOpen && (
+            <div
+              className="absolute right-0 mt-2 w-80 rounded-xl border p-3 space-y-2.5 z-50"
+              style={{
+                background: 'var(--surface)',
+                borderColor: 'var(--border-strong)',
+                boxShadow: 'var(--shadow-lg)',
+              }}
+            >
+              <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: 'var(--border)' }}>
+                <span className="text-xs font-semibold" style={{ color: 'var(--heading)' }}>
+                  {t('Anomaly Alerts')}
+                </span>
+                <Link
+                  to="/anomalies"
+                  onClick={() => setNotifOpen(false)}
+                  className="text-[11px] font-semibold hover:underline"
+                  style={{ color: 'var(--primary-text)' }}
+                >
+                  {t('View all')}
+                </Link>
+              </div>
+              {alerts.length === 0 ? (
+                <p className="py-4 text-center text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  {t('No active anomalies detected.')}
+                </p>
+              ) : (
+                <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                  {alerts.map((a) => (
+                    <Link
+                      key={a.id}
+                      to={'/anomalies?alert=' + encodeURIComponent(a.id)}
+                      onClick={() => setNotifOpen(false)}
+                      className="flex items-center justify-between gap-2 rounded-lg p-2 text-xs hover:bg-[var(--surface-muted)] transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <div className="font-medium truncate" style={{ color: 'var(--heading)' }}>
+                          {t(a.metric)}
+                        </div>
+                        <div className="text-[11px] truncate" style={{ color: 'var(--text-secondary)' }}>
+                          {a.scope} · {dateLabel(a.end)}
+                        </div>
+                      </div>
+                      <StatusBadge tone={a.severity}>
+                        {a.deviation != null ? percent(a.deviation) : a.severity}
+                      </StatusBadge>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Theme Switcher Quick Button */}
+        <button
+          type="button"
+          onClick={() => setDark(!dark)}
+          aria-label={dark ? t('Switch to light theme') : t('Switch to dark theme')}
+          className="flex h-8 w-8 items-center justify-center rounded-lg border hover:bg-[var(--surface-muted)] transition-colors"
+          style={{
+            background: 'var(--surface)',
+            borderColor: 'var(--border)',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          {dark ? <Sun size={15} /> : <Moon size={15} />}
+        </button>
+
+        {/* User Profile Menu */}
+        <div className="relative" ref={profileRef}>
+          <button
+            type="button"
+            onClick={() => {
+              setProfileOpen((prev) => !prev)
+              setNotifOpen(false)
+            }}
+            aria-expanded={profileOpen}
+            className="flex items-center gap-2 rounded-lg border px-2 py-1 hover:bg-[var(--surface-muted)] transition-colors"
+            style={{
+              background: 'var(--surface)',
+              borderColor: 'var(--border)',
+              color: 'var(--heading)',
+            }}
+          >
+            <span
+              className="flex h-6 w-6 items-center justify-center rounded-md text-xs font-semibold"
+              style={{ background: 'var(--primary-soft)', color: 'var(--primary-text)' }}
+            >
+              <User size={13} />
+            </span>
+            <span className="hidden sm:inline text-xs font-medium max-w-[110px] truncate">{session.actor}</span>
+            <ChevronDown size={13} style={{ color: 'var(--text-muted)' }} />
+          </button>
+
+          {profileOpen && (
+            <div
+              className="absolute right-0 mt-2 w-56 rounded-xl border p-2 space-y-1 z-50 text-xs"
+              style={{
+                background: 'var(--surface)',
+                borderColor: 'var(--border-strong)',
+                boxShadow: 'var(--shadow-lg)',
+              }}
+            >
+              <div className="px-2.5 py-2 border-b" style={{ borderColor: 'var(--border)' }}>
+                <div className="font-semibold truncate" style={{ color: 'var(--heading)' }}>
+                  {session.actor}
+                </div>
+                <div className="text-[11px] capitalize" style={{ color: 'var(--text-secondary)' }}>
+                  Role: {session.role} · {session.authentication === 'token' ? 'Token Auth' : 'Local Demo'}
+                </div>
+              </div>
+
+              <Link
+                to="/data-sources"
+                onClick={() => setProfileOpen(false)}
+                className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-[var(--surface-muted)]"
+                style={{ color: 'var(--text)' }}
+              >
+                <Database size={14} style={{ color: 'var(--text-secondary)' }} />
+                <span>{t('Data Sources')}</span>
+              </Link>
+              <Link
+                to="/settings"
+                onClick={() => setProfileOpen(false)}
+                className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-[var(--surface-muted)]"
+                style={{ color: 'var(--text)' }}
+              >
+                <Settings size={14} style={{ color: 'var(--text-secondary)' }} />
+                <span>{t('Settings')}</span>
+              </Link>
+              <Link
+                to="/docs"
+                onClick={() => setProfileOpen(false)}
+                className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-[var(--surface-muted)]"
+                style={{ color: 'var(--text)' }}
+              >
+                <BookOpen size={14} style={{ color: 'var(--text-secondary)' }} />
+                <span>{t('Documentation')}</span>
+              </Link>
+
+              {session.authentication === 'token' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    sessionStorage.removeItem('dp-access-token')
+                    window.location.reload()
+                  }}
+                  className="w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left hover:bg-[var(--danger-bg)]"
+                  style={{ color: 'var(--danger-text)' }}
+                >
+                  <LogOut size={14} />
+                  <span>{t('Sign out')}</span>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </header>
+  )
+}
+

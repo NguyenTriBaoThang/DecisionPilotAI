@@ -17,18 +17,30 @@ export function Scenario3DLandscape({
 }: Scenario3DLandscapeProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [activeIdx, setActiveIdx] = useState<number>(0)
+  const [isDark, setIsDark] = useState(() =>
+    typeof document !== 'undefined' && document.documentElement.dataset.theme === 'dark'
+  )
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    const observer = new MutationObserver(() => {
+      setIsDark(document.documentElement.dataset.theme === 'dark')
+    })
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     const container = containerRef.current
     if (!container || !variants || variants.length === 0) return
 
     const width = container.clientWidth || 500
-    const height = 260
+    const height = 250
 
     const scene = new THREE.Scene()
-    const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 1000)
-    camera.position.set(0, 3.2, 5.8)
-    camera.lookAt(0, 0.4, 0)
+    const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 1000)
+    camera.position.set(0, 3.1, 5.9)
+    camera.lookAt(0, 0.5, 0)
 
     let renderer: THREE.WebGLRenderer | null = null
     try {
@@ -40,100 +52,92 @@ export function Scenario3DLandscape({
       return
     }
 
-    // Ambient & Directional Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8)
+    const ambientLight = new THREE.AmbientLight(0xffffff, isDark ? 0.85 : 1.05)
     scene.add(ambientLight)
 
-    const dirLight = new THREE.DirectionalLight(0x8b5cf6, 1.8)
-    dirLight.position.set(5, 10, 7)
+    const dirLight = new THREE.DirectionalLight(0xffffff, isDark ? 1.4 : 1.1)
+    dirLight.position.set(4, 9, 6)
     scene.add(dirLight)
 
-    const cyanLight = new THREE.PointLight(0x22d3ee, 2, 10)
-    cyanLight.position.set(-4, 4, 3)
-    scene.add(cyanLight)
+    const rimLight = new THREE.DirectionalLight(0x93c5fd, 0.65)
+    rimLight.position.set(-5, 4, -4)
+    scene.add(rimLight)
 
-    // Platform Group
     const platformGroup = new THREE.Group()
     scene.add(platformGroup)
 
-    // Grid Floor
-    const grid = new THREE.GridHelper(8, 16, 0x312e81, 0x1e1b4b)
-    grid.position.y = -0.2
+    const gridColorCenter = isDark ? 0x334155 : 0xcbd5e1
+    const gridColorLines = isDark ? 0x1e293b : 0xe2e8f0
+    const grid = new THREE.GridHelper(8, 16, gridColorCenter, gridColorLines)
+    grid.position.y = -0.15
     scene.add(grid)
 
-    // Calculate maximum metric value for normalized heights
     const values = variants.map((v) => Number(v[metricKey]) || 0)
     const minVal = Math.min(...values, 0)
     const maxVal = Math.max(...values, 1)
     const valRange = maxVal - minVal || 1
 
-    const displayVariants = variants.slice(0, 4) // Show up to 4 platforms
-    const spacing = 1.6
+    const displayVariants = variants.slice(0, 4)
+    const spacing = 1.65
     const startX = -((displayVariants.length - 1) * spacing) / 2
 
     const meshes: THREE.Mesh[] = []
 
     displayVariants.forEach((v, idx) => {
       const val = Number(v[metricKey]) || 0
-      const normalizedHeight = Math.max(0.3, ((val - minVal) / valRange) * 1.6 + 0.3)
+      const normalizedHeight = Math.max(0.35, ((val - minVal) / valRange) * 1.55 + 0.35)
       const isRecommended = String(v.name) === recommendedName
       const isBaseline = idx === 0
 
-      // Cylinder Platform
-      const geo = new THREE.CylinderGeometry(0.55, 0.65, normalizedHeight, 32)
+      const geo = new THREE.CylinderGeometry(0.52, 0.58, normalizedHeight, 36)
       const color = isRecommended
-        ? 0x22c55e
+        ? 0x16a34a
         : isBaseline
-          ? 0x6366f1
-          : idx % 2 === 0
-            ? 0x8b5cf6
-            : 0x22d3ee
+        ? 0x64748b
+        : idx % 2 === 0
+        ? 0x2563eb
+        : 0x0284c7
 
       const mat = new THREE.MeshStandardMaterial({
         color,
-        roughness: 0.25,
-        metalness: 0.65,
-        transparent: true,
-        opacity: 0.9,
+        roughness: 0.35,
+        metalness: 0.18,
       })
 
       const mesh = new THREE.Mesh(geo, mat)
-      mesh.position.set(startX + idx * spacing, normalizedHeight / 2, 0)
+      mesh.position.set(startX + idx * spacing, normalizedHeight / 2 - 0.15, 0)
       mesh.userData = { idx, name: String(v.name) }
       platformGroup.add(mesh)
       meshes.push(mesh)
 
-      // Top glowing indicator ring
-      const ringGeo = new THREE.TorusGeometry(0.5, 0.03, 16, 32)
+      const ringGeo = new THREE.RingGeometry(0.46, 0.54, 36)
       const ringMat = new THREE.MeshBasicMaterial({
-        color: isRecommended ? 0x4ade80 : 0xa5f3fc,
+        color: isRecommended ? 0x22c55e : 0x93c5fd,
+        side: THREE.DoubleSide,
         transparent: true,
-        opacity: 0.8,
+        opacity: 0.75,
       })
       const ring = new THREE.Mesh(ringGeo, ringMat)
       ring.rotation.x = Math.PI / 2
-      ring.position.set(startX + idx * spacing, normalizedHeight + 0.05, 0)
+      ring.position.set(startX + idx * spacing, normalizedHeight - 0.13, 0)
       platformGroup.add(ring)
     })
 
-    // Animation & Smooth Interaction
     let animId: number
     const clock = new THREE.Clock()
 
     const animate = () => {
       animId = requestAnimationFrame(animate)
       const elapsed = clock.getElapsedTime()
-      platformGroup.rotation.y = Math.sin(elapsed * 0.4) * 0.12
-      if (renderer) {
-        renderer.render(scene, camera)
-      }
+      platformGroup.rotation.y = Math.sin(elapsed * 0.35) * 0.1
+      if (renderer) renderer.render(scene, camera)
     }
     animate()
 
-    // Resize Handler
     const handleResize = () => {
       if (!container || !renderer) return
       const w = container.clientWidth
+      if (!w) return
       camera.aspect = w / height
       camera.updateProjectionMatrix()
       renderer.setSize(w, height)
@@ -155,65 +159,89 @@ export function Scenario3DLandscape({
         else m.material.dispose()
       })
     }
-  }, [variants, recommendedName, metricKey])
+  }, [variants, recommendedName, metricKey, isDark])
 
   return (
-    <div className="rounded-2xl border border-indigo-500/20 bg-gradient-to-b from-[#0c1224] to-[#070b17] p-4 shadow-xl">
-      <div className="flex items-center justify-between pb-2 border-b border-indigo-500/10">
-        <div className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
-          <span className="text-xs font-semibold tracking-wider uppercase text-cyan-300">
-            3D Scenario Landscape (Interactive Metric View)
+    <div
+      className="dp-surface p-4 space-y-3"
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+    >
+      <div
+        className="flex items-center justify-between pb-2.5 border-b"
+        style={{ borderColor: 'var(--border)' }}
+      >
+        <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--heading)' }}>
+          3D Scenario Studio View
+        </span>
+        <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          <span>Height metric:</span>
+          <span className="font-semibold capitalize" style={{ color: 'var(--primary-text)' }}>
+            {metricKey}
           </span>
-        </div>
-        <div className="flex items-center gap-2 text-xs text-slate-400">
-          <span>Height represents:</span>
-          <span className="font-semibold text-indigo-300 capitalize">{metricKey}</span>
         </div>
       </div>
 
-      <div ref={containerRef} className="relative w-full h-[260px] cursor-grab active:cursor-grabbing" />
+      <div
+        ref={containerRef}
+        className="relative w-full h-[250px] rounded-xl border cursor-grab active:cursor-grabbing"
+        style={{ background: 'var(--surface-muted)', borderColor: 'var(--border)' }}
+      />
 
-      {/* Interactive Platform Cards Below */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 pt-3">
+      {/* Interactive Scenario Variant Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
         {variants.slice(0, 4).map((variant, idx) => {
           const isRec = String(variant.name) === recommendedName
           const isBase = idx === 0
           const val = Number(variant[metricKey]) || 0
+          const isActive = activeIdx === idx
 
           return (
             <button
               key={String(variant.name)}
+              type="button"
               onClick={() => {
                 setActiveIdx(idx)
                 onSelectVariant?.(String(variant.name))
               }}
-              className={`p-3 rounded-xl border text-left transition-all ${activeIdx === idx
-                ? 'border-indigo-400 bg-indigo-950/40 shadow-lg shadow-indigo-500/10'
-                : 'border-slate-800 bg-slate-900/40 hover:border-slate-700'
-                }`}
+              style={{
+                background: isActive ? 'var(--primary-soft)' : 'var(--surface-muted)',
+                borderColor: isActive ? 'var(--primary)' : 'var(--border)',
+              }}
+              className="rounded-lg border p-2.5 text-left transition-colors hover:border-[var(--border-strong)]"
             >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-200 truncate">{String(variant.name)}</span>
+              <div className="flex items-center justify-between gap-1.5">
+                <span className="text-xs font-semibold truncate" style={{ color: 'var(--heading)' }}>
+                  {String(variant.name)}
+                </span>
                 {isRec ? (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">
+                  <span
+                    className="rounded px-1.5 py-0.5 text-[9px] font-bold"
+                    style={{ background: 'var(--success-bg)', color: 'var(--success-text)' }}
+                  >
                     RECOMMENDED
                   </span>
                 ) : isBase ? (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-bold">
+                  <span
+                    className="rounded px-1.5 py-0.5 text-[9px] font-bold"
+                    style={{ background: 'var(--surface-subtle)', color: 'var(--text-secondary)' }}
+                  >
                     BASELINE
                   </span>
                 ) : null}
               </div>
-              <div className="mt-2 text-sm font-bold text-white">
+              <div className="mt-1.5 text-sm font-bold tabular-nums" style={{ color: 'var(--heading)' }}>
                 {metricKey === 'profit' || metricKey === 'revenue' ? moneyCompact(val) : val}
               </div>
-              <div className="mt-1 flex items-center justify-between text-[11px] text-slate-400">
+              <div className="mt-0.5 flex items-center justify-between text-[11px]" style={{ color: 'var(--text-secondary)' }}>
                 <span>Margin: {percent(Number(variant.margin))}</span>
                 {variant.risk != null && Number(variant.risk) > 0 ? (
-                  <span className="text-rose-400 font-medium">{String(variant.risk)} risk</span>
+                  <span style={{ color: 'var(--danger-text)' }} className="font-medium">
+                    {String(variant.risk)} risk
+                  </span>
                 ) : (
-                  <span className="text-emerald-400 font-medium">Safe</span>
+                  <span style={{ color: 'var(--success-text)' }} className="font-medium">
+                    Safe
+                  </span>
                 )}
               </div>
             </button>
@@ -223,4 +251,3 @@ export function Scenario3DLandscape({
     </div>
   )
 }
-

@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { AlertTriangle, Check, ShieldCheck, Sparkles } from 'lucide-react'
-import { decimal, integer, moneyCompact, type Options, type Scenario } from '../../../../api'
+import { Check, ShieldCheck } from 'lucide-react'
+import { decimal, moneyCompact, type Options, type Scenario } from '../../../../api'
 import { Button } from '../../../../ui'
 
 interface InventoryScenarioTabProps {
@@ -34,7 +34,7 @@ export function InventoryScenarioTab({
   const [reorderQty, setReorderQty] = useState(150)
   const [incomingStock, setIncomingStock] = useState(0)
   const [arrivalDay, setArrivalDay] = useState(14)
-  const [horizon, setHorizon] = useState(30)
+  const [horizon] = useState(30)
 
   const handleRun = () => {
     const quantities = [0, reorderQty, reorderQty * 2]
@@ -52,15 +52,10 @@ export function InventoryScenarioTab({
 
   return (
     <div className="space-y-4">
-      {/* Controls */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-        <label className="field">
-          <span className="text-slate-400 font-semibold text-[11px] uppercase">Physical SKU</span>
-          <select
-            value={productId}
-            onChange={(e) => setProductId(e.target.value)}
-            className="w-full rounded-xl border border-indigo-500/20 bg-[#0c1224] px-3 py-2 text-xs font-medium text-slate-200 outline-none focus:border-indigo-400"
-          >
+      <div className="grid grid-cols-1 gap-3 text-xs">
+        <label className="dp-field">
+          <span className="dp-field-label">Physical SKU</span>
+          <select value={productId} onChange={(e) => setProductId(e.target.value)} className="dp-select">
             {physicalProducts.map((p) => (
               <option key={p.product_id} value={p.product_id}>
                 {p.product_name} ({p.category})
@@ -69,24 +64,43 @@ export function InventoryScenarioTab({
           </select>
         </label>
 
-        <label className="field">
-          <span className="text-slate-400 font-semibold text-[11px] uppercase">Lead-Time Arrival Day</span>
-          <input
-            type="number"
-            min={1}
-            max={90}
-            value={arrivalDay}
-            onChange={(e) => setArrivalDay(Number(e.target.value))}
-            className="w-full rounded-xl border border-indigo-500/20 bg-[#0c1224] px-3 py-2 text-xs font-medium text-slate-200 outline-none focus:border-indigo-400"
-          />
-        </label>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="dp-field">
+            <span className="dp-field-label">Lead-Time Arrival Day</span>
+            <input
+              type="number"
+              min={1}
+              max={90}
+              value={arrivalDay}
+              onChange={(e) => setArrivalDay(Number(e.target.value))}
+              className="dp-input"
+            />
+          </label>
+          <label className="dp-field">
+            <span className="dp-field-label">Incoming Stock</span>
+            <input
+              type="number"
+              min={0}
+              value={incomingStock}
+              onChange={(e) => setIncomingStock(Number(e.target.value))}
+              className="dp-input"
+            />
+          </label>
+        </div>
       </div>
 
-      {/* Reorder Quantity Interactive Slider */}
-      <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
+      {/* Reorder Quantity Slider */}
+      <div
+        className="rounded-lg border p-3.5 space-y-2"
+        style={{ background: 'var(--surface-muted)', borderColor: 'var(--border)' }}
+      >
         <div className="flex items-center justify-between text-xs">
-          <span className="text-slate-400 font-semibold uppercase text-[11px]">Proposed Reorder Batch:</span>
-          <span className="text-sm font-black text-emerald-400 font-mono">{reorderQty} Units</span>
+          <span className="text-[11px] font-semibold uppercase" style={{ color: 'var(--text-secondary)' }}>
+            Proposed Reorder Batch:
+          </span>
+          <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--success-text)' }}>
+            {reorderQty} Units
+          </span>
         </div>
         <input
           type="range"
@@ -95,9 +109,9 @@ export function InventoryScenarioTab({
           step={25}
           value={reorderQty}
           onChange={(e) => setReorderQty(Number(e.target.value))}
-          className="w-full accent-emerald-400 cursor-pointer h-2 bg-slate-800 rounded-lg"
+          className="w-full accent-[#16A34A] cursor-pointer"
         />
-        <div className="flex justify-between text-[10px] text-slate-400 font-mono">
+        <div className="flex justify-between text-[10px] tabular-nums" style={{ color: 'var(--text-secondary)' }}>
           <span>0 (No replenishment)</span>
           <span>100</span>
           <span>250</span>
@@ -105,45 +119,64 @@ export function InventoryScenarioTab({
         </div>
       </div>
 
-      <div className="flex items-center justify-between pt-1">
-        <span className="text-[11px] text-slate-400">Enforces supplier lead-time physical constraint</span>
-        <Button
-          className="primary px-4 py-2 text-xs flex items-center gap-2"
-          onClick={handleRun}
-          disabled={isLoading}
-        >
-          <ShieldCheck size={14} className="text-emerald-300" />
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+        <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+          Enforces supplier lead-time physical constraint
+        </span>
+        <Button variant="primary" onClick={handleRun} disabled={isLoading}>
+          <ShieldCheck size={14} />
           <span>{isLoading ? 'Simulating Stock…' : 'Simulate Stockout Risk'}</span>
         </Button>
       </div>
 
-      {/* Simulation Outcome */}
       {recommended && (
-        <div className="pt-2 space-y-2.5 border-t border-indigo-500/10">
-          <div className="p-3 rounded-xl bg-emerald-950/20 border border-emerald-500/30 flex items-start gap-2.5 text-xs">
-            <Check size={16} className="text-emerald-400 mt-0.5 flex-shrink-0" />
+        <div className="pt-3 space-y-2.5 border-t" style={{ borderColor: 'var(--border)' }}>
+          <div
+            className="rounded-lg border p-3 flex items-start gap-2.5 text-xs"
+            style={{ background: 'var(--success-bg)', borderColor: 'var(--success-border)' }}
+          >
+            <Check size={15} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--success)' }} />
             <div>
-              <span className="font-bold text-white block">Recommended Action: {String(recommended.name)}</span>
-              <p className="text-slate-300 text-[11px] mt-0.5">
-                Fulfillment capacity: <strong className="text-emerald-400 font-mono">{decimal(Number(recommended.fulfilled))}</strong> units.
+              <span className="font-semibold block" style={{ color: 'var(--heading)' }}>
+                Recommended Action: {String(recommended.name)}
+              </span>
+              <p className="text-[11px] mt-0.5" style={{ color: 'var(--text)' }}>
+                Fulfillment capacity:{' '}
+                <strong className="tabular-nums font-bold" style={{ color: 'var(--success-text)' }}>
+                  {decimal(Number(recommended.fulfilled))}
+                </strong>{' '}
+                units.
               </p>
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-2 text-center text-xs">
-            <div className="p-2.5 rounded-xl bg-slate-900/50 border border-slate-800">
-              <span className="text-slate-400 block text-[10px] uppercase">Simulated Demand</span>
-              <strong className="text-sm font-mono text-white">{decimal(Number(recommended.demand))} units</strong>
-            </div>
-            <div className="p-2.5 rounded-xl bg-slate-900/50 border border-slate-800">
-              <span className="text-slate-400 block text-[10px] uppercase">Unfulfilled Stockouts</span>
-              <strong className={`text-sm font-mono ${Number(recommended.risk) > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                {Number(recommended.risk) > 0 ? `${recommended.risk} units risk` : 'Zero Stockouts'}
+            <div className="rounded-lg border p-2.5" style={{ background: 'var(--surface-muted)', borderColor: 'var(--border)' }}>
+              <span className="block text-[10px] uppercase" style={{ color: 'var(--text-secondary)' }}>
+                Demand
+              </span>
+              <strong className="text-xs font-bold tabular-nums" style={{ color: 'var(--heading)' }}>
+                {decimal(Number(recommended.demand))}
               </strong>
             </div>
-            <div className="p-2.5 rounded-xl bg-slate-900/50 border border-slate-800">
-              <span className="text-slate-400 block text-[10px] uppercase">Protected Profit</span>
-              <strong className="text-sm font-mono text-cyan-300">{moneyCompact(Number(recommended.profit))}</strong>
+            <div className="rounded-lg border p-2.5" style={{ background: 'var(--surface-muted)', borderColor: 'var(--border)' }}>
+              <span className="block text-[10px] uppercase" style={{ color: 'var(--text-secondary)' }}>
+                Stockout Risk
+              </span>
+              <strong
+                className="text-xs font-bold tabular-nums"
+                style={{ color: Number(recommended.risk) > 0 ? 'var(--danger-text)' : 'var(--success-text)' }}
+              >
+                {Number(recommended.risk) > 0 ? `${recommended.risk} units` : 'Zero'}
+              </strong>
+            </div>
+            <div className="rounded-lg border p-2.5" style={{ background: 'var(--surface-muted)', borderColor: 'var(--border)' }}>
+              <span className="block text-[10px] uppercase" style={{ color: 'var(--text-secondary)' }}>
+                Protected Profit
+              </span>
+              <strong className="text-xs font-bold tabular-nums" style={{ color: 'var(--primary-text)' }}>
+                {moneyCompact(Number(recommended.profit))}
+              </strong>
             </div>
           </div>
         </div>
@@ -151,4 +184,3 @@ export function InventoryScenarioTab({
     </div>
   )
 }
-

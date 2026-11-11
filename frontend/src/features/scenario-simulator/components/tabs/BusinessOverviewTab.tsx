@@ -1,4 +1,4 @@
-import { CircleDollarSign, Percent, ShoppingBag, TrendingUp, Users, Wallet } from 'lucide-react'
+import { CircleDollarSign, Percent, ShoppingBag, Wallet } from 'lucide-react'
 import { integer, moneyCompact, percent, type KPI } from '../../../../api'
 
 interface BusinessOverviewTabProps {
@@ -10,70 +10,92 @@ export function BusinessOverviewTab({ kpiData }: BusinessOverviewTabProps) {
   const changes = kpiData?.changes
 
   return (
-    <div className="space-y-4">
-      {/* 4 Core Quick Metrics */}
+    <div className="space-y-3.5">
       <div className="grid grid-cols-2 gap-2.5">
-        <div className="p-3 rounded-xl bg-slate-900/50 border border-slate-800">
-          <div className="flex items-center gap-1.5 text-slate-400 text-[10px] uppercase font-semibold">
-            <CircleDollarSign size={13} className="text-cyan-400" />
+        <div
+          className="rounded-lg border p-3"
+          style={{ background: 'var(--surface-muted)', borderColor: 'var(--border)' }}
+        >
+          <div className="flex items-center gap-1.5 text-[11px] font-medium" style={{ color: 'var(--text-secondary)' }}>
+            <CircleDollarSign size={13} style={{ color: 'var(--primary)' }} />
             <span>Total Revenue</span>
           </div>
-          <div className="text-lg font-black text-white font-mono mt-0.5">
-            {summary ? moneyCompact(summary.revenue) : '₫14.8B'}
+          <div className="text-base font-bold tabular-nums mt-1" style={{ color: 'var(--heading)' }}>
+            {summary ? moneyCompact(summary.revenue) : '—'}
           </div>
           {changes?.revenue != null && (
-            <div className="text-[10px] text-rose-400 font-semibold mt-1">
+            <div
+              className="text-[11px] font-medium mt-0.5"
+              style={{ color: changes.revenue < 0 ? 'var(--danger-text)' : 'var(--success-text)' }}
+            >
               {percent(changes.revenue)} vs prior period
             </div>
           )}
         </div>
 
-        <div className="p-3 rounded-xl bg-slate-900/50 border border-slate-800">
-          <div className="flex items-center gap-1.5 text-slate-400 text-[10px] uppercase font-semibold">
-            <Wallet size={13} className="text-indigo-400" />
+        <div
+          className="rounded-lg border p-3"
+          style={{ background: 'var(--surface-muted)', borderColor: 'var(--border)' }}
+        >
+          <div className="flex items-center gap-1.5 text-[11px] font-medium" style={{ color: 'var(--text-secondary)' }}>
+            <Wallet size={13} style={{ color: 'var(--info)' }} />
             <span>Gross Profit</span>
           </div>
-          <div className="text-lg font-black text-white font-mono mt-0.5">
-            {summary ? moneyCompact(summary.gross_profit) : '₫6.2B'}
+          <div className="text-base font-bold tabular-nums mt-1" style={{ color: 'var(--heading)' }}>
+            {summary ? moneyCompact(summary.gross_profit) : '—'}
           </div>
           {changes?.gross_profit != null && (
-            <div className="text-[10px] text-rose-400 font-semibold mt-1">
+            <div
+              className="text-[11px] font-medium mt-0.5"
+              style={{ color: changes.gross_profit < 0 ? 'var(--danger-text)' : 'var(--success-text)' }}
+            >
               {percent(changes.gross_profit)} vs prior period
             </div>
           )}
         </div>
 
-        <div className="p-3 rounded-xl bg-slate-900/50 border border-slate-800">
-          <div className="flex items-center gap-1.5 text-slate-400 text-[10px] uppercase font-semibold">
-            <Percent size={13} className="text-violet-400" />
+        <div
+          className="rounded-lg border p-3"
+          style={{ background: 'var(--surface-muted)', borderColor: 'var(--border)' }}
+        >
+          <div className="flex items-center gap-1.5 text-[11px] font-medium" style={{ color: 'var(--text-secondary)' }}>
+            <Percent size={13} style={{ color: 'var(--primary)' }} />
             <span>Gross Margin</span>
           </div>
-          <div className="text-lg font-black text-cyan-300 font-mono mt-0.5">
-            {summary?.margin != null ? percent(summary.margin) : '41.8%'}
+          <div className="text-base font-bold tabular-nums mt-1" style={{ color: 'var(--primary-text)' }}>
+            {summary?.margin != null ? percent(summary.margin) : '—'}
           </div>
-          <div className="text-[10px] text-slate-400 mt-1">Direct Cost Reconciled</div>
+          <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+            Direct Cost Reconciled
+          </div>
         </div>
 
-        <div className="p-3 rounded-xl bg-slate-900/50 border border-slate-800">
-          <div className="flex items-center gap-1.5 text-slate-400 text-[10px] uppercase font-semibold">
-            <ShoppingBag size={13} className="text-emerald-400" />
+        <div
+          className="rounded-lg border p-3"
+          style={{ background: 'var(--surface-muted)', borderColor: 'var(--border)' }}
+        >
+          <div className="flex items-center gap-1.5 text-[11px] font-medium" style={{ color: 'var(--text-secondary)' }}>
+            <ShoppingBag size={13} style={{ color: 'var(--success)' }} />
             <span>Total Orders</span>
           </div>
-          <div className="text-lg font-black text-white font-mono mt-0.5">
-            {summary ? integer(summary.orders) : '50,000'}
+          <div className="text-base font-bold tabular-nums mt-1" style={{ color: 'var(--heading)' }}>
+            {summary ? integer(summary.orders) : '—'}
           </div>
-          <div className="text-[10px] text-emerald-400 font-semibold mt-1">Across 730 Days</div>
+          <div className="text-[11px] font-medium mt-0.5" style={{ color: 'var(--success-text)' }}>
+            Verified Snapshot
+          </div>
         </div>
       </div>
 
-      {/* Baseline Performance Summary */}
-      <div className="p-3 rounded-xl bg-indigo-950/20 border border-indigo-500/20 text-xs text-slate-300 space-y-1">
-        <div className="font-bold text-cyan-300 uppercase tracking-wider text-[10px]">
+      <div
+        className="rounded-lg border p-3 text-xs space-y-1"
+        style={{ background: 'var(--info-bg)', borderColor: 'var(--info-border)' }}
+      >
+        <div className="font-semibold text-[11px] uppercase tracking-wide" style={{ color: 'var(--info-text)' }}>
           Current Performance Baseline
         </div>
-        <p className="leading-relaxed text-[11px] text-slate-400">
-          Historical operations provide the unconstrained baseline for simulation. Use adjacent panels to simulate
-          promotional pricing elasticity, reallocate ad spend, or evaluate inventory lead-time shocks.
+        <p className="leading-relaxed text-[11px]" style={{ color: 'var(--text)' }}>
+          Historical operations provide the unconstrained baseline for simulation. Switch tabs to simulate promotional pricing elasticity, reallocate ad spend, or evaluate inventory lead-time shocks.
         </p>
       </div>
     </div>
