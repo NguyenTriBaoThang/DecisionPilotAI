@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 from datetime import date, datetime, timezone
 import json
+import logging
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Header, Query, Request
@@ -11,13 +12,114 @@ from fastapi.responses import StreamingResponse
 import sqlalchemy as sa
 from starlette.concurrency import run_in_threadpool
 
-from backend.app.db import ingestion_jobs, pipeline_events
+from backend.app.db import (
+    audit,
+    chat_messages,
+    companies,
+    connector_sync_logs,
+    data_sources,
+    datasets,
+    enterprise_datasets,
+    ingestion_jobs,
+    multimodal_files,
+    pipeline_events,
+    rag_documents,
+    simulations,
+    tenant_multimodal_insights,
+)
 from backend.app.ingestion.router import require_role, resolve_tenant
 from backend.app.lineage import service as lineage_service
+
+log = logging.getLogger(__name__)
 
 
 def _sse(event: str, payload: dict[str, Any]) -> str:
     return f"event: {event}\ndata: {json.dumps(payload, ensure_ascii=False, default=str)}\n\n"
+
+
+def _read_only_poll_marker(engine: sa.Engine, company_id: str) -> str:
+    """Cheap read-only state fingerprint so idle SSE heartbeats avoid write transactions."""
+    with engine.connect() as conn:
+        comp = conn.execute(
+            sa.select(companies.c.active_dataset_id, companies.c.updated_at).where(companies.c.id == company_id)
+        ).first()
+        stats = [
+            conn.execute(
+                sa.select(sa.func.count(), sa.func.max(enterprise_datasets.c.updated_at))
+                .where(enterprise_datasets.c.company_id == company_id)
+            ).first(),
+            conn.execute(
+                sa.select(sa.func.count(), sa.func.max(data_sources.c.updated_at))
+                .where(data_sources.c.company_id == company_id)
+            ).first(),
+            conn.execute(
+                sa.select(sa.func.count(), sa.func.max(connector_sync_logs.c.id))
+                .where(connector_sync_logs.c.company_id == company_id)
+            ).first(),
+            conn.execute(
+                sa.select(sa.func.count(), sa.func.max(multimodal_files.c.updated_at))
+                .where(multimodal_files.c.company_id == company_id)
+            ).first(),
+            conn.execute(
+                sa.select(sa.func.count(), sa.func.max(tenant_multimodal_insights.c.approved_at))
+                .where(tenant_multimodal_insights.c.company_id == company_id)
+            ).first(),
+            conn.execute(
+                sa.select(sa.func.count(), sa.func.max(rag_documents.c.updated_at))
+                .where(rag_documents.c.company_id == company_id)
+            ).first(),
+            conn.execute(
+                sa.select(sa.func.count(), sa.func.max(simulations.c.id))
+                .where(simulations.c.company_id == company_id)
+            ).first(),
+            conn.execute(
+                sa.select(sa.func.count(), sa.func.max(audit.c.id))
+                .where(audit.c.company_id == company_id)
+            ).first(),
+            conn.execute(
+                sa.select(sa.func.count(), sa.func.max(chat_messages.c.created_at))
+                .where(chat_messages.c.company_id == company_id)
+            ).first(),
+            conn.execute(
+                sa.select(sa.func.count(), sa.func.max(pipeline_events.c.id))
+                .where(pipeline_events.c.company_id == company_id)
+            ).first(),
+            conn.execute(
+                sa.select(sa.func.count(), sa.func.max(ingestion_jobs.c.finished_at))
+                .where(ingestion_jobs.c.company_id == company_id)
+            ).first(),
+        ]
+        active_jobs = [
+            (r["id"], r["status"], r["stage"], int(r.get("progress_pct") or 0))
+            for r in conn.execute(
+                sa.select(
+                    ingestion_jobs.c.id,
+                    ingestion_jobs.c.status,
+                    ingestion_jobs.c.stage,
+                    ingestion_jobs.c.progress_pct,
+                )
+                .where(
+                    ingestion_jobs.c.company_id == company_id,
+                    ingestion_jobs.c.status.in_(["queued", "running"]),
+                )
+                .order_by(ingestion_jobs.c.created_at.desc())
+            ).mappings()
+        ]
+        legacy_ds = (
+            conn.execute(sa.select(sa.func.count(), sa.func.max(datasets.c.created_at))).first()
+            if company_id == "comp-default"
+            else None
+        )
+    return json.dumps(
+        {
+            "comp": tuple(comp) if comp else None,
+            "stats": [tuple(row) if row else (0, None) for row in stats],
+            "active_jobs": active_jobs,
+            "legacy_ds": tuple(legacy_ds) if legacy_ds else None,
+        },
+        sort_keys=True,
+        default=str,
+    )
 
 
 def _stream_fingerprint(engine: sa.Engine, company_id: str) -> dict[str, Any]:
@@ -187,8 +289,11 @@ def build_lineage_router(engine: sa.Engine) -> APIRouter:
         cid = resolve_tenant(request, x_company_id)
 
         async def event_stream():
-            snap = await run_in_threadpool(lambda: _stream_fingerprint(engine, cid))
+            snap, last_marker = await run_in_threadpool(
+                lambda: (_stream_fingerprint(engine, cid), _read_only_poll_marker(engine, cid))
+            )
             last_sig = snap["signature"]
+            last_active_processing = bool(snap["payload"].get("has_active_processing"))
             yield _sse("lineage_snapshot", snap["payload"])
             if once:
                 return
@@ -198,19 +303,32 @@ def build_lineage_router(engine: sa.Engine) -> APIRouter:
                 await asyncio.sleep(poll_seconds)
                 if await request.is_disconnected():
                     break
-                cur = await run_in_threadpool(lambda: _stream_fingerprint(engine, cid))
-                if cur["signature"] != last_sig:
-                    last_sig = cur["signature"]
-                    yield _sse("lineage_update", cur["payload"])
-                elif tick % heartbeat_ticks == 0:
-                    yield _sse(
-                        "heartbeat",
-                        {
-                            "company_id": cid,
-                            "timestamp": datetime.now(timezone.utc).isoformat(),
-                            "has_active_processing": cur["payload"]["has_active_processing"],
-                        },
-                    )
+                try:
+                    cur_marker = await run_in_threadpool(lambda: _read_only_poll_marker(engine, cid))
+                    changed = (cur_marker != last_marker) or last_active_processing
+                    if changed:
+                        cur = await run_in_threadpool(lambda: _stream_fingerprint(engine, cid))
+                        last_marker = cur_marker
+                        last_active_processing = bool(cur["payload"].get("has_active_processing"))
+                        if cur["signature"] != last_sig:
+                            last_sig = cur["signature"]
+                            yield _sse("lineage_update", cur["payload"])
+                            continue
+                    if tick % heartbeat_ticks == 0:
+                        yield _sse(
+                            "heartbeat",
+                            {
+                                "company_id": cid,
+                                "timestamp": datetime.now(timezone.utc).isoformat(),
+                                "has_active_processing": last_active_processing,
+                            },
+                        )
+                except asyncio.CancelledError:
+                    break
+                except Exception as exc:
+                    log.warning("Lineage SSE poll skipped for %s: %s", cid, exc)
+                    if await request.is_disconnected():
+                        break
 
         return StreamingResponse(
             event_stream(),

@@ -953,11 +953,25 @@ def make_engine(url=None):
                             database=os.getenv("POSTGRES_DB"))
     if not url:
         url = "sqlite:///" + str(ROOT / "data" / "local.sqlite")
-    engine = sa.create_engine(url, pool_pre_ping=True)
+    is_sqlite_url = str(url).startswith("sqlite")
+    connect_args = {"timeout": 30.0, "check_same_thread": False} if is_sqlite_url else {}
+    engine = sa.create_engine(url, pool_pre_ping=True, connect_args=connect_args)
     if engine.dialect.name == "sqlite":
+        db_name = engine.url.database or ""
+        is_memory = (not db_name) or (":memory:" in db_name) or ("mode=memory" in str(url))
+
         @sa.event.listens_for(engine, "connect")
         def enable_foreign_keys(connection, _):
             connection.execute("PRAGMA foreign_keys = ON")
+            connection.execute("PRAGMA busy_timeout = 30000")
+
+        if not is_memory:
+            try:
+                with engine.connect() as conn:
+                    conn.exec_driver_sql("PRAGMA journal_mode = WAL")
+                    conn.exec_driver_sql("PRAGMA synchronous = NORMAL")
+            except Exception:
+                pass
     return engine
 
 
