@@ -2,7 +2,7 @@ import { CodeBlock } from '../components/CodeBlock'
 import { ShieldCheck, CheckSquare, Terminal, GitPullRequest } from 'lucide-react'
 
 export function Section13Testing() {
-  const pytestCli = `# Run backend, ETL pipeline, ML verification & RBAC integration suite (16 tests)
+  const pytestCli = `# Run backend, ETL pipeline, ML verification & RBAC integration suite (18 tests)
 python -m pytest tests/test_decisionpilot.py -q
 
 # Run frontend unit & component tests (Vitest)
@@ -62,7 +62,7 @@ jobs:
             1. Backend &amp; Pipeline Tests
           </div>
           <p className="card-desc">
-            16 pytest integration tests verifying primary/foreign key constraints, inventory conservation, transactional scenario/recommendation feedback, and forecast gates.
+            18 pytest integration tests verifying primary/foreign key constraints, inventory conservation, transactional scenario/recommendation feedback, and forecast gates.
           </p>
         </div>
 

@@ -5,7 +5,7 @@ The verified snapshot is `f32e87e3a5744333ff98d3bf`, through 30 September 2026. 
 | Check | Observed result |
 |---|---|
 | Data quality | Passed the key, calendar, financial formula, inventory, attribution and customer reconciliations. |
-| Automated integration tests | 16 passed on SQLite. Includes API validation, forecasting, exact scenario decisions, named roles, append-only history, pagination, import and the query benchmark. |
+| Automated integration tests | 18 passed on SQLite (`tests/test_decisionpilot.py`). Includes API validation, forecasting, exact/transactional scenario decisions, named roles, append-only history, pagination, import and the query benchmark. |
 | Conversational benchmark | 46/46 curated cases matched the expected intent, filter, calculation or refusal, and chart type. Expected observed figures are independently computed from CSV. |
 | Frontend build | TypeScript validation and production Vite build passed. |
 | Frontend regression tests | 9 passed across 4 test files (`preferences`, `import`, `decisions` with atomic `recommendation_id` binding, and `api`). |

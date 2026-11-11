@@ -54,5 +54,5 @@
 | `frontend/src/test/decisions.test.tsx` | Vitest | 4 | Exact `simulation_id`, server confirmation wait, atomic recommendation binding, duplicate guard |
 | `frontend/src/test/import.test.tsx` | Vitest | 1 | Upload confirmation, expected hash check, `409` conflict display |
 | `frontend/src/test/api.test.ts` | Vitest | 2 | Bearer token header propagation & offline fallback behavior |
-| `tests/test_decisionpilot.py` | Pytest | 16 *(14 functions)* | API contracts, leakage-free features, anomaly/scenario logic, RBAC, append-only audit, 46-case NL benchmark |
+| `tests/test_decisionpilot.py` | Pytest | 18 *(16 functions)* | API contracts, leakage-free features, anomaly/scenario logic, RBAC, append-only audit, transactional recommendation binding, 46-case NL benchmark |
 | `frontend/e2e/` (`workspace.spec.ts`, `demo-flow.spec.ts`) | Playwright | 3 | Auth/preferences/import + end-to-end Alert -> Ask -> Recommendation -> Simulator -> Atomic Audit Loop |

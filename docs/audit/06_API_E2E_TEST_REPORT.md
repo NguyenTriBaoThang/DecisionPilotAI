@@ -40,7 +40,7 @@ All 16 endpoints are exposed with OpenAPI documentation (`/api/docs` via Nginx/V
    - `api.test.ts` (2 tests): Bearer auth header injection and upload client validation.
    - **Total:** `4` test files, **`9/9` passing tests**.
 2. **Backend & AI Integration Suite (`tests/test_decisionpilot.py`):**
-   - **Total:** `16` collected test items across `14` test functions (including parametrized 7d/30d forecast slices and `46`-case `benchmark_cases.json` conversational accuracy/safety suite).
+   - **Total:** `18` collected & passing test items across `16` test functions (including parametrized 7d/30d forecast slices, `valid_intent` filter guardrails, atomic `recommendation_id` transaction, and `46`-case `benchmark_cases.json` suite).
 3. **Browser End-to-End Suites (`frontend/e2e/`):**
    - `workspace.spec.ts` (`2` tests): authenticated preference restoration, exact scenario approval & audit evidence persistence, plus ZIP import & model invalidation against a disposable fixture.
    - `demo-flow.spec.ts` (`1` test): end-to-end connected loop (`dashboard warning -> /ask?q=... -> /recommendations -> Try first in simulator -> Accept scenario with recommendation_id -> settled card & audit_events`).

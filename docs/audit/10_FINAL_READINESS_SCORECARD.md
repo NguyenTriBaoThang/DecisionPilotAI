@@ -16,7 +16,7 @@
 | **4. AI / ML Rigor & Honesty** | **PASS** | Chronological 70/15/15 split; 17 causal features; `>2%` validation MAE gate; empirical 90% bands (`92.86%` coverage on `P001`); `100.00%` precision on `facebook_spend`; full limitation disclosures. |
 | **5. Security & AI Safety** | **PASS** | Zero free-form LLM SQL; regex injection guard + constrained `Intent` routing; `read_connection` (`READ ONLY` + `8s` timeout / `PRAGMA query_only`); trigger-protected `audit_events`. |
 | **6. Frontend & 3D UX** | **PASS** | Three.js holographic WebGL simulator, bilingual VI/EN toggle (`'vi'` default), currency formatting, and offline Pages demo fallback. |
-| **7. Automated Testing & CI** | **PASS** | `16` pytest items (`tests/test_decisionpilot.py`), `9` Vitest tests (`4` files), `3` Playwright E2E tests (`workspace.spec.ts` + `demo-flow.spec.ts`), and 5-job GitHub Actions CI + Pages deploy pipeline. |
+| **7. Automated Testing & CI** | **PASS** | `18` pytest items (`tests/test_decisionpilot.py`), `9` Vitest tests (`4` files), `3` Playwright E2E tests (`workspace.spec.ts` + `demo-flow.spec.ts`), and 5-job GitHub Actions CI + Pages deploy pipeline. |
 | **8. Multi-Page Docs Portal & Accuracy** | **PASS** | Dedicated `HomePage` + `17` paginated `/docs/<chapter>` pages (with Ctrl+K search & interactive Track 5 showcase), `README.md`, `docs/`, and `docs/audit/` 100% reconciled with code & artifacts. |
 
 ---

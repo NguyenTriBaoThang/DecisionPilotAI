@@ -1128,6 +1128,10 @@ pre {
 }
 
 @media (max-width: 900px) {
+  .header-container {
+    padding: 0 14px;
+    gap: 8px;
+  }
   .app-body {
     grid-template-columns: 1fr;
     padding: 0 16px;
@@ -1170,6 +1174,28 @@ pre {
   }
   .home-page {
     padding: 20px 16px 64px 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .brand-title {
+    font-size: 0.98rem;
+  }
+  .brand-badge,
+  .btn-search kbd,
+  .btn-gh span {
+    display: none;
+  }
+  .btn-search,
+  .btn-gh {
+    padding: 7px 9px;
+  }
+  .grid-2,
+  .grid-3,
+  .grid-4,
+  .chapter-grid,
+  .doc-pagination {
+    grid-template-columns: 1fr;
   }
 }
 
