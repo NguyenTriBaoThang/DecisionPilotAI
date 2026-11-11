@@ -80,7 +80,7 @@ function AppShell({ session }: { session: Session }) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const { pathname } = useLocation()
 
-  const needsOptions = pathname === '/' || pathname === '/forecast' || pathname === '/scenarios'
+  const needsOptions = pathname === '/' || pathname === '/ask' || pathname === '/forecast' || pathname === '/scenarios'
 
   const ds = useQuery({
     queryKey: ['dataset', companyId],
@@ -172,6 +172,13 @@ function AppShell({ session }: { session: Session }) {
           {t('Upload Your Business Data')}
         </Link>
         <Link
+          to="/ask"
+          className="inline-flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-medium hover:bg-[var(--surface-muted)]"
+          style={{ borderColor: 'var(--border-strong)', color: 'var(--primary-text)' }}
+        >
+          {t('Ask AI Copilot')}
+        </Link>
+        <Link
           to="/settings"
           className="inline-flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-medium hover:bg-[var(--surface-muted)]"
           style={{ borderColor: 'var(--border-strong)', color: 'var(--heading)' }}
@@ -226,6 +233,7 @@ function AppShell({ session }: { session: Session }) {
 
           {!ds.isLoading && !ds.data && (
             <Routes key={`empty:${companyId}`}>
+              <Route path="/ask" element={<Ask canEdit={session.role !== 'viewer'} />} />
               <Route path="/data-sources" element={<DataSourcesPage companyId={companyId} session={session} />} />
               <Route path="/settings" element={<SettingsPage dark={dark} setDark={setDark} session={session} />} />
               <Route
@@ -246,7 +254,7 @@ function AppShell({ session }: { session: Session }) {
                 path="/"
                 element={opts.data ? <Dashboard dataset={ds.data} options={opts.data} /> : <Loading />}
               />
-              <Route path="/ask" element={<Ask dataset={ds.data} options={opts.data} messages={messages} setMessages={setMessages} />} />
+              <Route path="/ask" element={<Ask dataset={ds.data} options={opts.data} messages={messages} setMessages={setMessages} canEdit={session.role !== 'viewer'} />} />
               <Route path="/anomalies" element={<Alerts dataset={ds.data} />} />
               <Route
                 path="/forecast"

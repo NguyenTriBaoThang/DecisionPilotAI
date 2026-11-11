@@ -916,3 +916,405 @@ export const listDataSourceSyncLogs = (sourceId: string) =>
   request<{ source_id: string; items: ConnectorSyncLog[] }>(
     `/v1/data-sources/${encodeURIComponent(sourceId)}/sync-logs`
   )
+
+// --- Enterprise RAG & AI Copilot Types + Clients ---
+
+export type CopilotCitation = {
+  citation_id: string
+  chunk_id: string
+  document_id: string
+  source_file: string
+  document_type: string
+  domain: string
+  page_number?: number | null
+  section?: string | null
+  content: string
+  source_url?: string | null
+  scores: {
+    dense?: number
+    bm25?: number
+    rrf?: number
+    rerank?: number
+  }
+}
+
+export type CopilotSQLTrace = {
+  executed?: boolean
+  sql?: string | null
+  template?: string | null
+  scoped_tables?: string[]
+  read_only_verified?: boolean
+  blocked?: boolean
+  reason?: string | null
+  row_count?: number
+  execution_ms?: number
+  rows?: Array<Record<string, unknown>>
+}
+
+export type CopilotToolTrace = {
+  intent?: string
+  intent_meta?: Record<string, unknown>
+  language?: string
+  rag?: {
+    rewritten_query?: string
+    vector_backend?: string
+    embedding_provider?: string
+    total_candidates?: number
+    dense_hits?: number
+    bm25_hits?: number
+    returned_hits?: number
+    latencies_ms?: Record<string, number>
+  } | null
+  tools_executed?: Array<{ tool: string; ok: boolean; latency_ms: number; summary: string }>
+  synthesis_ms?: number
+  total_ms?: number
+  memory_summary_used?: boolean
+  company_memories_count?: number
+  blocked_patterns?: string[]
+}
+
+export type CopilotMessage = {
+  id: string
+  conversation_id: string
+  company_id: string
+  role: 'user' | 'assistant'
+  content: string
+  intent?: string | null
+  citations: CopilotCitation[]
+  structured_sections?: {
+    database_facts?: string[]
+    document_facts?: string[]
+    analysis?: string[]
+    unverified_hypotheses?: string[]
+  } | null
+  chart?: { type: string; x: string; y: string; rows: Row[] } | null
+  sql_trace?: CopilotSQLTrace | null
+  tool_trace?: CopilotToolTrace | null
+  followups: string[]
+  parent_message_id?: string | null
+  prompt_tokens?: number | null
+  completion_tokens?: number | null
+  latency_ms?: number | null
+  created_at?: string | null
+}
+
+export type CopilotConversation = {
+  id: string
+  company_id: string
+  dataset_id?: string | null
+  title: string
+  is_pinned: boolean
+  language: string
+  session_context: Record<string, unknown>
+  memory_summary: string
+  message_count: number
+  created_by: string
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export type CompanyMemoryItem = {
+  id: string
+  company_id: string
+  memory_key: string
+  memory_type: 'business_context' | 'preference' | 'kpi_definition' | 'policy' | string
+  content: string
+  source_conversation_id?: string | null
+  confidence: number
+  created_by: string
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export type RagDocument = {
+  id: string
+  company_id: string
+  dataset_id?: string | null
+  source_file_id?: string | null
+  source_type: string
+  file_name: string
+  mime_type?: string | null
+  document_type: string
+  domain: string
+  status: string
+  chunk_count: number
+  char_count: number
+  metadata: Record<string, unknown>
+  created_by: string
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export type RagChunkDetail = {
+  id: string
+  chunk_index: number
+  page_number?: number | null
+  section?: string | null
+  chunking_strategy: string
+  token_count: number
+  content: string
+  embedding_provider: string
+  embedding_dim: number
+}
+
+export type RagHealth = {
+  status: string
+  company_id: string
+  embedding_provider: string
+  embedding_dim: number
+  vector_store: Record<string, unknown>
+  documents_indexed: number
+  chunks_indexed: number
+  chunk_size_tokens: number
+  chunk_overlap_tokens: number
+  hybrid_weights: { dense: number; bm25: number }
+  min_relevance_score: number
+}
+
+export type CopilotTurnResponse = {
+  conversation: CopilotConversation
+  user_message: CopilotMessage
+  assistant_message: CopilotMessage
+}
+
+export type CopilotStreamHandlers = {
+  onStatus?: (payload: { stage?: string; message?: string }) => void
+  onMeta?: (payload: {
+    conversation: CopilotConversation
+    user_message: CopilotMessage
+    intent?: string
+    tool_trace?: CopilotToolTrace
+  }) => void
+  onCitations?: (citations: CopilotCitation[]) => void
+  onSqlTrace?: (sqlTrace: CopilotSQLTrace) => void
+  onChart?: (chart: { type: string; x: string; y: string; rows: Row[] }) => void
+  onDelta?: (text: string) => void
+  onDone?: (payload: CopilotTurnResponse) => void
+  onError?: (detail: string) => void
+}
+
+async function consumeSseStream(
+  response: Response,
+  handlers: CopilotStreamHandlers,
+  signal?: AbortSignal
+): Promise<CopilotTurnResponse | null> {
+  if (!response.body) {
+    const json = (await response.json()) as CopilotTurnResponse
+    handlers.onDone?.(json)
+    return json
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let finalResult: CopilotTurnResponse | null = null
+
+  const dispatchBlock = (block: string) => {
+    const lines = block.split(/\r?\n/)
+    let eventName = 'message'
+    const dataLines: string[] = []
+    for (const line of lines) {
+      if (line.startsWith('event:')) {
+        eventName = line.slice(6).trim()
+      } else if (line.startsWith('data:')) {
+        dataLines.push(line.slice(5).trim())
+      }
+    }
+    if (!dataLines.length) return
+    const rawData = dataLines.join('\n')
+    try {
+      const payload = JSON.parse(rawData)
+      if (eventName === 'status') handlers.onStatus?.(payload)
+      else if (eventName === 'meta') handlers.onMeta?.(payload)
+      else if (eventName === 'citations') handlers.onCitations?.(payload.citations || [])
+      else if (eventName === 'sql_trace') handlers.onSqlTrace?.(payload.sql_trace)
+      else if (eventName === 'chart') handlers.onChart?.(payload.chart)
+      else if (eventName === 'delta') handlers.onDelta?.(payload.text || '')
+      else if (eventName === 'done') {
+        finalResult = payload as CopilotTurnResponse
+        handlers.onDone?.(finalResult)
+      } else if (eventName === 'error') {
+        handlers.onError?.(payload.detail || 'Copilot streaming error')
+        throw new ApiError(payload.detail || 'Copilot streaming error', 500)
+      }
+    } catch (err) {
+      if (err instanceof ApiError) throw err
+    }
+  }
+
+  try {
+    while (true) {
+      if (signal?.aborted) {
+        await reader.cancel().catch(() => {})
+        break
+      }
+      const { value, done } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const blocks = buffer.split(/\r?\n\r?\n/)
+      buffer = blocks.pop() || ''
+      for (const blk of blocks) {
+        if (blk.trim()) dispatchBlock(blk)
+      }
+    }
+    if (buffer.trim()) dispatchBlock(buffer)
+  } finally {
+    reader.releaseLock()
+  }
+  return finalResult
+}
+
+export async function streamCopilotCompletion(
+  payload: {
+    message: string
+    conversation_id?: string | null
+    dataset_id?: string | null
+    language?: 'auto' | 'en' | 'vi'
+    top_k?: number
+    domain?: string | null
+  },
+  handlers: CopilotStreamHandlers,
+  signal?: AbortSignal
+): Promise<CopilotTurnResponse | null> {
+  const headers = buildAuthHeaders({ 'Content-Type': 'application/json', Accept: 'text/event-stream' })
+  if (payload.dataset_id) headers.set('X-Dataset-ID', payload.dataset_id)
+  const response = await fetch('/api/v1/chat/completions', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      message: payload.message,
+      conversation_id: payload.conversation_id || undefined,
+      dataset_id: payload.dataset_id || undefined,
+      language: payload.language || 'auto',
+      top_k: payload.top_k || 5,
+      domain: payload.domain || undefined,
+      stream: true,
+    }),
+    signal,
+  })
+  if (!response.ok) {
+    if (response.status === 401) window.dispatchEvent(new Event('workspace-unauthorized'))
+    const errJson = await response.json().catch(() => null)
+    const msg = typeof errJson?.detail === 'string' ? errJson.detail : `Copilot error (HTTP ${response.status})`
+    throw new ApiError(msg, response.status)
+  }
+  return consumeSseStream(response, handlers, signal)
+}
+
+export async function regenerateChatMessage(
+  messageId: string,
+  handlers: CopilotStreamHandlers,
+  signal?: AbortSignal
+): Promise<CopilotTurnResponse | null> {
+  const headers = buildAuthHeaders({ Accept: 'text/event-stream' })
+  const response = await fetch(`/api/v1/chat/messages/${encodeURIComponent(messageId)}/regenerate?stream=true`, {
+    method: 'POST',
+    headers,
+    signal,
+  })
+  if (!response.ok) {
+    const errJson = await response.json().catch(() => null)
+    const msg = typeof errJson?.detail === 'string' ? errJson.detail : `Regenerate failed (HTTP ${response.status})`
+    throw new ApiError(msg, response.status)
+  }
+  return consumeSseStream(response, handlers, signal)
+}
+
+export const listChatConversations = (filters: { dataset_id?: string; search?: string; pinned_only?: boolean } = {}) => {
+  const qs = params({
+    dataset_id: filters.dataset_id,
+    search: filters.search,
+    pinned_only: filters.pinned_only ? 'true' : undefined,
+  })
+  return request<{ items: CopilotConversation[]; count: number; company_id: string }>(
+    '/v1/chat/conversations' + (qs ? '?' + qs : '')
+  )
+}
+
+export const createChatConversation = (payload: { title?: string; dataset_id?: string; language?: 'auto' | 'en' | 'vi' } = {}) =>
+  request<CopilotConversation>('/v1/chat/conversations', payload)
+
+export const getChatConversationDetail = (conversationId: string) =>
+  request<{
+    conversation: CopilotConversation
+    messages: CopilotMessage[]
+    session_context: Record<string, unknown>
+    memory_summary: string
+    company_memories: CompanyMemoryItem[]
+    token_usage_est: number
+  }>(`/v1/chat/conversations/${encodeURIComponent(conversationId)}`)
+
+export const patchChatConversation = (
+  conversationId: string,
+  payload: { title?: string; is_pinned?: boolean; dataset_id?: string | null }
+) => requestWithMethod<CopilotConversation>(`/v1/chat/conversations/${encodeURIComponent(conversationId)}`, 'PATCH', payload)
+
+export const deleteChatConversation = (conversationId: string) =>
+  requestWithMethod<{ deleted: boolean; conversation_id: string }>(
+    `/v1/chat/conversations/${encodeURIComponent(conversationId)}`,
+    'DELETE'
+  )
+
+export const listCompanyMemories = () =>
+  request<{ items: CompanyMemoryItem[]; count: number; company_id: string }>('/v1/chat/memory')
+
+export const upsertCompanyMemory = (payload: {
+  memory_key: string
+  content: string
+  memory_type?: 'business_context' | 'preference' | 'kpi_definition' | 'policy'
+  source_conversation_id?: string
+}) => request<CompanyMemoryItem>('/v1/chat/memory', payload)
+
+export const deleteCompanyMemory = (memoryId: string) =>
+  requestWithMethod<{ deleted: boolean; memory_id: string }>(`/v1/chat/memory/${encodeURIComponent(memoryId)}`, 'DELETE')
+
+export async function ingestRagFile(
+  file: File,
+  opts: { datasetId?: string; domain?: string; chunkingStrategy?: string } = {}
+): Promise<{
+  document_id: string
+  file_name: string
+  document_type: string
+  domain: string
+  chunk_count: number
+  char_count: number
+  status: string
+}> {
+  const form = new FormData()
+  form.append('file', file)
+  if (opts.datasetId) form.append('dataset_id', opts.datasetId)
+  if (opts.domain) form.append('domain', opts.domain)
+  if (opts.chunkingStrategy) form.append('chunking_strategy', opts.chunkingStrategy)
+  return send('/v1/rag/ingest', { method: 'POST', body: form })
+}
+
+export const reindexRagDataset = (datasetId?: string) =>
+  request<{ reindexed_dataset: Record<string, unknown> | null }>(
+    '/v1/rag/ingest/reindex' + (datasetId ? '?' + params({ dataset_id: datasetId }) : ''),
+    {}
+  )
+
+export const searchRagKnowledge = (payload: {
+  query: string
+  dataset_id?: string
+  domain?: string
+  document_type?: string
+  top_k?: number
+}) => request<{ hits: CopilotCitation[]; count: number; trace: Record<string, unknown> }>('/v1/rag/search', payload)
+
+export const listRagDocuments = (filters: { dataset_id?: string; document_type?: string; domain?: string } = {}) => {
+  const qs = params(filters)
+  return request<{ items: RagDocument[]; count: number; company_id: string }>('/v1/rag/documents' + (qs ? '?' + qs : ''))
+}
+
+export const getRagDocumentDetail = (documentId: string) =>
+  request<{ document: RagDocument; chunks: RagChunkDetail[] }>(`/v1/rag/documents/${encodeURIComponent(documentId)}`)
+
+export const deleteRagDocument = (documentId: string) =>
+  requestWithMethod<{ deleted: boolean; document_id: string; file_name: string }>(
+    `/v1/rag/documents/${encodeURIComponent(documentId)}`,
+    'DELETE'
+  )
+
+export const getRagHealth = () => request<RagHealth>('/v1/rag/health')
+

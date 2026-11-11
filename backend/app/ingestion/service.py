@@ -1198,6 +1198,12 @@ def import_dataset(
         raise HTTPException(500, f"Dataset import failed and was cleanly rolled back: {type(exc).__name__}") from exc
 
     model_built = train_partitioned_artifacts(engine, active_info)
+    try:
+        from backend.app.rag.ingestion import index_enterprise_dataset
+
+        index_enterprise_dataset(engine, company_id=company_id, dataset_id=dataset_id, actor=actor)
+    except Exception as exc:
+        log.warning("Non-fatal RAG dataset indexing skipped for %s: %s", dataset_id, exc)
     return {
         "dataset": _serialize_dataset_summary(updated_ds, company["name"], quality_res.report),
         "quality_report": quality_res.report,
@@ -1461,6 +1467,12 @@ def delete_dataset(
     art_path = ARTIFACTS / f"tenant_{company_id}__{dataset_id}.joblib"
     if art_path.is_file():
         art_path.unlink(missing_ok=True)
+    try:
+        from backend.app.rag.ingestion import delete_by_source
+
+        delete_by_source(engine, company_id=company_id, source_file_id=dataset_id)
+    except Exception as exc:
+        log.warning("Non-fatal RAG cleanup skipped for dataset %s: %s", dataset_id, exc)
     return {
         "deleted": True,
         "dataset_id": dataset_id,

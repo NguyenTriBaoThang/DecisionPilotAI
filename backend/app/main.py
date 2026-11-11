@@ -24,6 +24,7 @@ from backend.app.ingestion.router import build_ingestion_router
 from backend.app.ingestion.storage import ObjectStorage, get_object_storage
 from backend.app.multimodal import service as multimodal_service
 from backend.app.multimodal.router import build_multimodal_router
+from backend.app.rag.router import build_rag_router
 from backend.app.schemas import Feedback, Filters, ForecastRequest, Question, QueryResponse, ScenarioRequest, ScenarioFeedback
 from backend.app.security import authorize_company, credentials, identify
 from scripts.pipeline import LIMIT_BYTES, SnapshotConflict, load_snapshot, read_upload
@@ -137,10 +138,13 @@ def create_app(engine=None, storage: ObjectStorage | None = None):
 
     ingestion_router = build_ingestion_router(engine, storage=store)
     multimodal_router = build_multimodal_router(engine, storage=store, job_queue=job_queue)
+    rag_router = build_rag_router(engine)
     app.include_router(ingestion_router, prefix="/v1")
     app.include_router(ingestion_router, prefix="/api/v1", include_in_schema=False)
     app.include_router(multimodal_router, prefix="/v1")
     app.include_router(multimodal_router, prefix="/api/v1", include_in_schema=False)
+    app.include_router(rag_router, prefix="/v1")
+    app.include_router(rag_router, prefix="/api/v1", include_in_schema=False)
 
     @app.get("/session")
     def session(request: Request):
@@ -336,6 +340,11 @@ def create_app(engine=None, storage: ObjectStorage | None = None):
                       "multimodal_approved",
                       "multimodal_deleted",
                       "connector_synced",
+                      "sql_query",
+                      "sql_blocked",
+                      "rag_ingested",
+                      "rag_deleted",
+                      "prompt_injection_blocked",
                   ] | None=None,
                   before: Annotated[int | None, Query(ge=1)]=None):
         cid, _ = _tenant_ids(request)

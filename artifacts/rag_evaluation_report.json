@@ -1,0 +1,54 @@
+{
+  "benchmark": "DecisionPilot AI Empirical RAG & Copilot Evaluation",
+  "config": {
+    "embedding_provider": "auto",
+    "vector_backend": "sql",
+    "chunk_size_tokens": 720,
+    "chunk_overlap_tokens": 120
+  },
+  "retrieval_comparison": {
+    "dense": {
+      "recall_at_5": 1.0,
+      "precision_at_5": 0.2,
+      "mrr": 0.875,
+      "ndcg_at_5": 0.9051,
+      "mean_latency_ms": 20.0
+    },
+    "bm25": {
+      "recall_at_5": 1.0,
+      "precision_at_5": 0.7222,
+      "mrr": 1.0,
+      "ndcg_at_5": 1.0,
+      "mean_latency_ms": 3.21
+    },
+    "hybrid": {
+      "recall_at_5": 1.0,
+      "precision_at_5": 0.8056,
+      "mrr": 1.0,
+      "ndcg_at_5": 1.0,
+      "mean_latency_ms": 16.47
+    }
+  },
+  "generation_grounding": {
+    "faithfulness": 1.0,
+    "answer_relevance": 0.8333,
+    "context_relevance_mean_rerank": 0.4619,
+    "citation_accuracy": 1.0,
+    "hallucinated_citations": 0,
+    "total_citations_emitted": 10,
+    "out_of_scope_honest_refusal_rate": 1.0
+  },
+  "text_to_sql_and_safety": {
+    "sql_execution_accuracy": 1.0,
+    "sql_safety_block_rate": 1.0,
+    "sql_probes_blocked": "8/8",
+    "prompt_injection_block_rate": 1.0,
+    "prompt_injections_blocked": "3/3",
+    "embedded_doc_directive_neutralized": true
+  },
+  "latency_ms": {
+    "sql_mean_ms": 11.12,
+    "copilot_turn_mean_ms": 83.1,
+    "copilot_turn_p95_ms": 264.39
+  }
+}

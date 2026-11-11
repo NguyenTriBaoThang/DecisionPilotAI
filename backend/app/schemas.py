@@ -203,3 +203,55 @@ class DataSourceSyncRequest(Strict):
     dataset_name: Annotated[str | None, Field(min_length=1, max_length=120)] = None
     watermark_column: Annotated[str | None, Field(min_length=1, max_length=64)] = None
 
+
+class ChatCompletionRequest(Strict):
+    message: Annotated[str, Field(min_length=1, max_length=4000)]
+    conversation_id: Annotated[str | None, Field(min_length=1, max_length=64)] = None
+    dataset_id: Annotated[str | None, Field(min_length=1, max_length=64)] = None
+    language: Literal["auto", "en", "vi"] = "auto"
+    top_k: Annotated[int, Field(ge=1, le=20)] = 5
+    domain: Literal["sales", "finance", "marketing", "inventory", "operations", "executive", "general"] | None = None
+    document_type: Annotated[str | None, Field(min_length=1, max_length=40)] = None
+    stream: bool = False
+
+
+class ConversationCreateRequest(Strict):
+    title: Annotated[str, Field(min_length=1, max_length=200)] = "New Copilot Session"
+    dataset_id: Annotated[str | None, Field(min_length=1, max_length=64)] = None
+    language: Literal["auto", "en", "vi"] = "auto"
+
+
+class ConversationPatchRequest(Strict):
+    title: Annotated[str | None, Field(min_length=1, max_length=200)] = None
+    is_pinned: bool | None = None
+    dataset_id: Annotated[str | None, Field(max_length=64)] = None
+
+
+class RagSearchRequest(Strict):
+    query: Annotated[str, Field(min_length=1, max_length=1000)]
+    dataset_id: Annotated[str | None, Field(min_length=1, max_length=64)] = None
+    domain: Literal["sales", "finance", "marketing", "inventory", "operations", "executive", "general"] | None = None
+    document_type: Annotated[str | None, Field(min_length=1, max_length=40)] = None
+    document_ids: list[Annotated[str, Field(min_length=1, max_length=64)]] | None = Field(default=None, max_length=20)
+    top_k: Annotated[int, Field(ge=1, le=20)] = 5
+
+
+class RagTextIngestRequest(Strict):
+    title: Annotated[str, Field(min_length=2, max_length=200)]
+    text: Annotated[str, Field(min_length=10, max_length=200_000)]
+    dataset_id: Annotated[str | None, Field(min_length=1, max_length=64)] = None
+    domain: Literal["sales", "finance", "marketing", "inventory", "operations", "executive", "general"] | None = None
+    document_type: Annotated[str, Field(min_length=1, max_length=40)] = "txt"
+    chunking_strategy: Literal["auto", "recursive", "semantic", "structure"] = "auto"
+    source_dataset_id: Annotated[str | None, Field(min_length=1, max_length=64)] = None
+    source_file_id: Annotated[str | None, Field(min_length=1, max_length=64)] = None
+
+
+class CompanyMemoryUpsertRequest(Strict):
+    memory_key: Annotated[str, Field(min_length=2, max_length=120)]
+    content: Annotated[str, Field(min_length=2, max_length=4000)]
+    memory_type: Literal["business_context", "preference", "kpi_definition", "policy"] = "business_context"
+    source_conversation_id: Annotated[str | None, Field(min_length=1, max_length=64)] = None
+    confidence: Annotated[float, Field(ge=0.0, le=1.0)] = 1.0
+
+

@@ -112,7 +112,7 @@ test('creates an isolated company workspace, runs 4-step enterprise CSV ingestio
   expect((await uploadRes).ok()).toBeTruthy()
 
   // 3. Step 2: Preview -> Proceed to AI Column Mapping
-  await expect(page.getByText('42 rows')).toBeVisible()
+  await expect(page.getByText('42 rows').first()).toBeVisible()
   await page.getByRole('button', { name: /Continue to AI Column Mapping/i }).click()
 
   // 4. Step 3: Set currency USD, save mapping template, run 5-axis validation
@@ -210,7 +210,7 @@ test('ingests a multimodal invoice PNG with async queue, HITL correction, signed
   expect((await uploadRes).status()).toBe(202)
 
   // 4. Wait for background worker extraction -> AWAITING APPROVAL -> launch HITL Workbench
-  await expect(page.getByText('AWAITING APPROVAL')).toBeVisible({ timeout: 45_000 })
+  await expect(page.getByText('AWAITING APPROVAL', { exact: true }).first()).toBeVisible({ timeout: 45_000 })
   await page.getByRole('button', { name: /Review & Approve/i }).first().click()
   await expect(page.getByText(/Human-in-the-Loop Verification: e2e-invoice\.png/i)).toBeVisible()
 

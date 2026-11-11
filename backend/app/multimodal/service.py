@@ -1243,6 +1243,12 @@ def approve_and_import_file(
         active_info = dataset_info(conn, company_id=company_id, dataset_id=ds_id) if tx_total > 0 else None
 
     model_built = train_partitioned_artifacts(engine, active_info) if active_info else False
+    try:
+        from backend.app.rag.ingestion import index_multimodal_file
+
+        index_multimodal_file(engine, company_id=company_id, file_id=file_id, actor=actor)
+    except Exception as exc:
+        log.warning("Non-fatal RAG multimodal indexing skipped for %s: %s", file_id, exc)
     return {
         "approved": True,
         "file_id": file_id,
@@ -1284,6 +1290,12 @@ def delete_multimodal_file(
 
     removed_frames = storage.delete_prefix(f"companies/{company_id}/datasets/{ds_id}/files/{file_id}")
     removed_raw = 1 if storage.delete(frow["storage_key"]) else 0
+    try:
+        from backend.app.rag.ingestion import delete_by_source
+
+        delete_by_source(engine, company_id=company_id, source_file_id=file_id)
+    except Exception as exc:
+        log.warning("Non-fatal RAG cleanup skipped for file %s: %s", file_id, exc)
     return {
         "deleted": True,
         "file_id": file_id,

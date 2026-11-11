@@ -467,6 +467,119 @@ tenant_multimodal_insights = sa.Table(
     C("approved_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
 )
 
+# ---------------------------------------------------------------------------
+# Advanced RAG Knowledge Store, Hybrid Vector/Sparse Chunks & AI Copilot Memory
+# ---------------------------------------------------------------------------
+
+rag_documents = sa.Table(
+    "rag_documents", metadata,
+    C("id", sa.String(64), primary_key=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("dataset_id", sa.String(64), nullable=True, index=True),
+    C("source_file_id", sa.String(64), nullable=True, index=True),
+    C("source_type", sa.String(40), nullable=False, server_default="rag_upload"),
+    C("file_name", sa.String(255), nullable=False),
+    C("mime_type", sa.String(120), nullable=True),
+    C("document_type", sa.String(40), nullable=False),
+    C("domain", sa.String(40), nullable=False, server_default="general"),
+    C("language", sa.String(16), nullable=False, server_default="auto"),
+    C("checksum_sha256", sa.String(64), nullable=False, index=True),
+    C("content_hash", sa.String(64), nullable=False, index=True),
+    C("status", sa.String(32), nullable=False, server_default="indexed"),
+    C("chunk_count", sa.Integer, nullable=False, server_default="0"),
+    C("char_count", sa.Integer, nullable=False, server_default="0"),
+    C("access_permissions_json", sa.JSON, nullable=False),
+    C("metadata_json", sa.JSON, nullable=False),
+    C("created_by", sa.String(100), nullable=False),
+    C("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    C("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+)
+sa.Index("ix_rag_docs_company_dataset", rag_documents.c.company_id, rag_documents.c.dataset_id)
+sa.Index("ix_rag_docs_company_domain", rag_documents.c.company_id, rag_documents.c.domain)
+sa.Index("ix_rag_docs_company_doctype", rag_documents.c.company_id, rag_documents.c.document_type)
+
+rag_chunks = sa.Table(
+    "rag_chunks", metadata,
+    C("id", sa.String(64), primary_key=True),
+    C("document_id", sa.ForeignKey("rag_documents.id", ondelete="CASCADE"), nullable=False, index=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("dataset_id", sa.String(64), nullable=True, index=True),
+    C("chunk_index", sa.Integer, nullable=False),
+    C("content", sa.Text, nullable=False),
+    C("content_hash", sa.String(64), nullable=False, index=True),
+    C("token_count", sa.Integer, nullable=False, server_default="0"),
+    C("source_file", sa.String(255), nullable=False),
+    C("page_number", sa.Integer, nullable=True),
+    C("section", sa.String(200), nullable=True),
+    C("document_type", sa.String(40), nullable=False),
+    C("domain", sa.String(40), nullable=False, server_default="general"),
+    C("chunking_strategy", sa.String(32), nullable=False, server_default="recursive"),
+    C("embedding_provider", sa.String(64), nullable=False),
+    C("embedding_dim", sa.Integer, nullable=False),
+    C("embedding_json", sa.JSON, nullable=False),
+    C("sparse_terms_json", sa.JSON, nullable=False),
+    C("access_permissions_json", sa.JSON, nullable=False),
+    C("metadata_json", sa.JSON, nullable=False),
+    C("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+)
+sa.Index("ix_rag_chunks_company_dataset", rag_chunks.c.company_id, rag_chunks.c.dataset_id)
+sa.Index("ix_rag_chunks_company_domain", rag_chunks.c.company_id, rag_chunks.c.domain)
+sa.Index("ix_rag_chunks_company_doctype", rag_chunks.c.company_id, rag_chunks.c.document_type)
+
+chat_conversations = sa.Table(
+    "chat_conversations", metadata,
+    C("id", sa.String(64), primary_key=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("dataset_id", sa.String(64), nullable=True, index=True),
+    C("title", sa.String(200), nullable=False),
+    C("is_pinned", sa.Boolean, nullable=False, server_default=sa.false()),
+    C("language", sa.String(16), nullable=False, server_default="auto"),
+    C("session_context_json", sa.JSON, nullable=False),
+    C("memory_summary", sa.Text, nullable=True),
+    C("message_count", sa.Integer, nullable=False, server_default="0"),
+    C("created_by", sa.String(100), nullable=False),
+    C("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    C("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+)
+sa.Index("ix_chat_conv_company_updated", chat_conversations.c.company_id, chat_conversations.c.updated_at)
+
+chat_messages = sa.Table(
+    "chat_messages", metadata,
+    C("id", sa.String(64), primary_key=True),
+    C("conversation_id", sa.ForeignKey("chat_conversations.id", ondelete="CASCADE"), nullable=False, index=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("role", sa.String(24), nullable=False),
+    C("content", sa.Text, nullable=False),
+    C("intent", sa.String(64), nullable=True),
+    C("citations_json", sa.JSON, nullable=True),
+    C("structured_sections_json", sa.JSON, nullable=True),
+    C("chart_json", sa.JSON, nullable=True),
+    C("sql_trace_json", sa.JSON, nullable=True),
+    C("tool_trace_json", sa.JSON, nullable=True),
+    C("followups_json", sa.JSON, nullable=True),
+    C("parent_message_id", sa.String(64), nullable=True),
+    C("prompt_tokens", sa.Integer, nullable=True),
+    C("completion_tokens", sa.Integer, nullable=True),
+    C("latency_ms", sa.Float, nullable=True),
+    C("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+)
+sa.Index("ix_chat_msgs_conv_created", chat_messages.c.conversation_id, chat_messages.c.created_at)
+
+company_memories = sa.Table(
+    "company_memories", metadata,
+    C("id", sa.String(64), primary_key=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("memory_key", sa.String(120), nullable=False),
+    C("memory_type", sa.String(40), nullable=False, server_default="business_context"),
+    C("content", sa.Text, nullable=False),
+    C("source_conversation_id", sa.String(64), nullable=True),
+    C("confidence", sa.Float, nullable=False, server_default="1.0"),
+    C("created_by", sa.String(100), nullable=False),
+    C("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    C("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+)
+sa.Index("ix_company_memories_comp_key", company_memories.c.company_id, company_memories.c.memory_key)
+
 
 def make_engine(url=None):
     url = url or os.getenv("DATABASE_URL")

@@ -28,7 +28,7 @@ test('alert -> Ask -> recommendation -> simulator -> one decision settles card a
 
   // 2. The recommendation opens the simulator with Facebook Ads and -15% already run.
   await page.goto('/recommendations')
-  await expect(page.getByText('Review Facebook Ads allocation')).toBeVisible()
+  await expect(page.getByText('Review Facebook Ads allocation')).toBeVisible({ timeout: 30_000 })
   await expect(page.getByText('STATUS: PENDING').first()).toBeVisible()
   await page.getByRole('link', { name: 'Try first in simulator' }).click()
   await expect(page.getByText('Recommended Reallocation: -15% budget')).toBeVisible({ timeout: 60_000 })

@@ -711,6 +711,18 @@ export const translations: Record<string, { vi: string; en: string }> = {
   'Discover Schema': { vi: 'Khám phá Lược đồ', en: 'Discover Schema' },
   'Sync Now': { vi: 'Đồng bộ ngay', en: 'Sync Now' },
   'Sync Logs': { vi: 'Nhật ký đồng bộ', en: 'Sync Logs' },
+  'ENTERPRISE RAG & TEXT-TO-SQL COPILOT': { vi: 'TRỢ LÝ RAG & SQL DOANH NGHIỆP', en: 'ENTERPRISE RAG & TEXT-TO-SQL COPILOT' },
+  'DecisionPilot AI Copilot': { vi: 'DecisionPilot AI Copilot', en: 'DecisionPilot AI Copilot' },
+  'New Conversation': { vi: 'Cuộc trò chuyện mới', en: 'New Conversation' },
+  'Pinned': { vi: 'Đã ghim', en: 'Pinned' },
+  'Recent Sessions': { vi: 'Gần đây', en: 'Recent Sessions' },
+  'Citations': { vi: 'Trích dẫn', en: 'Citations' },
+  'Knowledge': { vi: 'Kho tri thức', en: 'Knowledge' },
+  'Memory & SQL': { vi: 'Bộ nhớ & SQL', en: 'Memory & SQL' },
+  'Ingest RAG Doc': { vi: 'Nạp tài liệu RAG', en: 'Ingest RAG Doc' },
+  'Executed SQL Trace': { vi: 'Truy vấn SQL đã chạy', en: 'Executed SQL Trace' },
+  'Long-Term Company Memory (Layer 3)': { vi: 'Tri thức ghi nhớ Doanh nghiệp (Layer 3)', en: 'Long-Term Company Memory (Layer 3)' },
+  'Safe SQL + Verified Citations': { vi: 'SQL Chỉ đọc & Trích dẫn', en: 'Safe SQL + Verified Citations' },
 }
 
 export function translate(text: string, language: Preferences['language']): string {
