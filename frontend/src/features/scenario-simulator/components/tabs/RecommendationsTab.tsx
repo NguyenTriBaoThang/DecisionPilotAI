@@ -1,9 +1,9 @@
-﻿import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Sparkles, X } from 'lucide-react'
 import { moneyCompact, percent, request, type Scenario, type Session } from '../../../../api'
 import { Button, Empty, ErrorState, Pill } from '../../../../ui'
 
-export function RecommendationsTab({ scenarioData, isSimulating = false }: { scenarioData?: Scenario | null; isSimulating?: boolean }) {
+export function RecommendationsTab({ scenarioData, isSimulating = false, recommendationId }: { scenarioData?: Scenario | null; isSimulating?: boolean; recommendationId?: string }) {
   const client = useQueryClient()
   const session = useQuery({ queryKey: ['session'], queryFn: () => request<Session>('/session') })
   const feedback = useMutation({
@@ -11,9 +11,10 @@ export function RecommendationsTab({ scenarioData, isSimulating = false }: { sce
       if (!scenarioData?.simulation_id) throw new Error('Run a scenario before recording a decision.')
       return request<{ decision: 'accepted' | 'rejected'; id: number }>('/scenarios/feedback', {
         simulation_id: scenarioData.simulation_id, dataset_id: scenarioData.dataset_id, decision,
+        ...(recommendationId ? { recommendation_id: recommendationId } : {}),
       })
     },
-    onSuccess: () => { void client.invalidateQueries({ queryKey: ['audit'] }) },
+    onSuccess: () => { void client.invalidateQueries({ queryKey: ['audit'] }); void client.invalidateQueries({ queryKey: ['recommendations'] }) },
   })
   if (!scenarioData) return <Empty text="Run a scenario to review its recommendation and record a decision." />
   const recommended = scenarioData.recommended

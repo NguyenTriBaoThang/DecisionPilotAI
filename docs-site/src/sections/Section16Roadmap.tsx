@@ -40,7 +40,7 @@ git push origin feature/kiotviet-connector`
             <li style={{ marginBottom: '6px' }}>&bull; 3D Scenario Simulator (Three.js)</li>
             <li style={{ marginBottom: '6px' }}>&bull; LightGBM Chronological Forecaster</li>
             <li style={{ marginBottom: '6px' }}>&bull; Isolation Forest Anomaly Detection</li>
-            <li style={{ marginBottom: '6px' }}>&bull; Read-only AST SQL Synthesizer</li>
+            <li style={{ marginBottom: '6px' }}>&bull; Read-only analytics tools with intent routing</li>
             <li style={{ marginBottom: '6px' }}>&bull; Immutable Audit Logging Ledger</li>
           </ul>
         </div>

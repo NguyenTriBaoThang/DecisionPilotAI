@@ -335,10 +335,10 @@ export function TabDemandForecasting() {
               <Target size={14} color="var(--cyan)" />
             </div>
             <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#FFFFFF' }}>
-              11.24%
+              24.14%
             </div>
             <span style={{ fontSize: '0.72rem', color: 'var(--green)', display: 'block', marginTop: '2px' }}>
-              &bull; 24.14% on daily series (Outperformed Seasonal Naive by 4.2%)
+              &bull; Revenue, all: moving average selected (LightGBM does not clear the 2% gate)
             </span>
           </div>
 
@@ -412,10 +412,10 @@ export function TabDemandForecasting() {
             <tbody>
               <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                 <td style={{ padding: '10px 12px', fontWeight: 600, color: '#FFFFFF' }}>Aggregated Revenue WAPE</td>
-                <td style={{ padding: '10px 12px', fontFamily: 'var(--mono)', color: '#CBD5E1' }}>15.42%</td>
-                <td style={{ padding: '10px 12px', fontFamily: 'var(--mono)', color: 'var(--green)', fontWeight: 700 }}>11.24%</td>
-                <td style={{ padding: '10px 12px', color: 'var(--green)', fontWeight: 600 }}>-4.18% (Better)</td>
-                <td style={{ padding: '10px 12px' }}><span className="badge badge-green">Passed 2% Gate</span></td>
+                <td style={{ padding: '10px 12px', fontFamily: 'var(--mono)', color: '#CBD5E1' }}>26.4% (seasonal naive)</td>
+                <td style={{ padding: '10px 12px', fontFamily: 'var(--mono)', color: 'var(--green)', fontWeight: 700 }}>24.1% (moving average)</td>
+                <td style={{ padding: '10px 12px', color: 'var(--amber)', fontWeight: 600 }}>LightGBM 23.0% on test, not enough on validation</td>
+                <td style={{ padding: '10px 12px' }}><span className="badge badge-amber">Baseline selected</span></td>
               </tr>
               <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                 <td style={{ padding: '10px 12px', fontWeight: 600, color: '#FFFFFF' }}>Test Revenue MAE</td>

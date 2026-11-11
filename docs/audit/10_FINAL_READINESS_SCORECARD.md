@@ -1,5 +1,7 @@
 # DecisionPilot AI — Final Readiness Scorecard
 
+> **Correction notice (11/11/2026).** This document was written before its figures were reconciled with `artifacts/`. Where it differs from `artifacts/MODEL_EVALUATION.md`, `artifacts/evaluation.json`, `artifacts/query_benchmark.json` or `artifacts/scenario_backtest.json`, **the artifacts are authoritative**. Known differences: enterprise-wide revenue WAPE is 24.14% (not 11.24%), revenue-anomaly recall is 38.2%, the NL benchmark runs on local rules, the price model is linear (P001 elasticity -1.1) and the advertising model is a power law (no Hill curve, no AST/sqlglot SQL parser). Scores in this file are a self-assessment, not an independent audit.
+
 **Document ID:** AUD-10-FINAL-SCORECARD  
 **Audit Date:** November 8, 2026  
 **Auditor:** Lead System Architect & Evaluation Board  

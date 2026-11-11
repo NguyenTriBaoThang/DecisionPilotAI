@@ -121,6 +121,7 @@ class ScenarioFeedback(Strict):
     simulation_id: Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
     dataset_id: Annotated[str, Field(pattern=r"^[a-f0-9]{24}$")]
     decision: Literal["accepted", "rejected"]
+    recommendation_id: Slug | None = None
 
 
 class QueryResponse(BaseModel):

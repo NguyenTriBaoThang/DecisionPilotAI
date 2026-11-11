@@ -45,7 +45,7 @@ const TREE_DATA: TreeNode[] = [
     children: [
       { name: 'forecasting.py', path: 'ai_service/forecasting.py', desc: 'LightGBM model training, lag features, moving average baselines' },
       { name: 'anomaly.py', path: 'ai_service/anomaly.py', desc: 'Isolation Forest + Rolling Z-score hybrid anomaly detection' },
-      { name: 'simulation.py', path: 'ai_service/simulation.py', desc: 'Price elasticity curves, Hill marketing saturation, inventory buffers' },
+      { name: 'scenario.py', path: 'ai_service/scenario.py', desc: 'Price elasticity response, diminishing-returns ad spend, inventory buffers' },
       { name: 'llm_orchestrator.py', path: 'ai_service/llm_orchestrator.py', desc: 'Query intent parsing, safe SQL synthesis, and grounded narrative answers' },
     ],
   },

@@ -26,10 +26,10 @@ export function Section14Security() {
         <div className="card">
           <div className="card-title">
             <Shield size={18} className="violet" />
-            2. AST SQL Query Sanitization
+            2. No Model-Written SQL
           </div>
           <p className="card-desc">
-            Every synthesized SQL statement passes through an Abstract Syntax Tree (AST) validator before touching the connection pool. Multi-statement queries, comments, <code>DROP</code>, <code>UPDATE</code>, <code>INSERT</code>, <code>DELETE</code>, and administrative functions (e.g. <code>pg_sleep</code>, <code>load_file</code>) are blocked instantaneously with validation errors.
+            Questions are routed to a fixed set of tested, read-only analytics tools; neither users nor language models supply SQL. Questions that contain SQL statements (<code>DROP</code>, <code>UPDATE</code>, <code>INSERT</code>, <code>DELETE</code>, <code>SELECT ... FROM</code>) or ask for unsupported metrics are refused before any query runs.
           </p>
         </div>
 

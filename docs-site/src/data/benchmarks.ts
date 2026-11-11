@@ -39,12 +39,12 @@ export const ANOMALY_BENCHMARKS: AnomalyBenchmark[] = [
 ]
 
 export const COPILOT_BENCHMARKS: QueryMetric[] = [
-  { metric: 'Intent Recognition Accuracy', score: '100.0%', description: '46/46 test queries classified correctly to the intended business scope' },
-  { metric: 'SQL Execution Success', score: '100.0%', description: 'Zero syntax errors or relational constraint violations on synthesized SQL' },
-  { metric: 'Numerical Consistency', score: '100.0%', description: '100% agreement between LLM narrative totals and deterministic SQL aggregates' },
-  { metric: 'Zero Hallucination Grounding', score: '100.0%', description: 'Every metric cited in answer traces directly to database result set' },
-  { metric: 'Median Query Latency', score: '1,432 ms', description: 'Real-time interactive response suitable for live executive presentation' },
-  { metric: '95th Percentile Latency', score: '3,268 ms', description: 'Worst-case query processing across multi-table analytical joins' },
+  { metric: 'Intent Recognition Accuracy', score: '100.0%', description: '46/46 curated test queries (local rules, no LLM) classified to the intended business scope' },
+  { metric: 'Execution Success', score: '100.0%', description: 'All 46 curated queries ran through the fixed analytics tools without errors' },
+  { metric: 'Numerical Consistency', score: '100.0%', description: '100% agreement between answer totals and values recomputed from the database' },
+  { metric: 'Grounding', score: '100.0%', description: 'Every metric in the answer traces to the database result set (curated cases, local rules)' },
+  { metric: 'Median Query Latency', score: '1,432 ms', description: 'Interactive response on the local rules path' },
+  { metric: '95th Percentile Latency', score: '3,268 ms', description: 'Slowest typical query across the 46-case benchmark' },
 ]
 
 export const SCENARIO_REPLAY = {

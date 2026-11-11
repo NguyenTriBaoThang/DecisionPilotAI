@@ -10,10 +10,10 @@ const scenario: Scenario = {
   baseline: {}, alternatives: [], recommended: { name: '5% discount', profit_delta: 100, margin: .2, risk: null },
   assumptions: ['Assumed elasticity'], evidence: {}, sensitivity: [],
 }
-function mount(data: Scenario = scenario) {
+function mount(data: Scenario = scenario, recommendationId?: string) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   client.setQueryData(['session'], { actor: 'analyst', role: 'analyst', authentication: 'token' })
-  return render(<QueryClientProvider client={client}><RecommendationsTab scenarioData={data} /></QueryClientProvider>)
+  return render(<QueryClientProvider client={client}><RecommendationsTab scenarioData={data} recommendationId={recommendationId} /></QueryClientProvider>)
 }
 describe('Scenario decisions', () => {
   it('records the scenario ID and waits for server confirmation', async () => {
@@ -28,6 +28,15 @@ describe('Scenario decisions', () => {
     expect((screen.getByRole('button', { name: 'Accept scenario' }) as HTMLButtonElement).disabled).toBe(true)
     resolve({ decision: 'accepted', id: 12 })
     await screen.findByText('Decision recorded: accepted. Audit event #12.')
+  })
+  it('also settles the recommendation it was opened from', async () => {
+    vi.mocked(request).mockResolvedValue({ decision: 'accepted', id: 7 })
+    mount(scenario, 'marketing:facebook')
+    fireEvent.click(screen.getByRole('button', { name: 'Accept scenario' }))
+    await waitFor(() => expect(request).toHaveBeenCalledWith('/scenarios/feedback', {
+      simulation_id: scenario.simulation_id, dataset_id: scenario.dataset_id, decision: 'accepted',
+      recommendation_id: 'marketing:facebook',
+    }))
   })
   it('keeps the decision pending when the API fails and permits retry', async () => {
     vi.mocked(request).mockRejectedValue(new Error('Dataset changed. Run the scenario again.'))

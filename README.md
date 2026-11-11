@@ -96,10 +96,10 @@ Small and Medium Enterprises represent the engine of retail and services in emer
 
 DecisionPilot AI addresses this dilemma through a continuous, verifiable **Decision Intelligence Loop**:
 
-- **Ask Natural Language Queries:** Business managers inquire in plain Vietnamese or English (`"Why did revenue drop this month?"`, `"Which marketing channel is underperforming?"`). The engine validates intent and synthesizes read-only SQL executed deterministically over relational data.
+- **Ask Natural Language Queries:** Business managers inquire in plain Vietnamese or English (`"Why did revenue drop this month?"`, `"Which marketing channel is underperforming?"`). The engine classifies the question's intent (local rules by default; Gemini or OpenAI optional) and runs a fixed, tested analytics tool over the database. It never executes SQL written by a user or a model.
 - **Understand Root Causes:** The anomaly engine decomposes observed variance into exact SKU, regional, and marketing attribution deltas—reconciling 100% of the variance without hand-waving or hallucinated causation.
 - **Predict Future Trajectories:** An engineered **LightGBM** regressor projects 7-day and 30-day demand curves bounded by calibrated 90% confidence intervals, outperforming standard seasonal baselines.
-- **Simulate Strategy Before Execution:** A microeconomic sandbox couples empirical log-log price elasticity ($\varepsilon = -1.42$) and Hill advertising saturation curves with warehouse lead-time constraints, letting executives stress-test scenarios and expose hidden margin traps before spending capital.
+- **Simulate Strategy Before Execution:** A what-if sandbox couples a price-sensitivity (elasticity) model, a diminishing-returns advertising model and warehouse lead-time constraints, letting executives compare options and see margin and stock trade-offs before spending capital. Estimates are conditional assumptions, not verified causal effects.
 - **Decide with Auditability:** Recommended interventions provide explicit financial impact estimates (projected gross profit delta) and require human approval, logged immutably for executive governance.
 
 ---
@@ -110,10 +110,10 @@ DecisionPilot AI was submitted under the **LIKELION — AI for Business Innovati
 
 | Challenge Requirement (Official Topic) | DecisionPilot AI Capability | Technical Implementation | Verified Business Value |
 | :--- | :--- | :--- | :--- |
-| **1. AI converts natural language questions into data reports**<br/>*(AI chuyển câu hỏi bằng ngôn ngữ tự nhiên thành báo cáo dữ liệu)* | **Ask Business Data / Copilot**<br/>[`ai_service/llm_orchestrator.py`](./ai_service/llm_orchestrator.py)<br/>[`backend/app/routers/ask.py`](./backend/app/main.py) | • Rule & LLM intent classification (Gemini / OpenAI / Local).<br/>• AST read-only SQL sanitizer blocking injection.<br/>• Zero-hallucination deterministic database calculation.<br/>• Dynamic chart generation and structured JSON KPIs. | Replaces hours of manual Excel pivot compiling with audited business reports delivered in under **1.43 seconds** (100% benchmark pass rate across 46 test cases). |
-| **2. AI analyzes revenue and detects significant business anomalies**<br/>*(AI phân tích doanh thu và nhận diện các biến động đáng chú ý)* | **Anomaly Center & Revenue Diagnostics**<br/>[`ai_service/anomaly.py`](./ai_service/anomaly.py)<br/>[`backend/app/analytics.py`](./backend/app/analytics.py) | • Multidimensional **Isolation Forest** outlier isolation.<br/>• Dynamic 28-day rolling baseline with seasonal weekend / holiday adjustment.<br/>• Local rolling **3-sigma Z-Score** filtering ($|z| > 2.5$).<br/>• Waterfall variance decomposition by SKU and marketing channel. | Detects margin compression, abnormal ad budget surges, and supplier delivery delays weeks before standard monthly accounting cycles conclude (**100% precision on ad spend spikes**). |
-| **3. AI forecasts product or service demand based on historical data**<br/>*(AI dự báo nhu cầu sản phẩm hoặc dịch vụ dựa trên dữ liệu lịch sử)* | **Forecast Center**<br/>[`ai_service/forecasting.py`](./ai_service/forecasting.py)<br/>[`artifacts/MODEL_EVALUATION.md`](./artifacts/MODEL_EVALUATION.md) | • Chronological 70/15/15 time-series partition.<br/>• **LightGBM** regressor trained with 14 engineered point-in-time features (lags 7/14/28, rolling stats, calendar events).<br/>• Strict **2% Rule Gate** against Seasonal Naive and Moving Average baselines.<br/>• Multi-quantile residual calibration for 90% confidence bands. | Prevents costly stockouts and working capital lockup. Delivers **11.24% aggregated WAPE** and **92.86% interval coverage** on top revenue generator SKU P001. |
-| **4. AI compares business scenarios to support strategic decision making**<br/>*(AI so sánh các kịch bản kinh doanh để hỗ trợ ra quyết định)* | **3D Scenario Simulator**<br/>[`ai_service/scenario.py`](./ai_service/scenario.py)<br/>[`frontend/src/features/simulator/`](./frontend/src/features/) | • Empirical log-log price elasticity: $\ln(Q) = \alpha + \varepsilon \ln(P)$ ($\varepsilon = -1.42$).<br/>• Hill function marketing response curve modeling diminishing marginal ROAS.<br/>• Lead-time replenishment buffer modeling.<br/>• Three.js WebGL spatial landscape and multi-scenario comparison matrix. | Exposes "The Volume Trap" where deep discounting (+39% unit volume) destroys -22M ₫ in profit and sparks a 64.5% stockout risk, steering leaders to optimal 5% promotions. |
+| **1. AI converts natural language questions into data reports**<br/>*(AI chuyển câu hỏi bằng ngôn ngữ tự nhiên thành báo cáo dữ liệu)* | **Ask Business Data / Copilot**<br/>[`ai_service/llm_orchestrator.py`](./ai_service/llm_orchestrator.py)<br/>[`backend/app/main.py`](./backend/app/main.py) | • Rule & LLM intent classification (Gemini / OpenAI / Local).<br/>• Questions that contain SQL or fall outside the supported scope are refused; no model-written SQL is ever executed.<br/>• Zero-hallucination deterministic database calculation.<br/>• Dynamic chart generation and structured JSON KPIs. | Replaces hours of manual Excel pivot compiling with audited business reports delivered in under **1.43 seconds** (46 curated EN/VI cases on local rules: 100% pass; median 1.43 s; Gemini/OpenAI paths are not part of this benchmark). |
+| **2. AI analyzes revenue and detects significant business anomalies**<br/>*(AI phân tích doanh thu và nhận diện các biến động đáng chú ý)* | **Anomaly Center & Revenue Diagnostics**<br/>[`ai_service/anomaly.py`](./ai_service/anomaly.py)<br/>[`backend/app/analytics.py`](./backend/app/analytics.py) | • Multidimensional **Isolation Forest** outlier isolation.<br/>• Past-only trailing baseline (56-day window, 7-day exclusion).<br/>• Rolling **Z-Score** and IQR bounds.<br/>• Waterfall variance decomposition by SKU and marketing channel. | Flags abnormal ad spend (Facebook spend: **100% precision, 82% recall**). Revenue-contraction recall is only **38%** on the synthetic test and the app shows this limitation next to the alerts. |
+| **3. AI forecasts product or service demand based on historical data**<br/>*(AI dự báo nhu cầu sản phẩm hoặc dịch vụ dựa trên dữ liệu lịch sử)* | **Forecast Center**<br/>[`ai_service/forecasting.py`](./ai_service/forecasting.py)<br/>[`artifacts/MODEL_EVALUATION.md`](./artifacts/MODEL_EVALUATION.md) | • Chronological 70/15/15 time-series partition.<br/>• **LightGBM** regressor trained with 14 engineered point-in-time features (lags 7/14/28, rolling stats, calendar events).<br/>• Strict **2% Rule Gate** against Seasonal Naive and Moving Average baselines.<br/>• Multi-quantile residual calibration for 90% confidence bands. | Supports stock and cash planning. Enterprise-wide revenue forecast: **WAPE 24.1%** (moving average is selected because LightGBM does not clear the 2% gate). SKU P001: LightGBM, **WAPE 41.9%**, **92.9%** interval coverage. |
+| **4. AI compares business scenarios to support strategic decision making**<br/>*(AI so sánh các kịch bản kinh doanh để hỗ trợ ra quyết định)* | **3D Scenario Simulator**<br/>[`ai_service/scenario.py`](./ai_service/scenario.py)<br/>[`frontend/src/features/scenario-simulator/`](./frontend/src/features/scenario-simulator/) | • Price-sensitivity demand response, linear in the percentage price change: $Q = Q_0 \cdot \max(0, 1 + \varepsilon \, \Delta P/P_0)$ (P001 $\varepsilon = -1.1$, catalog assumption; users can override it).<br/>• Concave advertising response $R = R_0 \cdot (\text{budget ratio})^{\alpha}$ (default $\alpha = 0.65$).<br/>• Lead-time replenishment buffer modeling.<br/>• Three.js WebGL spatial landscape and multi-scenario comparison matrix. | Shows the volume-versus-margin trade-off before a discount is applied. Scenario estimates are conditional: in the holdout replay the price scenario is about equal to the baseline (WAPE 24.0% vs 24.2%) and the marketing scenario is worse (33.0% vs 25.4%); see `artifacts/scenario_backtest.json`. |
 
 ---
 
@@ -132,8 +132,8 @@ The application provides six dedicated workspaces designed for distinct operatio
 │ • ROAS & AOV       │ • Zero Mutation    │ • Waterfall Decomp │ • 7-day / 30-day Horizon│
 ├────────────────────┴────────────────────┴────────────────────┴─────────────────────────┤
 │ 5. 3D Scenario Simulator                │ 6. Actionable Recommendations & Audit        │
-│ • Log-Log Price Elasticity (ε = -1.42)  │ • Prioritized Strategy Playbooks             │
-│ • Hill Marketing Saturation Response    │ • Estimated P&L Delta Impact                 │
+│ • Linear Price Response (ε = -1.1)     │ • Prioritized Strategy Playbooks             │
+│ • Concave Ad-Spend Response (α=0.65)     │ • Estimated P&L Delta Impact                 │
 │ • Three.js WebGL Spatial Elevation      │ • Human-in-the-Loop Accept/Reject Governance │
 └─────────────────────────────────────────┴──────────────────────────────────────────────┘
 ```
@@ -171,7 +171,7 @@ flowchart TB
         Hero3D["Holographic 3D Data Sphere (Three.js WebGL)"]
         Sim3D["Interactive Scenario Simulator (Three.js)"]
         ExecDash["Executive Dashboard & Recharts"]
-        AskUI["Natural Language Copilot (AST Trace)"]
+        AskUI["Natural Language Copilot (Trace)"]
         AnomalyUI["Anomaly Radar & Waterfall View"]
         ForecastUI["Forecast Center (90% Interval Bands)"]
         RecUI["Actionable Playbooks & Audit History"]
@@ -186,10 +186,10 @@ flowchart TB
 
     subgraph Intelligence["3. Analytics & Decision Intelligence Layer"]
         AnalyticalCore["SQL / Pandas Analytics Engine (analytics.py)"]
-        ASTValidator["SQL AST Validation & Sanitizer (llm_orchestrator.py)"]
+        IntentRouter["Intent Router & Refusal Rules (llm_orchestrator.py)"]
         AnomalyEngine["Isolation Forest & Rolling 3-Sigma (anomaly.py)"]
         ForecastEngine["LightGBM Time-Series Regressor (forecasting.py)"]
-        ScenarioEngine["Microeconomic Elasticity & Hill Curve (simulation.py)"]
+        ScenarioEngine["Price Elasticity & Ad-Spend Response (scenario.py)"]
     end
 
     subgraph Persistence["4. Persistence Layer (SQLAlchemy 2.0 & Alembic)"]
@@ -219,15 +219,15 @@ flowchart TB
 
 DecisionPilot AI deliberately combines empirical machine learning with microeconomic domain logic, completely avoiding fragile black-box models.
 
-### 1. Natural Language Analytics & Zero-Hallucination SQL AST Sandbox
+### 1. Natural Language Analytics & Grounded Answers
 - **LLM Intent Routing:** Classifies incoming inquiries into structured intent domains (`executive_kpi_summary`, `diagnostic_root_cause_analysis`, `product_profitability_leaderboard`, `regional_sales_breakdown`).
-- **AST Query Sanitization:** Before query execution, synthesized SQL passes through an **Abstract Syntax Tree (AST)** security parser. Any statement containing destructive keywords (`DROP`, `DELETE`, `UPDATE`, `INSERT`, `ALTER`) or unbounded joins is rejected immediately.
+- **Refusals and no model-written SQL:** The question is classified into one of a fixed set of tools (KPI, ranking, trend, explanation, marketing, forecast, alerts). Questions that contain SQL, ask for unsupported metrics (net profit, cash flow, tax) or fall outside the business data are refused. The model, when enabled, only returns a structured intent; its filter values are checked against the dataset and mapped or rejected before use.
 - **Deterministic Math Execution:** The database engine computes aggregates over immutable tables with zero numerical hallucination. The resulting verified record set is injected into the context to generate explanatory prose.
 
 ### 2. Hybrid Anomaly Radar & Waterfall Variance Decomposition
 - **Isolation Forest:** Builds an ensemble of isolation trees partitioning high-dimensional feature spaces (Spend, Orders, Traffic, Cost) to flag multidimensional anomalies.
-- **Dynamic 28-Day Rolling Baseline:** Calculates rolling means ($\mu$) and standard deviations ($\sigma$) with explicit adjustments for weekend/weekday cyclic factors.
-- **Rolling Z-Score Filtering:** Flags deviations exceeding $|z| > 2.5$ (3-sigma threshold).
+- **Past-Only Trailing Baseline:** Compares each day with a 56-day trailing window that excludes the most recent 7 days, so no future data is used.
+- **Rolling Z-Score and IQR Filtering:** Flags robust z-scores of at least 3 and values outside the IQR bounds; the hybrid signal combines these with Isolation Forest.
 - **Waterfall Contribution Decomposition:** Quantifies variance across product categories and regions, reconciling exactly 100% of the observed shift:
   $$\Delta M = \sum_{d \in D} \text{Contribution}(d)$$
 
@@ -239,13 +239,13 @@ DecisionPilot AI deliberately combines empirical machine learning with microecon
 - **The 2% Rule Selection Gate:** A candidate LightGBM model is promoted over simple baselines (Seasonal Naive and Moving Average) **only if holdout validation MAE beats the better baseline by more than 2.00%**.
 - **90% Confidence Interval Calibration:** Computes empirical multi-quantile residuals ($q = 0.05, 0.95$) over separate validation segments to deliver reliable prediction intervals.
 
-### 4. Microeconomic Scenario Simulation
-- **Log-Log Price Elasticity:** Models consumer demand reaction to pricing adjustments:
-  $$\ln(Q) = \alpha + \varepsilon \ln(P) \implies Q_{new} = Q_{base} \times \left(1 + \frac{\Delta P}{P_{base}}\right)^\varepsilon$$
-  *(Empirical coefficient $\varepsilon = -1.42$ for elastic SKU P001).*
-- **Hill Advertising Saturation Curve:** Captures audience exhaustion and diminishing marginal return on ad spend (ROAS):
-  $$\text{Attributed Revenue}(Spend) = \frac{V_{\max} \cdot Spend^n}{K^n + Spend^n}$$
-- **Lead-Time Replenishment Constraints:** Reorders bounded by supplier lead time (7 to 28 days) and physical warehouse buffer thresholds.
+### 4. What-If Scenario Simulation
+- **Price Elasticity (linear response):** Models how demand reacts to a price change:
+  $$Q_{new} = Q_{base} \times \max\left(0,\; 1 + \varepsilon \cdot \frac{\Delta P}{P_{base}}\right)$$
+  *(Catalog elasticity for SKU P001 is $\varepsilon = -1.1$; an operator can override it, and the app shows a sensitivity of $\varepsilon \pm 0.3$.)*
+- **Diminishing Returns on Advertising:** Attributed revenue scales with the budget ratio to a power $\alpha < 1$ (default $\alpha = 0.65$), so extra spend returns less than the previous spend.
+- **Lead-Time Replenishment Constraints:** Reorders are bounded by supplier lead time and physical stock; no future receipts are assumed unless entered.
+- **Limits:** results are conditional estimates, not verified causal effects, and the marketing replay is worse than the baseline (see Model Evaluation).
 
 ---
 
@@ -284,7 +284,7 @@ All metrics reported below originate directly from verified evaluation artifacts
 | **Total Unit Demand** | Enterprise-wide | Moving Average | 17.74 units | 23.46% | 80.00% |
 | **SKU P001 (SmartDesk Mini)** | Single SKU | **LightGBM** | **2.68 units** | **41.87%** | **92.86%** *(Calibrated)* |
 
-*Note: Overall aggregated revenue WAPE achieves 11.24%. Model selection enforces the 2% Rule Gate on holdout validation.*
+*Note: LightGBM is selected per target only when its validation MAE beats the better baseline by more than 2%. For enterprise-wide revenue it does not, so the moving average is used (WAPE 24.14%, interval coverage 83.81% against a 90% target).*
 
 ### 2. Labeled Anomaly Detection Benchmark
 
@@ -298,7 +298,7 @@ All metrics reported below originate directly from verified evaluation artifacts
 
 ### 3. Natural Language Query Benchmark (`artifacts/query_benchmark.json`)
 - **Evaluated Test Suite:** 46 curated Vietnamese, English, and refusal edge-case queries.
-- **Accuracy Pass Rate:** 100% intent classification, 100% AST pass rate, 100% numerical verification.
+- **Accuracy Pass Rate:** 100% intent classification, 100% execution and grounding checks, 100% numerical verification.
 - **Execution Latency:** Median: **1,432 ms** | p95: **3,268 ms**.
 
 ---
@@ -414,7 +414,7 @@ The FastAPI backend exposes 16 structured REST endpoints with complete OpenAPI 3
 | `GET` | `/options` | Active filter options (sales channels, geographic regions, product categories, SKU list). |
 | `GET` | `/models/quality` | Ground-truth empirical validation metrics and benchmark scores. |
 | `GET` | `/kpi/summary` | Executive financial pulse: Gross Revenue, Profit, Margin, Orders, AOV, and ROAS. |
-| `POST` | `/query` | Natural language question processor with AST validation, SQL synthesis, and charts. |
+| `POST` | `/query` | Natural language question processor (intent routing, fixed analytics tools, charts, trace). |
 | `GET` | `/anomalies` | Ranked list of detected business anomalies prioritized by severity level. |
 | `GET` | `/anomalies/{alert_id}` | Detailed anomaly drill-down with observed vs expected baselines and waterfall drivers. |
 | `POST` | `/forecast` | LightGBM point and quantile prediction for 7-day or 30-day horizons. |
@@ -441,9 +441,9 @@ DecisionPilotAI/
 │   ├── anomaly.py                 # Hybrid Isolation Forest and rolling Z-score detection
 │   ├── features.py                # 14-feature point-in-time time-series matrix constructor
 │   ├── forecasting.py             # LightGBM regressor and baseline models
-│   ├── llm_orchestrator.py        # Intent classifier, prompt templates, and AST SQL parser
+│   ├── llm_orchestrator.py        # Intent router (local rules + optional LLM), refusal rules, answer tools
 │   ├── root_cause.py              # Waterfall variance decomposition engine
-│   └── simulation.py              # Log-log elasticity and Hill curve simulation models
+│   └── scenario.py                # Price elasticity, ad-spend response and inventory simulation
 ├── backend/                       # Production FastAPI backend application
 │   ├── alembic/                   # Relational database migration scripts
 │   └── app/
@@ -494,9 +494,9 @@ DecisionPilotAI/
 
 DecisionPilot AI is designed around strict principles of data privacy, defensive engineering, and transparent artificial intelligence:
 
-- **Local-First & On-Premises Capability:** The entire stack runs self-contained via Docker or local virtual environments. Transactional records and customer PII are never uploaded to third-party model providers.
-- **AST SQL Sanitization:** Plain-text prompts cannot trigger arbitrary database mutations. The Abstract Syntax Tree validator strictly restricts generated SQL to read-only `SELECT` statements referencing pre-approved business tables.
-- **Zero-Hallucination Grounding:** Mathematical aggregations (sums, averages, margins) are executed deterministically by the database engine, not estimated by language models. The LLM only interprets the verified numerical result.
+- **Local-First & On-Premises Capability:** The entire stack runs self-contained via Docker or local virtual environments. Transactional rows and customer records are never sent to a model provider; when Gemini or OpenAI is enabled, only the question text and the list of valid filter names are sent.
+- **No Model-Written SQL:** Prompts cannot trigger database mutations because questions are routed to a fixed set of read-only analytics tools; questions containing SQL are refused.
+- **Zero-Hallucination Grounding:** Mathematical aggregations (sums, averages, margins) are executed deterministically by the database engine, not estimated by language models. The LLM, when enabled, only classifies the question; numbers and answer text come from tested code.
 - **Disclosed Model Uncertainty:** Point forecasts are accompanied by explicit 90% confidence bands. The anomaly radar distinguishes descriptive co-occurrence from causal proof.
 - **Human-in-the-Loop Governance:** AI recommendations never execute autonomous transactions or inventory orders. High-stakes actions require explicit human manager approval (`Accept` / `Reject`), recorded in an immutable audit log.
 
@@ -509,10 +509,10 @@ DecisionPilot AI is designed around strict principles of data privacy, defensive
 - [x] **v1.0.0 (Implemented — MVP):**
   - [x] 6-table relational schema with 50,000 synthetic transactions spanning 730 days.
   - [x] Executive Dashboard with prior-period comparison and KPI sparklines.
-  - [x] Natural language querying with AST read-only SQL validation (1.43s median latency).
-  - [x] Hybrid anomaly detection combining Isolation Forest and rolling 3-sigma Z-scores.
+  - [x] Natural language querying with intent routing and read-only analytics tools (1.43s median latency on local rules).
+  - [x] Hybrid anomaly detection combining Isolation Forest, rolling Z-scores and IQR bounds.
   - [x] LightGBM demand forecasting with 90% confidence intervals (passed 2% Rule Gate).
-  - [x] Microeconomic What-If Simulator with log-log price elasticity and Hill saturation curve.
+  - [x] What-If Simulator with price elasticity, diminishing-returns advertising response and lead-time inventory constraints.
   - [x] Three.js WebGL spatial holographic data visualization.
   - [x] Full bilingual support (Vietnamese & English).
   - [x] One-click Docker Compose and Windows deployment scripts.

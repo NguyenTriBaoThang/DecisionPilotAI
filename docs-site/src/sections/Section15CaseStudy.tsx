@@ -1,15 +1,21 @@
 import { CodeBlock } from '../components/CodeBlock'
-import { AlertCircle, HelpCircle, Sliders, CheckCircle2, TrendingUp } from 'lucide-react'
+import { AlertCircle, HelpCircle, Sliders, CheckCircle2 } from 'lucide-react'
 
 export function Section15CaseStudy() {
-  const sampleChat = `// Executive asks Copilot:
-"Tại sao doanh thu tháng 10/2026 tại chi nhánh TP.HCM lại giảm 24% so với tháng 9?"
+  const sampleChat = `// Lan asks (in Vietnamese):
+"Kênh quảng cáo nào đang kém hiệu quả nhất?"
 
-// DecisionPilot AI Copilot Response:
-"Doanh thu tháng 10/2026 tại TP.HCM đạt 318,000,000 ₫ (-24.3% so với tháng 9).
-Phân tích nguyên nhân gốc rễ:
-1. Sản phẩm P003 (FocusCam Pro) bị đứt hàng cục bộ từ ngày 12/10 đến 25/10 do gián đoạn nhà cung ứng, khiến doanh số SKU này giảm 68% (-62 triệu ₫).
-2. Chi phí quảng cáo Facebook Ads tăng 1.85x (đạt 48 triệu ₫) nhưng tỷ lệ chuyển đổi khách hàng giảm mạnh từ 25% xuống 5.5%, làm ROAS giảm từ 4.12x xuống 1.25x."`
+// DecisionPilot AI answer (tool: marketing; every number is computed from the database):
+"Facebook Ads had the largest decline in roas: 6.53x to 0.76x."
+
+// Same question in English:
+"Which marketing channel had the lowest ROAS?"
+"All campaigns recorded roas of 2.76x from 01 Sep 2026 to 30 Sep 2026. Facebook Ads is lowest at 0.76x."`
+
+  const card = { background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: '8px', padding: '20px' }
+  const head = { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }
+  const title = { margin: 0, color: '#FFFFFF', fontSize: '1.05rem', textTransform: 'none' as const }
+  const body = { margin: 0, fontSize: '0.9rem', color: '#CBD5E1' }
 
   return (
     <section id="sec-case-study">
@@ -19,65 +25,51 @@ Phân tích nguyên nhân gốc rễ:
       </h2>
 
       <p className="lead">
-        To illustrate how DecisionPilot AI transforms SME operations, this walkthrough demonstrates the full lifecycle: from detecting an operational crisis to executing an audited, profit-maximizing countermeasure.
+        <strong>Illustrative example.</strong> Lan is a made-up owner of an online office-supplies shop. The numbers below are real outputs of DecisionPilot AI on its built-in <em>synthetic</em> demo dataset (September 2026), not results from a real business.
       </p>
 
-      {/* 4-Step Narrative Progression */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', margin: '24px 0' }}>
-        {/* Step 1 */}
-        <div style={{ background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: '8px', padding: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+        <div style={card}>
+          <div style={head}>
             <AlertCircle size={20} className="amber" />
-            <h4 style={{ margin: 0, color: '#FFFFFF', fontSize: '1.05rem', textTransform: 'none' }}>
-              Phase 1: Anomaly Alert Triggered (Revenue Dip in HCMC)
-            </h4>
+            <h4 style={title}>Phase 1: Something is wrong</h4>
           </div>
-          <p style={{ margin: 0, fontSize: '0.9rem', color: '#CBD5E1' }}>
-            On October 2026, the Anomaly Center alerts the business owner: gross revenue across the Hồ Chí Minh market dropped <strong>24.3%</strong> below forecast expectation (Z-score: -3.84). Simultaneously, advertising expenditure on Facebook spiked without proportional sales lift.
+          <p style={body}>
+            The dashboard shows September revenue of <strong>3.38 billion ₫, down 30.6%</strong> on August. The Anomaly Center flags a <strong>critical Facebook Ads spend spike</strong> (23 Sept: 7.38 million ₫ per day against a 4.01 million ₫ baseline, +84%).
           </p>
         </div>
 
-        {/* Step 2 */}
-        <div style={{ background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: '8px', padding: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+        <div style={card}>
+          <div style={head}>
             <HelpCircle size={20} className="cyan" />
-            <h4 style={{ margin: 0, color: '#FFFFFF', fontSize: '1.05rem', textTransform: 'none' }}>
-              Phase 2: Conversational Diagnosis via Ask AI Copilot
-            </h4>
+            <h4 style={title}>Phase 2: Ask in plain language</h4>
           </div>
-          <p style={{ fontSize: '0.9rem', color: '#CBD5E1', marginBottom: '12px' }}>
-            The business manager opens <strong>Ask AI Copilot</strong> and inquires in plain Vietnamese. The orchestrator generates deterministic SQL queries across <code>sales_transactions</code>, <code>inventory_daily</code>, and <code>marketing_campaigns</code>:
+          <p style={{ ...body, marginBottom: '12px' }}>
+            Lan types a question. The router picks one of a fixed set of analytics tools, which reads the database; nothing is estimated by a language model. Facebook Ads spent about <strong>215 million ₫ and returned 0.76 ₫ per 1 ₫</strong>, while Email returned about 12.9 ₫.
           </p>
           <CodeBlock code={sampleChat} label="Copilot Dialogue" />
         </div>
 
-        {/* Step 3 */}
-        <div style={{ background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: '8px', padding: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+        <div style={card}>
+          <div style={head}>
             <Sliders size={20} className="violet" />
-            <h4 style={{ margin: 0, color: '#FFFFFF', fontSize: '1.05rem', textTransform: 'none' }}>
-              Phase 3: What-If Simulation in 3D Scenario Simulator
-            </h4>
+            <h4 style={title}>Phase 3: Try it before doing it</h4>
           </div>
-          <p style={{ margin: 0, fontSize: '0.9rem', color: '#CBD5E1' }}>
-            Instead of slashing ad spend indiscriminately, the analyst tests a <strong>5% promotional discount on SmartDesk Mini (P001)</strong>, an elastic SKU (ε = -1.42) with ample warehouse stock (500 units), while setting a 15-day reorder buffer. The simulator computes a +17.1% demand surge, projecting <strong>+42.5 million ₫ in gross revenue</strong> and <strong>+10.2 million ₫ in incremental gross profit</strong>.
+          <p style={body}>
+            From the recommendation card, Lan opens the simulator with Facebook Ads and a <strong>15% budget cut</strong> already run. The estimate: <strong>+28.8 million ₫ contribution profit and &minus;11.2 million ₫ attributed revenue</strong>. It is a conditional estimate (the marketing replay is weaker than the baseline), so the system recommends a small controlled trial with a comparison group rather than a blind cut.
           </p>
         </div>
 
-        {/* Step 4 */}
-        <div style={{ background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: '8px', padding: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+        <div style={card}>
+          <div style={head}>
             <CheckCircle2 size={20} className="green" />
-            <h4 style={{ margin: 0, color: '#FFFFFF', fontSize: '1.05rem', textTransform: 'none' }}>
-              Phase 4: Executive Decision Approval &amp; Immutable Audit Record
-            </h4>
+            <h4 style={title}>Phase 4: A named decision and a record</h4>
           </div>
-          <p style={{ margin: 0, fontSize: '0.9rem', color: '#CBD5E1' }}>
-            The executive navigates to the <strong>Recommendations Workspace</strong> and clicks <em>&ldquo;Approve Campaign&rdquo;</em>. The decision is committed to PostgreSQL with dataset lock <code>f32e87e3a5744333ff98d3bf</code>. The marketing team adjusts ad creatives, inventory managers confirm stock allocations, and business profitability rebounds.
+          <p style={body}>
+            Lan accepts the scenario. One action marks both the scenario and the recommendation card as accepted, and the decision log stores who decided, when, and the evidence reviewed. Nothing is executed automatically. The log is append-only for ordinary database users.
           </p>
         </div>
       </div>
     </section>
   )
 }
-

@@ -182,18 +182,33 @@ def create_app(engine=None):
     def scenario_feedback(body: ScenarioFeedback, request: Request):
         with engine.begin() as conn:
             lock_workspace(conn)
-            if dataset_info(conn)["dataset_id"] != body.dataset_id:
+            info = dataset_info(conn)
+            if info["dataset_id"] != body.dataset_id:
                 raise HTTPException(409, "Dataset changed. Run the scenario again before deciding.")
             run = conn.execute(sa.select(simulations).where(simulations.c.id == body.simulation_id)).mappings().first()
             if not run or run["dataset_id"] != body.dataset_id:
                 raise HTTPException(404, "Run this scenario before recording a decision.")
+            recommendation = None
+            if body.recommendation_id:
+                recommendation = next((r for r in services.recommendations(conn, info) if r["id"] == body.recommendation_id), None)
+                if recommendation is None:
+                    raise HTTPException(404, "Recommendation is no longer available.")
+            actor = request.state.identity["actor"]
             latest = latest_decision(conn, "scenario_feedback", body.simulation_id, body.dataset_id)
             if latest and latest.payload["decision"] == body.decision:
-                return {"id": latest.id, "decision": body.decision, "status": "recorded"}
-            recorded = conn.execute(audit.insert().values(kind="scenario_feedback", subject=body.simulation_id,
-                payload={**body.model_dump(), "actor": request.state.identity["actor"],
-                         "request": run["payload"]["request"], "recommended": run["payload"]["result"]["recommended"]}))
-            return {"id": recorded.inserted_primary_key[0], "decision": body.decision, "status": "recorded"}
+                event_id = latest.id
+            else:
+                event_id = conn.execute(audit.insert().values(kind="scenario_feedback", subject=body.simulation_id,
+                    payload={**body.model_dump(exclude={"recommendation_id"}), "actor": actor,
+                             "request": run["payload"]["request"], "recommended": run["payload"]["result"]["recommended"]})).inserted_primary_key[0]
+            if recommendation:
+                # Same transaction: the recommendation card and the scenario decision never disagree.
+                linked = latest_decision(conn, "recommendation_feedback", body.recommendation_id, body.dataset_id)
+                if not (linked and linked.payload["decision"] == body.decision):
+                    conn.execute(audit.insert().values(kind="recommendation_feedback", subject=body.recommendation_id,
+                        payload={"dataset_id": body.dataset_id, "decision": body.decision, "actor": actor,
+                                 "recommendation": recommendation, "simulation_id": body.simulation_id}))
+            return {"id": event_id, "decision": body.decision, "status": "recorded"}
 
     @app.get("/recommendations")
     def recommendations():

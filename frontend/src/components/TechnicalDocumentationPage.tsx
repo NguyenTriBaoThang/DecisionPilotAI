@@ -216,7 +216,7 @@ export function TechnicalDocumentationPage() {
             <SectionTitle
               title="3. Machine Learning & Microeconomic Formulation"
               detail="Temporal feature engineering, LightGBM demand forecasting, and non-linear simulation"
-              aside={<Pill tone="warning">WAPE: 11.2% (vs 29.6% Naive)</Pill>}
+              aside={<Pill tone="warning">Revenue WAPE: 24.1% (moving average)</Pill>}
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -226,7 +226,7 @@ export function TechnicalDocumentationPage() {
                   Trained across 14 temporal features: lag 1, 7, 14, 28 days; 7d/14d/28d rolling mean and standard deviation; growth momentum; and calendar encodings. Chronological train/val/test splits (70/15/15) prevent future data leakage.
                 </p>
                 <div className="font-mono text-[11px] bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-emerald-400">
-                  WAPE: 11.24% · MAE: 14.82 units/day · RMSE: 21.05
+                  Revenue (all): WAPE 24.14% · MAE 34.58M ₫ · coverage 83.81%
                 </div>
               </div>
 

@@ -9,9 +9,9 @@
 
 ## 1. Abstract
 
-Small and Medium Enterprises (SMEs) represent over $97\%$ of registered businesses in Vietnam and South Korea, contributing significantly to employment and GDP. Despite the widespread adoption of digital point-of-sale (POS) systems and e-commerce platforms, SMEs face a severe **Decision Bottleneck**: they possess abundant operational data but lack the dedicated data science personnel required to detect statistical anomalies, model time-series demand, or simulate non-linear What-If business scenarios. Consequently, high-stakes decisions regarding pricing, advertising budgets, and supplier purchase orders continue to be made through subjective intuition or delayed spreadsheet assembly.
+Small and Medium Enterprises (SMEs) make up the vast majority of registered businesses in Vietnam and South Korea and contribute significantly to employment and GDP. Despite the widespread adoption of digital point-of-sale (POS) systems and e-commerce platforms, SMEs face a severe **Decision Bottleneck**: they possess abundant operational data but lack the dedicated data science personnel required to detect statistical anomalies, model time-series demand, or simulate non-linear What-If business scenarios. Consequently, high-stakes decisions regarding pricing, advertising budgets, and supplier purchase orders continue to be made through subjective intuition or delayed spreadsheet assembly.
 
-This project introduces **DecisionPilot AI**, an end-to-end Decision Intelligence platform that bridges raw transaction records and executive action. By combining constrained natural language SQL parsing, Isolation Forest multi-variate anomaly detection, gradient-boosted LightGBM demand forecasting, and a calibrated microeconomic simulation engine within an interactive Three.js 3D WebGL control environment, DecisionPilot AI establishes a closed-loop decision chain: **Ask → Detect → Explain → Forecast → Simulate → Recommend → Human Decision**. Empirical evaluation across a 50,000-transaction, 24-month benchmark dataset demonstrates an $18.4\%$ reduction in forecast error (WAPE = $11.2\%$) over moving average baselines, a $92.4\%$ anomaly detection precision, and a $95\%$ reduction in weekly managerial reporting turnaround time, all running on low-cost commodity CPU infrastructure.
+This project introduces **DecisionPilot AI**, an end-to-end Decision Intelligence platform that bridges raw transaction records and executive action. By combining constrained natural-language intent routing over fixed analytics tools, Isolation Forest multi-variate anomaly detection, gradient-boosted LightGBM demand forecasting, and a what-if simulation engine (price elasticity, diminishing-returns advertising, lead-time inventory) within an interactive Three.js 3D WebGL control environment, DecisionPilot AI establishes a closed-loop decision chain: **Ask → Detect → Explain → Forecast → Simulate → Recommend → Human Decision**. Evaluation on a synthetic 50,000-transaction, 24-month dataset gives an enterprise-wide revenue forecast WAPE of $24.1\%$ (the moving-average baseline is selected because LightGBM does not clear the 2% gate), LightGBM wins for single SKUs such as P001, and anomaly detection reaches $100\%$ precision and $82\%$ recall for Facebook ad-spend spikes but only $38\%$ recall for revenue contractions. The system runs on commodity CPU infrastructure. The results are on synthetic data and do not establish accuracy on a real business.
 
 ---
 
@@ -74,21 +74,33 @@ In time-series demand forecasting, standard random cross-validation produces opt
 
 ## 4. Experimental Results & Benchmark Discussion
 
-### 4.1 Demand Forecasting Accuracy
-Across 50 diverse retail SKUs over a 30-day forecast horizon:
+All figures are from `artifacts/` (dataset `f32e87e3a5744333ff98d3bf`, bundle `dp-1.1`; test window 2026-06-13 to 2026-09-30). The data is synthetic; labels are periods where the generator changed its rules.
 
-$$\text{WAPE} = \frac{\sum |y - \hat{y}|}{\sum y} = 11.24\% \quad (\text{vs. Naive Baseline: } 29.65\%)$$
-$$\text{MAE} = 14.82 \text{ units/day} \quad (\text{vs. 7-Day MA: } 31.64 \text{ units/day})$$
+### 4.1 Demand Forecasting
+| Target | Selected model | Test MAE | Test WAPE | 90% band coverage |
+| :--- | :--- | ---: | ---: | ---: |
+| Revenue, all | moving average | 34.58M ₫ | 24.14% | 83.81% |
+| Orders, all | moving average | 14.98 | 23.22% | 83.81% |
+| Demand, all (units) | moving average | 17.74 | 23.46% | 80.00% |
+| Demand, SKU P001 | LightGBM | 2.68 | 41.87% | 92.86% |
 
-LightGBM demonstrates superior capability in capturing non-linear holiday sales spikes (e.g., Black Friday, Tet) without suffering catastrophic forgetting during regular mid-week lulls.
+LightGBM is promoted only when its validation MAE beats the better baseline by more than 2%. For enterprise-wide revenue it does not, so the baseline is served. The nominal 90% band is not reached for enterprise-wide targets, and the application warns about this.
 
-### 4.2 Anomaly Detection Precision & Sensitivity
-Evaluated against 120 known, injected corporate shocks (ad campaign saturation, supplier delivery delays, regional demand drops):
-- **Precision:** $92.4\%$
-- **Recall:** $88.6\%$
-- **False Positive Rate:** $< 3.2\%$
+### 4.2 Anomaly Detection
+| Signal | Precision | Recall | F1 | False-positive rate |
+| :--- | ---: | ---: | ---: | ---: |
+| facebook_spend | 100.0% | 82.1% | 90.2% | 0.0% |
+| facebook_conversion | 75.0% | 75.0% | 75.0% | 8.5% |
+| facebook_roas | 68.0% | 60.7% | 64.2% | 9.8% |
+| margin | 50.0% | 75.0% | 60.0% | 2.8% |
+| revenue | 86.7% | 38.2% | 53.1% | 2.6% |
+| stockout_risk (business rule) | 18.8% | 25.0% | 21.4% | 13.3% |
 
-By combining Isolation Forest outlier scores with domain-specific statistical thresholds ($z$-scores of contribution margins and ROAS), the system successfully filters out daily noise while reliably flagging existential business risks.
+### 4.3 Scenario Replay (holdout, weekly)
+Price scenario WAPE 23.99% vs. baseline 24.24% (about equal); marketing scenario 33.00% vs. 25.44% (worse than baseline). Interventions were not randomized, so these are conditional estimates, not causal effects. The application states this next to every scenario.
+
+### 4.4 Natural-Language Analytics
+46 curated English, Vietnamese and refusal cases, evaluated with local rules: 100% pass on intent, execution, numbers, filters, chart and grounding; median 1.43 s, p95 3.27 s. The optional Gemini/OpenAI intent path is not part of this benchmark.
 
 ---
 
@@ -96,6 +108,6 @@ By combining Isolation Forest outlier scores with domain-specific statistical th
 
 1. **Democratization of Data Science:** Empowers retail and service SMEs with predictive intelligence previously accessible only to multinational corporations with dedicated data departments.
 2. **Capital Efficiency & Cash Flow Preservation:** Early stockout warnings and price elasticity simulation prevent inventory over-ordering and margin-destructive discounting.
-3. **Zero GPU Barrier:** Full functionality executes on standard CPU instances, minimizing hosting costs to under $\$10/\text{month}$.
+3. **Zero GPU Barrier:** Full functionality executes on standard CPU instances, keeping hosting costs low.
 4. **Transparent, Responsible AI:** Promotes human agency through mandatory Human-in-the-Loop decision verification and immutable audit records.
 

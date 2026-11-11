@@ -3,13 +3,13 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 export type Preferences = { language: 'en' | 'vi'; currency: 'vnd' | 'compact' }
 
 // Default preferences for workspace
-const defaults: Preferences = { language: 'en', currency: 'vnd' }
+const defaults: Preferences = { language: 'vi', currency: 'vnd' }
 
 export function readPreferences(): Preferences {
   try {
     const value = JSON.parse(localStorage.getItem('dp-preferences') || '{}')
     return {
-      language: value?.language === 'vi' ? 'vi' : 'en',
+      language: value?.language === 'en' ? 'en' : 'vi',
       currency: value?.currency === 'compact' ? 'compact' : 'vnd',
     }
   } catch {
@@ -31,7 +31,6 @@ export const translations: Record<string, { vi: string; en: string }> = {
   'Recommendations & Decision Audit': { vi: 'Khuyến nghị & Nhật ký Quyết định', en: 'Recommendations & Decision Audit' },
   'Data Sources': { vi: 'Nguồn dữ liệu', en: 'Data Sources' },
   'Settings': { vi: 'Cài đặt hệ thống', en: 'Settings' },
-  'Settings & Workspace Preferences': { vi: 'Cài đặt không gian làm việc', en: 'Settings & Workspace Preferences' },
 
   // Workflow Stepper Steps
   'Step 1: Diagnostics': { vi: 'Bước 1: Chẩn đoán', en: 'Step 1: Diagnostics' },

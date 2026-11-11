@@ -18,7 +18,7 @@ export function DataDecisionIntelligenceSection() {
       subtitle: 'Natural Language Analytics',
       icon: MessageSquareText,
       color: 'var(--cyan)',
-      badge: 'Read-Only SQL AST',
+      badge: 'Read-Only Tools',
     },
     {
       id: 'analyze' as const,
@@ -65,6 +65,10 @@ export function DataDecisionIntelligenceSection() {
 
         <p style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--cyan)', margin: '8px 0 16px 0' }}>
           From Data to Decision &mdash; Ask. Understand. Predict. Decide.
+        </p>
+
+        <p style={{ fontSize: '0.9rem', color: 'var(--amber)', maxWidth: '920px', lineHeight: 1.6, margin: '0 0 12px 0' }}>
+          <strong>Illustrative walkthrough.</strong> The interactive tabs below use built-in sample data to explain the ideas. Measured results are in the Benchmarks chapter; they come from a synthetic dataset and do not establish accuracy on a real business.
         </p>
 
         <p style={{ fontSize: '1rem', color: '#CBD5E1', maxWidth: '920px', lineHeight: 1.7, margin: 0 }}>

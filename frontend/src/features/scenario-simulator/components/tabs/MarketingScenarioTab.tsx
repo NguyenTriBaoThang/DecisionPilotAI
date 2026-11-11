@@ -14,6 +14,8 @@ interface MarketingScenarioTabProps {
   }) => void
   isLoading: boolean
   scenarioData?: Scenario | null
+  /** Inputs handed over from a recommendation card; used as-is until the user moves the slider or channel. */
+  preset?: { channel: string; pct: number; changes: number[] }
 }
 
 export function MarketingScenarioTab({
@@ -21,19 +23,23 @@ export function MarketingScenarioTab({
   onSimulateMarketing,
   isLoading,
   scenarioData,
+  preset,
 }: MarketingScenarioTabProps) {
   const defaultChannel = options.marketing_channels[0] || 'Facebook Ads'
-  const [channel, setChannel] = useState(defaultChannel)
-  const [budgetChangePct, setBudgetChangePct] = useState(20)
+  const [channel, setChannel] = useState(preset?.channel ?? defaultChannel)
+  const [budgetChangePct, setBudgetChangePct] = useState(preset?.pct ?? 20)
   const [objective, setObjective] = useState<'profit' | 'revenue' | 'balanced'>('profit')
   const [horizon, setHorizon] = useState(30)
 
   const handleRun = () => {
-    const changes = [
-      Math.max(-0.5, (budgetChangePct - 20) / 100),
-      budgetChangePct / 100,
-      Math.min(1.0, (budgetChangePct + 30) / 100),
-    ]
+    const changes =
+      preset && channel === preset.channel && budgetChangePct === preset.pct
+        ? preset.changes
+        : [
+            Math.max(-0.5, (budgetChangePct - 20) / 100),
+            budgetChangePct / 100,
+            Math.min(1.0, (budgetChangePct + 30) / 100),
+          ]
     onSimulateMarketing({
       channel,
       changes,

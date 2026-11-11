@@ -87,7 +87,7 @@ flowchart TD
             Read-Only Connection Pool Isolation
           </div>
           <p className="card-desc">
-            The analytical querying engine (<code>ai_service/llm_orchestrator.py</code>) operates strictly over an isolated read-only SQLAlchemy database connection pool. Direct table writes, <code>DROP</code>, <code>ALTER</code>, or <code>DELETE</code> statements are rejected at both the AST syntax level and the database role permission level, ensuring absolute data immutability.
+            The analytical querying engine (<code>ai_service/llm_orchestrator.py</code>) routes each question to a fixed set of read-only analytics tools that run through SQLAlchemy. No user- or model-written SQL is executed, and questions that contain SQL statements are refused. Decision history is protected by database triggers against ordinary UPDATE and DELETE.
           </p>
         </div>
       </div>

@@ -33,6 +33,7 @@ import {
 import { Card, Chart, Empty, ErrorState, Heading, Loading, Pill, SectionTitle, Select, Source, Stat, Table } from './ui'
 import { AIIntelligenceCore } from './components/AIIntelligenceCore'
 import { useT } from './preferences'
+import { investigateHref } from './investigate'
 import { WorkflowNavigationFooter } from './components/EndToEndStepper'
 
 export const alertName: Record<string, string> = {
@@ -392,7 +393,7 @@ export function Dashboard({ dataset, options }: { dataset: Dataset; options: Opt
               </div>
               <div className="pt-3">
                 <Link
-                  to="/ask"
+                  to={investigateHref(alerts.data?.rows[0]?.metric ?? '')}
                   className="inline-flex items-center gap-1.5 text-xs font-semibold text-cyan-400 hover:text-cyan-300 transition-colors"
                 >
                   <span>{isVi ? 'Điều tra nguyên nhân cùng Trợ lý AI' : 'Investigate causes with AI Copilot'}</span>
