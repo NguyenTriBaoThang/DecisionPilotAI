@@ -456,20 +456,25 @@ def _generate_deterministic_sql(
 
     # 5. Breakdown / ranking by dimension (product, category, region, channel, segment, customer)
     metric_key = "revenue"
-    metric_sql = f"ROUND(SUM({alias}revenue), 2)"
-    if any(w in q for w in ("profit", "margin", "loi nhuan", "lai gop", "bien")) and caps.get("has_cost_or_profit", True):
+    profit_terms = any(w in q for w in ("profit", "margin", "loi nhuan", "lai gop", "bien"))
+    explicit_profit_rank = any(
+        w in q
+        for w in (
+            "highest profit", "most profit", "lowest profit", "top profit",
+            "highest margin", "lowest margin", "best margin", "worst margin",
+            "loi nhuan cao nhat", "loi nhuan thap nhat", "bien loi nhuan",
+        )
+    )
+    has_rev_term = any(w in q for w in ("revenue", "doanh thu", "sales", "doanh so"))
+    if profit_terms and caps.get("has_cost_or_profit", True) and (explicit_profit_rank or not has_rev_term):
         if any(w in q for w in ("margin", "bien")):
             metric_key = "margin"
-            metric_sql = f"ROUND(CASE WHEN SUM({alias}revenue) > 0 THEN SUM(COALESCE({alias}gross_profit, 0)) * 1.0 / SUM({alias}revenue) ELSE 0 END, 4)"
         else:
             metric_key = "gross_profit"
-            metric_sql = f"ROUND(SUM(COALESCE({alias}gross_profit, 0)), 2)"
-    elif any(w in q for w in ("quantity", "units", "sold", "san luong", "so luong")):
+    elif any(w in q for w in ("quantity", "units", "sold", "san luong", "so luong")) and not has_rev_term:
         metric_key = "units"
-        metric_sql = f"SUM({alias}quantity)"
-    elif any(w in q for w in ("orders", "transactions", "don hang")):
+    elif any(w in q for w in ("orders", "transactions", "don hang")) and not has_rev_term:
         metric_key = "orders"
-        metric_sql = "COUNT(*)"
 
     order_dir = "ASC" if any(w in q for w in ("lowest", "worst", "bottom", "least", "thap nhat", "it nhat")) else "DESC"
 
@@ -499,6 +504,7 @@ def _generate_deterministic_sql(
             f"SELECT {dim_group} AS {dim_alias}, "
             f"ROUND(SUM({alias}revenue), 2) AS revenue, "
             f"ROUND(SUM(COALESCE({alias}gross_profit, 0)), 2) AS gross_profit, "
+            f"ROUND(CASE WHEN SUM({alias}revenue) > 0 THEN SUM(COALESCE({alias}gross_profit, 0)) * 1.0 / SUM({alias}revenue) ELSE 0 END, 4) AS margin, "
             f"SUM({alias}quantity) AS units, "
             f"COUNT(*) AS orders "
             f"FROM {tx_tbl}{' s' if mode != 'partitioned' else ''}{extra_join}{where_sql} "
@@ -694,6 +700,20 @@ def execute_text_to_sql(
                 cols = list(result.keys())
                 rows = [{k: row[k] for k in cols} for row in result.mappings().all()]
                 candidate_sql = fallback_sql
+    except sa.exc.SQLAlchemyError as exc:
+        log.warning("Read-only SQL execution failed (%s); returning non-fatal fallback.", type(exc).__name__)
+        return {
+            "executed": False,
+            "blocked": False,
+            "reason": f"sql_runtime_error:{type(exc).__name__}",
+            "sql": candidate_sql,
+            "scoped_tables": ref_tables,
+            "read_only_verified": True,
+            "rows": [],
+            "columns": [],
+            "row_count": 0,
+            "execution_ms": round((time.perf_counter() - t0) * 1000, 2),
+        }
     finally:
         if owns_ro:
             ro_engine.dispose()

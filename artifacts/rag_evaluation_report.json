@@ -12,21 +12,21 @@
       "precision_at_5": 0.2,
       "mrr": 0.875,
       "ndcg_at_5": 0.9051,
-      "mean_latency_ms": 20.0
+      "mean_latency_ms": 4.14
     },
     "bm25": {
       "recall_at_5": 1.0,
       "precision_at_5": 0.7222,
       "mrr": 1.0,
       "ndcg_at_5": 1.0,
-      "mean_latency_ms": 3.21
+      "mean_latency_ms": 2.13
     },
     "hybrid": {
       "recall_at_5": 1.0,
       "precision_at_5": 0.8056,
       "mrr": 1.0,
       "ndcg_at_5": 1.0,
-      "mean_latency_ms": 16.47
+      "mean_latency_ms": 7.24
     }
   },
   "generation_grounding": {
@@ -47,8 +47,8 @@
     "embedded_doc_directive_neutralized": true
   },
   "latency_ms": {
-    "sql_mean_ms": 11.12,
-    "copilot_turn_mean_ms": 83.1,
-    "copilot_turn_p95_ms": 264.39
+    "sql_mean_ms": 7.13,
+    "copilot_turn_mean_ms": 52.67,
+    "copilot_turn_p95_ms": 169.26
   }
 }
