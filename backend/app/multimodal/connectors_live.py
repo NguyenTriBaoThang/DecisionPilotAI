@@ -324,7 +324,7 @@ def sync_source_incremental(
             raise IngestionValidationError(f"Live incremental sync is not available in offline runtime for '{stype}'.")
     except Exception as exc:
         with engine.begin() as conn:
-            conn.execute(
+            log_id_err = conn.execute(
                 connector_sync_logs.insert().values(
                     company_id=company_id,
                     data_source_id=source_id,
@@ -338,7 +338,25 @@ def sync_source_incremental(
                     error_message=str(exc),
                     finished_at=_utc_now(),
                 )
-            )
+            ).inserted_primary_key[0]
+        from backend.app.lineage.service import record_runtime_event
+
+        record_runtime_event(
+            engine,
+            company_id=company_id,
+            pipeline_key=f"connector:{source_id}",
+            pipeline_name=f"Connector Sync — {src_dict['name']}",
+            pipeline_type="connector_sync",
+            run_key=f"conn_sync:{source_id}:{log_id_err}",
+            dataset_id=None,
+            actor=actor,
+            event_type="Connector Sync Failed",
+            step_order=2,
+            status="failed",
+            event_key=f"conn:{source_id}:sync:{log_id_err}",
+            node_key=f"proc:conn:{source_id}",
+            error_message=str(exc),
+        )
         raise
 
     wm_after = wm_before
@@ -430,6 +448,26 @@ def sync_source_incremental(
                 },
             )
         )
+
+    from backend.app.lineage.service import record_runtime_event
+
+    record_runtime_event(
+        engine,
+        company_id=company_id,
+        pipeline_key=f"connector:{source_id}",
+        pipeline_name=f"Connector Sync — {src_dict['name']}",
+        pipeline_type="connector_sync",
+        run_key=f"conn_sync:{source_id}:{int(log_id)}",
+        dataset_id=ds_id,
+        actor=actor,
+        event_type="Connector Sync Completed",
+        step_order=2,
+        status="completed",
+        event_key=f"conn:{source_id}:sync:{int(log_id)}",
+        node_key=f"proc:conn:{source_id}",
+        input_summary=f"Watermark={wm_before or 'initial'}",
+        output_summary=f"Fetched {len(records)} rows",
+    )
 
     return {
         "sync_log_id": int(log_id),

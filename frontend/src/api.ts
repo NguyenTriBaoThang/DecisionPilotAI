@@ -203,7 +203,7 @@ export async function send<T>(path: string, init: RequestInit = {}): Promise<T> 
 
     const data = await response.json().catch(() => null)
     const detail = data?.detail
-    if (!detail && (isDemoHost || (!path.startsWith('/v1/') && (response.status === 404 || response.status >= 502)))) {
+    if (!detail && (isDemoHost || (!path.startsWith('/v1/') && !path.startsWith('/lineage') && (response.status === 404 || response.status >= 502)))) {
       const mock = resolveMockFallback<T>(path, bodyObj)
       if (mock !== undefined) return mock
     }
@@ -216,6 +216,7 @@ export async function send<T>(path: string, init: RequestInit = {}): Promise<T> 
     if (
       isDemoHost ||
       (!path.startsWith('/v1/') &&
+        !path.startsWith('/lineage') &&
         (err instanceof TypeError || (err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError'))))
     ) {
       const mock = resolveMockFallback<T>(path, bodyObj)
@@ -1317,4 +1318,345 @@ export const deleteRagDocument = (documentId: string) =>
   )
 
 export const getRagHealth = () => request<RagHealth>('/v1/rag/health')
+
+// --- Enterprise Data Traceability & Animated Data Flow (Lineage) ---
+
+export type LineageNodeType =
+  | 'data_source'
+  | 'processing'
+  | 'storage'
+  | 'ai_model'
+  | 'business_intelligence'
+  | 'final_output'
+
+export type LineageStatus = 'normal' | 'processing' | 'completed' | 'failed' | 'pending' | 'warning'
+
+export type LineageNode = {
+  id: string
+  company_id: string
+  external_id?: string | null
+  pipeline_id?: string | null
+  dataset_id?: string | null
+  name: string
+  node_type: LineageNodeType
+  sub_type: string
+  status: LineageStatus
+  owner: string
+  layer_order: number
+  metadata: Record<string, unknown> & {
+    description?: string
+    file_name?: string
+    file_type?: string
+    modality?: string
+    record_count?: number | null
+    file_size_bytes?: number | null
+    data_size_bytes?: number | null
+    upload_time?: string | null
+    last_updated?: string | null
+    quality_status?: string | null
+    quality_score?: number | null
+    processing_status?: string | null
+    input_schema?: string[]
+    output_schema?: string[]
+    model_version?: string | null
+    execution_time?: string | null
+    duration_ms?: number | null
+    error_details?: string | null
+    pipeline_ids?: string[]
+    output_reference?: string | null
+    tables?: string[]
+    table_counts?: Record<string, number>
+    run_id?: string | null
+    data_format?: string | null
+    sync_watermark?: string | null
+  }
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export type LineageEdge = {
+  id: string
+  company_id: string
+  pipeline_id?: string | null
+  run_id?: string | null
+  source_node_id: string
+  target_node_id: string
+  relationship_type: string
+  status: LineageStatus
+  data_transferred?: string | null
+  record_count?: number | null
+  transformation?: string | null
+  metadata: Record<string, unknown>
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export type LineageRun = {
+  id: string
+  company_id: string
+  pipeline_id: string
+  dataset_id?: string | null
+  status: string
+  trigger_type: string
+  actor: string
+  input_references: string[]
+  output_references: string[]
+  model_version?: string | null
+  started_at?: string | null
+  completed_at?: string | null
+  duration_ms?: number | null
+  error_message?: string | null
+  metadata: Record<string, unknown>
+}
+
+export type LineagePipeline = {
+  id: string
+  company_id: string
+  name: string
+  pipeline_type: string
+  description: string
+  status: LineageStatus
+  owner: string
+  metadata: Record<string, unknown>
+  created_at?: string | null
+  updated_at?: string | null
+  run_count?: number
+  latest_run?: LineageRun | null
+}
+
+export type PipelineEventItem = {
+  id: string
+  company_id: string
+  pipeline_id: string
+  pipeline_run_id: string
+  node_id?: string | null
+  event_type: string
+  step_order: number
+  timestamp?: string | null
+  duration_ms?: number | null
+  status: string
+  input_summary?: string | null
+  output_summary?: string | null
+  error_message?: string | null
+  metadata: Record<string, unknown>
+  incoming_edge_ids?: string[]
+}
+
+export type LineageSummary = {
+  total_data_sources: number
+  processing_pipelines: number
+  ai_models: number
+  business_insights: number
+  data_quality_score: number | null
+  last_synchronized: string | null
+}
+
+export type LineageGraphFilters = {
+  node_type?: string
+  status?: string
+  pipeline_id?: string
+  source_id?: string
+  model?: string
+  date_from?: string
+  date_to?: string
+  owner?: string
+  search?: string
+}
+
+export type LineageGraphResponse = {
+  company_id: string
+  synced_at: string
+  summary: LineageSummary
+  nodes: LineageNode[]
+  edges: LineageEdge[]
+  matched_node_ids: string[]
+  pipelines: LineagePipeline[]
+  recent_events: PipelineEventItem[]
+  facets: {
+    node_types: string[]
+    statuses: string[]
+    owners: string[]
+    sources: { id: string; name: string; sub_type: string }[]
+    models: { id: string; name: string; sub_type: string }[]
+  }
+  has_active_processing: boolean
+}
+
+export type LineageTraversalResponse = {
+  company_id: string
+  root_node_id: string
+  root_node: LineageNode
+  direction: 'upstream' | 'downstream'
+  node_ids: string[]
+  edge_ids: string[]
+  depths: Record<string, number>
+  nodes: LineageNode[]
+  edges: LineageEdge[]
+}
+
+export type LineageImpactResponse = {
+  company_id: string
+  node_id: string
+  node: LineageNode
+  upstream_sources: LineageNode[]
+  dependent_nodes: LineageNode[]
+  affected_reports: {
+    id: string
+    name: string
+    sub_type: string
+    status: string
+    output_reference: string
+  }[]
+  affected_pipelines: LineagePipeline[]
+  stored_business_insights_count: number
+  reprocessing_recommendations: string[]
+  honesty_note: string
+}
+
+export type LineageNodeDetailResponse = {
+  node: LineageNode
+  overview: {
+    id: string
+    external_id?: string | null
+    name: string
+    node_type: LineageNodeType
+    sub_type: string
+    status: LineageStatus
+    description: string
+    created_at?: string | null
+    updated_at?: string | null
+    owner: string
+  }
+  data_information: {
+    input_schema: string[]
+    output_schema: string[]
+    record_count?: number | null
+    data_size_bytes?: number | null
+    data_format?: string | null
+    quality_metrics: Record<string, unknown>
+  }
+  lineage: {
+    upstream_nodes: LineageNode[]
+    downstream_nodes: LineageNode[]
+    related_pipelines: LineagePipeline[]
+    related_insights: {
+      id: string
+      name: string
+      sub_type: string
+      status: string
+      output_reference: string
+    }[]
+  }
+  execution: {
+    pipeline_run_id?: string | null
+    execution_time?: string | null
+    duration_ms?: number | null
+    model_version?: string | null
+    error_details?: string | null
+    logs: PipelineEventItem[]
+  }
+  impact: LineageImpactResponse
+}
+
+export type LineageStreamPayload = {
+  company_id: string
+  synced_at: string
+  summary: LineageSummary
+  has_active_processing: boolean
+  active_jobs: {
+    id: string
+    file_id?: string | null
+    status: string
+    stage: string
+    progress_pct: number
+  }[]
+  processing_node_ids: string[]
+  processing_edge_ids: string[]
+  recent_events: PipelineEventItem[]
+}
+
+export const getLineageGraph = (filters: LineageGraphFilters = {}) => {
+  const qs = params(filters)
+  return request<LineageGraphResponse>('/lineage/graph' + (qs ? '?' + qs : ''))
+}
+
+export const getLineageNodeDetail = (nodeId: string) =>
+  request<LineageNodeDetailResponse>(`/lineage/nodes/${encodeURIComponent(nodeId)}`)
+
+export const getLineageUpstream = (nodeId: string) =>
+  request<LineageTraversalResponse>(`/lineage/nodes/${encodeURIComponent(nodeId)}/upstream`)
+
+export const getLineageDownstream = (nodeId: string) =>
+  request<LineageTraversalResponse>(`/lineage/nodes/${encodeURIComponent(nodeId)}/downstream`)
+
+export const getLineageImpact = (nodeId: string) =>
+  request<LineageImpactResponse>(`/lineage/nodes/${encodeURIComponent(nodeId)}/impact`)
+
+export const listLineagePipelines = () =>
+  request<{ company_id: string; items: LineagePipeline[] }>('/lineage/pipelines')
+
+export const listPipelineRuns = (pipelineId: string) =>
+  request<{ company_id: string; pipeline: LineagePipeline; items: LineageRun[] }>(
+    `/lineage/pipelines/${encodeURIComponent(pipelineId)}/runs`
+  )
+
+export const getPipelineRunEvents = (runId: string) =>
+  request<{ company_id: string; run: LineageRun; items: PipelineEventItem[] }>(
+    `/lineage/runs/${encodeURIComponent(runId)}/events`
+  )
+
+export async function consumeLineageStream(
+  onUpdate: (event: 'lineage_snapshot' | 'lineage_update' | 'heartbeat', payload: LineageStreamPayload) => void,
+  signal?: AbortSignal,
+  pollSeconds = 2.5
+): Promise<void> {
+  const headers = buildAuthHeaders({ Accept: 'text/event-stream' })
+  const response = await fetch(`/api/lineage/stream?poll_seconds=${pollSeconds}`, {
+    method: 'GET',
+    headers,
+    signal,
+  })
+  if (!response.ok) {
+    if (response.status === 401) window.dispatchEvent(new Event('workspace-unauthorized'))
+    throw new ApiError(`Lineage stream error (HTTP ${response.status})`, response.status)
+  }
+  if (!response.body) return
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  const dispatchBlock = (block: string) => {
+    let eventName: 'lineage_snapshot' | 'lineage_update' | 'heartbeat' = 'lineage_snapshot'
+    const dataLines: string[] = []
+    for (const line of block.split(/\r?\n/)) {
+      if (line.startsWith('event:')) eventName = line.slice(6).trim() as typeof eventName
+      else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim())
+    }
+    if (!dataLines.length) return
+    try {
+      const payload = JSON.parse(dataLines.join('\n')) as LineageStreamPayload
+      onUpdate(eventName, payload)
+    } catch {
+      // Ignore partial keepalive frames
+    }
+  }
+
+  try {
+    while (true) {
+      if (signal?.aborted) break
+      const { value, done } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const blocks = buffer.split(/\r?\n\r?\n/)
+      buffer = blocks.pop() || ''
+      for (const blk of blocks) {
+        if (blk.trim()) dispatchBlock(blk)
+      }
+    }
+    if (buffer.trim()) dispatchBlock(buffer)
+  } finally {
+    reader.releaseLock()
+  }
+}
+
 

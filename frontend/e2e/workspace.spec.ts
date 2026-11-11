@@ -151,9 +151,9 @@ test('creates an isolated company workspace, runs 4-step enterprise CSV ingestio
   await expect(page.getByLabel('Product')).toContainText('Horizon Webcam')
   await expect(page.getByText(/\$/).first()).toBeVisible()
 
-  // 7. Switch back to Default Workspace and confirm GlobalMart SKU did not leak
+  // 7. Switch back to Default Enterprise Workspace and confirm GlobalMart SKU did not leak
   await page.getByRole('button', { name: 'Company Workspace' }).click()
-  await page.getByRole('button', { name: /Default Workspace/i }).click()
+  await page.getByRole('button', { name: /Default Enterprise Workspace/i }).click()
   await expect(page.getByLabel('Product')).toContainText('SmartDesk Mini')
 })
 
@@ -248,9 +248,9 @@ test('ingests a multimodal invoice PNG with async queue, HITL correction, signed
   await expect(page.getByLabel('Product')).toContainText('E2E Scanner')
   await expect(page.getByText(/1,850/).first()).toBeVisible()
 
-  // 7. Switch back to Default Workspace and confirm isolation
+  // 7. Switch back to Default Enterprise Workspace and confirm isolation
   await page.getByRole('button', { name: 'Company Workspace' }).click()
-  await page.getByRole('button', { name: /Default Workspace/i }).click()
+  await page.getByRole('button', { name: /Default Enterprise Workspace/i }).click()
   await expect(page.getByLabel('Product')).toContainText('SmartDesk Mini')
 })
 
@@ -327,9 +327,9 @@ test('streams Enterprise RAG Copilot answers with doc ingest, citations, convers
   expect((await memRes).status()).toBe(201)
   await expect(page.getByText('cfo_discount_cap')).toBeVisible()
 
-  // 6. Switch to Default Workspace: confirm tenant isolation + Safe Read-Only Text-to-SQL + Prompt Injection Block
+  // 6. Switch to Default Enterprise Workspace: confirm tenant isolation + Safe Read-Only Text-to-SQL + Prompt Injection Block
   await page.getByRole('button', { name: 'Company Workspace' }).click()
-  await page.getByRole('button', { name: /Default Workspace/i }).click()
+  await page.getByRole('button', { name: /Default Enterprise Workspace/i }).click()
   await expect(page.getByText('Document Knowledge Mode')).toHaveCount(0)
   await expect(page.getByText('Q4 Policy & SLA Review')).toHaveCount(0)
   await expect(page.getByLabel('Business question')).toBeVisible()
@@ -347,4 +347,75 @@ test('streams Enterprise RAG Copilot answers with doc ingest, citations, convers
   await page.getByRole('button', { name: 'Send', exact: true }).click()
   await expect(page.getByText('SECURITY_BLOCKED').first()).toBeVisible({ timeout: 15_000 })
   await expect(page.getByText(/Request blocked by security policy/i).first()).toBeVisible()
+})
+
+test('navigates Enterprise Knowledge Map in light mode, traces real lineage, runs playback, and isolates empty tenant', async ({ page }) => {
+  await page.goto('/')
+  await page.getByLabel('Access token', { exact: true }).fill('e2e-admin-token-for-isolated-tests-only')
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await expect(page.getByRole('link', { name: 'Enterprise Knowledge Map', exact: true })).toBeVisible()
+
+  // Verify Light Mode default
+  expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe('light')
+
+  // Navigate to Enterprise Knowledge Map
+  await page.getByRole('link', { name: 'Enterprise Knowledge Map', exact: true }).click()
+  await expect(page).toHaveURL(/\/knowledge-map$/)
+  await expect(page.getByText('Enterprise Data Traceability').first()).toBeVisible()
+
+  // 6 KPI cards + real AI models only (never Churn Prediction / Classification Model)
+  for (const kpi of [
+    'Total Data Sources',
+    'Processing Pipelines',
+    'AI Models',
+    'Business Insights',
+    'Data Quality Score',
+    'Last Synchronized',
+  ]) {
+    await expect(page.getByText(kpi, { exact: true }).first()).toBeVisible()
+  }
+  await expect(page.getByText('LightGBM Forecaster').first()).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText(/Churn Prediction/i)).toHaveCount(0)
+  await expect(page.getByText(/Classification Model/i)).toHaveCount(0)
+
+  // Click final output node -> traces upstream + opens 5-tab Inspector -> switch to Impact tab
+  await page.getByRole('button', { name: /Executive Dashboard Metrics/i }).first().click()
+  await expect(page.getByTestId('node-detail-inspector')).toBeVisible()
+  await page.getByRole('tab', { name: 'Impact', exact: true }).click()
+  await expect(page.getByText(/Impact Trace & Review Policy/i)).toBeVisible()
+  await expect(page.getByText(/Origin Data Sources/i)).toBeVisible()
+
+  // Timeline event click focuses corresponding node
+  const firstEvent = page.locator('[data-testid^="timeline-event-"]').first()
+  await expect(firstEvent).toBeVisible()
+  await firstEvent.click()
+  await expect(page.getByTestId('node-detail-inspector')).toBeVisible()
+
+  // Historical Playback Step Forward & Reset Flow
+  const stepForward = page.getByRole('button', { name: 'Step Forward' })
+  await expect(stepForward).toBeEnabled({ timeout: 15_000 })
+  await stepForward.click()
+  await expect(page.getByText(/Step 1 \/ \d+/)).toBeVisible()
+  await page.getByRole('button', { name: 'Reset Flow' }).click()
+  await expect(page.getByText(/Step 0 \/ \d+/)).toBeVisible()
+
+  // Provision brand-new empty workspace & confirm strict multi-tenant lineage isolation
+  await page.getByRole('button', { name: 'Company Workspace' }).click()
+  await page.getByPlaceholder('e.g. Acme Retail Ltd.').fill('Empty Lineage Tenant')
+  const createCompanyRes = page.waitForResponse(
+    (res) => res.url().includes('/api/v1/companies') && res.request().method() === 'POST'
+  )
+  await page.getByRole('button', { name: 'Add', exact: true }).click()
+  expect((await createCompanyRes).ok()).toBeTruthy()
+  await expect(page.getByRole('heading', { name: 'Empty Company Workspace' })).toBeVisible()
+
+  await page.getByRole('link', { name: 'Enterprise Knowledge Map', exact: true }).click()
+  await expect(page.getByTestId('empty-lineage-state')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByTestId('empty-lineage-state')).toContainText('No Real Data Lineage Recorded Yet')
+  await expect(page.locator('[data-testid^="lineage-node-"]')).toHaveCount(0)
+
+  // Switch back to Default Enterprise Workspace and confirm seeded nodes return cleanly
+  await page.getByRole('button', { name: 'Company Workspace' }).click()
+  await page.getByRole('button', { name: /Default Enterprise Workspace/i }).click()
+  await expect(page.getByText('LightGBM Forecaster').first()).toBeVisible({ timeout: 15_000 })
 })

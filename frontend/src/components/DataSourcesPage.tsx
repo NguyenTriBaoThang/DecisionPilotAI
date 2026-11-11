@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import { Link, useInRouterContext } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, Database, FileSpreadsheet, HardDrive, Layers, RefreshCw, ShieldCheck, UploadCloud } from 'lucide-react'
+import { CheckCircle2, Database, FileSpreadsheet, GitBranch, HardDrive, Layers, RefreshCw, ShieldCheck, UploadCloud } from 'lucide-react'
 import { dateLabel, getActiveCompanyId, integer, request, uploadSnapshot, type Dataset, type Session } from '../api'
 import { Button, Card, ErrorState, Heading, Pill, SectionTitle, Source, Table, useToast } from '../ui'
 import { ConnectorsHub } from './ingestion/ConnectorsHub'
@@ -17,6 +18,7 @@ export function DataSourcesPage({
   dataset?: Dataset
   session: Session
 }) {
+  const inRouter = useInRouterContext()
   const [token, setToken] = useState('')
   const client = useQueryClient()
   const { notify } = useToast()
@@ -103,6 +105,35 @@ export function DataSourcesPage({
         eyebrow="DATA ARCHITECTURE"
         title="Data Sources & Integrity"
         subtitle="Review the active business dataset snapshot, schema contracts, record counts and import pipelines."
+        aside={
+          inRouter ? (
+            <Link
+              to="/knowledge-map"
+              className="inline-flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold transition-colors hover:bg-[var(--surface-muted)]"
+              style={{
+                background: 'var(--primary-soft)',
+                borderColor: 'var(--primary-border)',
+                color: 'var(--primary-text)',
+              }}
+            >
+              <GitBranch size={14} />
+              Open Enterprise Knowledge Map
+            </Link>
+          ) : (
+            <a
+              href="/knowledge-map"
+              className="inline-flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold transition-colors hover:bg-[var(--surface-muted)]"
+              style={{
+                background: 'var(--primary-soft)',
+                borderColor: 'var(--primary-border)',
+                color: 'var(--primary-text)',
+              }}
+            >
+              <GitBranch size={14} />
+              Open Enterprise Knowledge Map
+            </a>
+          )
+        }
       />
 
       <ErrorState error={health.error} retry={() => void health.refetch()} />

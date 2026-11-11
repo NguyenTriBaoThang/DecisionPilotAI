@@ -7,6 +7,7 @@ import hashlib
 import json
 import logging
 import re
+import time
 from typing import Any
 from uuid import uuid4
 
@@ -457,6 +458,26 @@ def upload_dataset(
         ds_row = _get_owned_dataset(conn, company_id, dataset_id)
         company_name = company["name"]
 
+    from backend.app.lineage.service import record_runtime_event
+
+    record_runtime_event(
+        engine,
+        company_id=company_id,
+        pipeline_key=f"dataset:{dataset_id}",
+        pipeline_name=f"Tabular Ingestion — {title[:120]}",
+        pipeline_type="tabular_ingestion",
+        run_key=f"dataset_run:{dataset_id}",
+        dataset_id=dataset_id,
+        actor=actor,
+        event_type="File Uploaded",
+        step_order=1,
+        status="completed",
+        event_key=f"ds:{dataset_id}:01_upload",
+        node_key=f"source:ds:{dataset_id}",
+        input_summary=clean_name,
+        output_summary=f"{parsed.total_rows} rows ({len(parsed.columns)} cols)",
+    )
+
     return {
         "dataset": _serialize_dataset_summary(ds_row, company_name),
         "preview": {
@@ -659,6 +680,26 @@ def save_mapping(
         )
         updated_ds = _get_owned_dataset(conn, company_id, dataset_id)
 
+    from backend.app.lineage.service import record_runtime_event
+
+    record_runtime_event(
+        engine,
+        company_id=company_id,
+        pipeline_key=f"dataset:{dataset_id}",
+        pipeline_name=f"Tabular Ingestion — {updated_ds['name']}",
+        pipeline_type="tabular_ingestion",
+        run_key=f"dataset_run:{dataset_id}",
+        dataset_id=dataset_id,
+        actor=actor,
+        event_type="Column Mapping Confirmed" if confirmed else "Column Mapping Updated",
+        step_order=2,
+        status="completed",
+        node_key="ai:column_mapper",
+        input_summary=f"{len(parsed.columns)} source columns",
+        output_summary=f"{len(mapped_canon)} canonical fields mapped",
+        model_version="semantic-alias-v1",
+    )
+
     return {
         "dataset": _serialize_dataset_summary(updated_ds, company["name"]),
         "mapping": clean_map,
@@ -802,6 +843,28 @@ def validate_dataset(
             },
         )
         updated_ds = _get_owned_dataset(conn, company_id, dataset_id)
+
+    from backend.app.lineage.service import record_runtime_event
+
+    val_has_warn = result.report["invalid_rows"] > 0 or result.report["duplicate_records"] > 0 or result.report["overall_score"] < 90.0
+    record_runtime_event(
+        engine,
+        company_id=company_id,
+        pipeline_key=f"dataset:{dataset_id}",
+        pipeline_name=f"Tabular Ingestion — {updated_ds['name']}",
+        pipeline_type="tabular_ingestion",
+        run_key=f"dataset_run:{dataset_id}",
+        dataset_id=dataset_id,
+        actor=actor,
+        event_type="Data Validation & Quality Scored",
+        step_order=3,
+        status="warning" if val_has_warn else "completed",
+        event_key=f"ds:{dataset_id}:02_validate",
+        node_key=f"proc:val:{dataset_id}",
+        input_summary=f"{result.report['total_rows']} raw rows",
+        output_summary=f"Quality {result.report['overall_score']:.1f}% ({result.report['valid_rows']} valid)",
+        model_version="quality-5axis-v1",
+    )
 
     return {
         "dataset": _serialize_dataset_summary(updated_ds, company["name"], result.report),
@@ -995,6 +1058,7 @@ def train_partitioned_artifacts(engine: sa.Engine, info: dict[str, Any]) -> bool
     d_end = date.fromisoformat(info["end"]) if info.get("end") else None
     if not d_start or not d_end or (d_end - d_start).days + 1 < 7:
         return False
+    t0 = time.perf_counter()
     try:
         with engine.connect() as conn:
             dates, labels, matrices, holidays = observed_series(conn, info)
@@ -1016,6 +1080,26 @@ def train_partitioned_artifacts(engine: sa.Engine, info: dict[str, Any]) -> bool
             },
             out_path,
             compress=3,
+        )
+        from backend.app.lineage.service import record_runtime_event
+
+        record_runtime_event(
+            engine,
+            company_id=info["company_id"],
+            pipeline_key="decision_intelligence:main",
+            pipeline_name=f"Decision Intelligence Pipeline ({info['title']})",
+            pipeline_type="decision_intelligence",
+            run_key=f"dec:{info['dataset_id']}",
+            dataset_id=info["dataset_id"],
+            actor="system",
+            event_type="ML Models Trained (LightGBM & Anomaly)",
+            step_order=6,
+            status="completed",
+            node_key="ai:lightgbm_forecaster",
+            duration_ms=round((time.perf_counter() - t0) * 1000.0, 2),
+            input_summary=f"{len(dates)} days observed series",
+            output_summary=f"Artifact {version} saved",
+            model_version=version,
         )
         return True
     except Exception as exc:
@@ -1195,6 +1279,24 @@ def import_dataset(
                 details={"invalid_row_policy": invalid_row_policy, "duplicate_policy": duplicate_policy},
                 error_message=str(exc),
             )
+        from backend.app.lineage.service import record_runtime_event
+
+        record_runtime_event(
+            engine,
+            company_id=company_id,
+            pipeline_key=f"dataset:{dataset_id}",
+            pipeline_name=f"Tabular Ingestion — {ds['name']}",
+            pipeline_type="tabular_ingestion",
+            run_key=f"dataset_run:{dataset_id}",
+            dataset_id=dataset_id,
+            actor=actor,
+            event_type="Dataset Import Failed",
+            step_order=4,
+            status="failed",
+            event_key=f"ds:{dataset_id}:03_features",
+            node_key=f"proc:feat:{dataset_id}",
+            error_message=str(exc),
+        )
         raise HTTPException(500, f"Dataset import failed and was cleanly rolled back: {type(exc).__name__}") from exc
 
     model_built = train_partitioned_artifacts(engine, active_info)
@@ -1204,6 +1306,26 @@ def import_dataset(
         index_enterprise_dataset(engine, company_id=company_id, dataset_id=dataset_id, actor=actor)
     except Exception as exc:
         log.warning("Non-fatal RAG dataset indexing skipped for %s: %s", dataset_id, exc)
+
+    from backend.app.lineage.service import record_runtime_event
+
+    record_runtime_event(
+        engine,
+        company_id=company_id,
+        pipeline_key=f"dataset:{dataset_id}",
+        pipeline_name=f"Tabular Ingestion — {updated_ds['name']}",
+        pipeline_type="tabular_ingestion",
+        run_key=f"dataset_run:{dataset_id}",
+        dataset_id=dataset_id,
+        actor=actor,
+        event_type="Dataset Imported & Partitioned",
+        step_order=4,
+        status="completed",
+        event_key=f"ds:{dataset_id}:03_features",
+        node_key=f"proc:feat:{dataset_id}",
+        input_summary=f"{quality_res.report['valid_rows']} clean rows",
+        output_summary=f"Loaded {counts.get('sales_transactions', 0)} transactions into warehouse",
+    )
     return {
         "dataset": _serialize_dataset_summary(updated_ds, company["name"], quality_res.report),
         "quality_report": quality_res.report,

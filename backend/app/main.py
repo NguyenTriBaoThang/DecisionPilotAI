@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+import time
 from datetime import date, timezone
 from typing import Annotated, Literal
 
@@ -22,6 +23,8 @@ from backend.app.db import audit, companies, datasets, make_engine, read_connect
 from backend.app.ingestion import service as ingestion_service
 from backend.app.ingestion.router import build_ingestion_router
 from backend.app.ingestion.storage import ObjectStorage, get_object_storage
+from backend.app.lineage import service as lineage_service
+from backend.app.lineage.router import build_lineage_router
 from backend.app.multimodal import service as multimodal_service
 from backend.app.multimodal.router import build_multimodal_router
 from backend.app.rag.router import build_rag_router
@@ -139,12 +142,15 @@ def create_app(engine=None, storage: ObjectStorage | None = None):
     ingestion_router = build_ingestion_router(engine, storage=store)
     multimodal_router = build_multimodal_router(engine, storage=store, job_queue=job_queue)
     rag_router = build_rag_router(engine)
+    lineage_router = build_lineage_router(engine)
     app.include_router(ingestion_router, prefix="/v1")
     app.include_router(ingestion_router, prefix="/api/v1", include_in_schema=False)
     app.include_router(multimodal_router, prefix="/v1")
     app.include_router(multimodal_router, prefix="/api/v1", include_in_schema=False)
     app.include_router(rag_router, prefix="/v1")
     app.include_router(rag_router, prefix="/api/v1", include_in_schema=False)
+    app.include_router(lineage_router)
+    app.include_router(lineage_router, prefix="/api", include_in_schema=False)
 
     @app.get("/session")
     def session(request: Request):
@@ -204,6 +210,7 @@ def create_app(engine=None, storage: ObjectStorage | None = None):
 
     @app.post("/query",response_model=QueryResponse)
     def ask(question: Question, request: Request):
+        t0 = time.perf_counter()
         cid, ds_id = _tenant_ids(request)
         with read_connection(engine) as conn:
             info = dataset_info(conn, company_id=cid, dataset_id=ds_id)
@@ -211,6 +218,23 @@ def create_app(engine=None, storage: ObjectStorage | None = None):
         with engine.begin() as conn:
             conn.execute(audit.insert().values(company_id=info["company_id"],kind="query",subject=result["trace"]["tool"],
                                                payload={**jsonable_encoder(result["trace"]), "actor": request.state.identity["actor"], "dataset_id": info["dataset_id"]}))
+        lineage_service.record_runtime_event(
+            engine,
+            company_id=info["company_id"],
+            pipeline_key="decision_intelligence:main",
+            pipeline_name=f"Decision Intelligence Pipeline ({info['title']})",
+            pipeline_type="decision_intelligence",
+            run_key=f"dec:{info['dataset_id']}",
+            dataset_id=info["dataset_id"],
+            actor=request.state.identity["actor"],
+            event_type=f"Analytics Query ({result['trace']['tool']})",
+            step_order=12,
+            status="completed",
+            node_key="ai:llm_orchestrator",
+            duration_ms=round((time.perf_counter() - t0) * 1000.0, 2),
+            input_summary=question.question[:120],
+            output_summary=f"Tool: {result['trace']['tool']}",
+        )
         return result
 
     @app.get("/anomalies")
@@ -234,12 +258,34 @@ def create_app(engine=None, storage: ObjectStorage | None = None):
 
     @app.post("/forecast")
     def forecast(request_body: ForecastRequest, request: Request):
+        t0 = time.perf_counter()
         cid, ds_id = _tenant_ids(request)
         with read_connection(engine) as conn:
-            return services.forecast(conn,dataset_info(conn, company_id=cid, dataset_id=ds_id),request_body)
+            info = dataset_info(conn, company_id=cid, dataset_id=ds_id)
+            res = services.forecast(conn,info,request_body)
+        lineage_service.record_runtime_event(
+            engine,
+            company_id=info["company_id"],
+            pipeline_key="decision_intelligence:main",
+            pipeline_name=f"Decision Intelligence Pipeline ({info['title']})",
+            pipeline_type="decision_intelligence",
+            run_key=f"dec:{info['dataset_id']}",
+            dataset_id=info["dataset_id"],
+            actor=request.state.identity["actor"],
+            event_type=f"Forecast Executed ({request_body.target}, {request_body.horizon}d)",
+            step_order=10,
+            status="completed",
+            node_key="ai:lightgbm_forecaster",
+            duration_ms=round((time.perf_counter() - t0) * 1000.0, 2),
+            input_summary=f"Target={request_body.target}, Horizon={request_body.horizon}d",
+            output_summary=f"Model={res.get('model', 'LightGBM')}, AsOf={res.get('data_as_of')}",
+            model_version=str(res.get("model_version") or res.get("model") or "lightgbm"),
+        )
+        return res
 
     @app.post("/simulate")
     def simulate(request_body: ScenarioRequest, request: Request):
+        t0 = time.perf_counter()
         cid, ds_id = _tenant_ids(request)
         with read_connection(engine) as conn:
             info = dataset_info(conn, company_id=cid, dataset_id=ds_id)
@@ -254,15 +300,35 @@ def create_app(engine=None, storage: ObjectStorage | None = None):
             if not conn.scalar(sa.select(simulations.c.id).where(simulations.c.id == simulation_id)):
                 conn.execute(simulations.insert().values(id=simulation_id, company_id=info["company_id"], dataset_id=info["dataset_id"], payload=payload))
             latest = latest_decision(conn, "scenario_feedback", simulation_id, info["dataset_id"], company_id=info["company_id"])
+        lineage_service.record_runtime_event(
+            engine,
+            company_id=info["company_id"],
+            pipeline_key="decision_intelligence:main",
+            pipeline_name=f"Decision Intelligence Pipeline ({info['title']})",
+            pipeline_type="decision_intelligence",
+            run_key=f"dec:{info['dataset_id']}",
+            dataset_id=info["dataset_id"],
+            actor=request.state.identity["actor"],
+            event_type=f"Scenario Simulated ({request_body.type})",
+            step_order=11,
+            status="completed",
+            node_key="ai:scenario_simulator",
+            duration_ms=round((time.perf_counter() - t0) * 1000.0, 2),
+            input_summary=f"Type={request_body.type}, Horizon={request_body.horizon}d",
+            output_summary=f"Recommended={result.get('recommended', {}).get('name', 'alternative')}",
+        )
         return {**result, "simulation_id": simulation_id, "dataset_id": info["dataset_id"],
                 "decision": latest.payload["decision"] if latest else "pending"}
 
     @app.post("/scenarios/feedback")
     def scenario_feedback(body: ScenarioFeedback, request: Request):
         cid, ds_id = _tenant_ids(request)
+        actor = request.state.identity["actor"]
+        ds_title = body.dataset_id
         with engine.begin() as conn:
             lock_workspace(conn)
             info = dataset_info(conn, company_id=cid, dataset_id=ds_id)
+            ds_title = info["title"]
             if info["dataset_id"] != body.dataset_id:
                 raise HTTPException(409, "Dataset changed. Run the scenario again before deciding.")
             run = conn.execute(sa.select(simulations).where(simulations.c.id == body.simulation_id)).mappings().first()
@@ -273,7 +339,6 @@ def create_app(engine=None, storage: ObjectStorage | None = None):
                 recommendation = next((r for r in services.recommendations(conn, info) if r["id"] == body.recommendation_id), None)
                 if recommendation is None:
                     raise HTTPException(404, "Recommendation is no longer available.")
-            actor = request.state.identity["actor"]
             latest = latest_decision(conn, "scenario_feedback", body.simulation_id, body.dataset_id, company_id=cid)
             if latest and latest.payload["decision"] == body.decision:
                 event_id = latest.id
@@ -288,7 +353,23 @@ def create_app(engine=None, storage: ObjectStorage | None = None):
                     conn.execute(audit.insert().values(company_id=cid, kind="recommendation_feedback", subject=body.recommendation_id,
                         payload={"dataset_id": body.dataset_id, "decision": body.decision, "actor": actor,
                                  "recommendation": recommendation, "simulation_id": body.simulation_id}))
-            return {"id": event_id, "decision": body.decision, "status": "recorded"}
+        lineage_service.record_runtime_event(
+            engine,
+            company_id=cid,
+            pipeline_key="decision_intelligence:main",
+            pipeline_name=f"Decision Intelligence Pipeline ({ds_title})",
+            pipeline_type="decision_intelligence",
+            run_key=f"dec:{body.dataset_id}",
+            dataset_id=body.dataset_id,
+            actor=actor,
+            event_type=f"Scenario Decision ({body.decision})",
+            step_order=13,
+            status="completed",
+            node_key="output:recommendations_decisions",
+            input_summary=f"Simulation {body.simulation_id[:12]}",
+            output_summary=f"Human Decision={body.decision}",
+        )
+        return {"id": event_id, "decision": body.decision, "status": "recorded"}
 
     @app.get("/recommendations")
     def recommendations(request: Request):
@@ -308,9 +389,12 @@ def create_app(engine=None, storage: ObjectStorage | None = None):
     @app.post("/recommendations/feedback")
     def feedback(body: Feedback, http_request: Request):
         cid, ds_id = _tenant_ids(http_request)
+        actor = http_request.state.identity["actor"]
+        ds_title = body.dataset_id
         with engine.begin() as conn:
             lock_workspace(conn)
             info = dataset_info(conn, company_id=cid, dataset_id=ds_id)
+            ds_title = info["title"]
             if info["dataset_id"]!=body.dataset_id:
                 raise HTTPException(409,"The dataset changed. Review the latest recommendation.")
             recommendation = next((r for r in services.recommendations(conn,info) if r["id"] == body.recommendation_id), None)
@@ -321,8 +405,25 @@ def create_app(engine=None, storage: ObjectStorage | None = None):
                 return {"id":latest.id,"decision":body.decision,"status":"recorded"}
             result = conn.execute(audit.insert().values(company_id=cid, kind="recommendation_feedback",subject=body.recommendation_id,
                 payload={"dataset_id":body.dataset_id,"decision":body.decision,
-                         "actor": http_request.state.identity["actor"], "recommendation": recommendation}))
-            return {"id":result.inserted_primary_key[0],"decision":body.decision,"status":"recorded"}
+                         "actor": actor, "recommendation": recommendation}))
+            rec_event_id = result.inserted_primary_key[0]
+        lineage_service.record_runtime_event(
+            engine,
+            company_id=cid,
+            pipeline_key="decision_intelligence:main",
+            pipeline_name=f"Decision Intelligence Pipeline ({ds_title})",
+            pipeline_type="decision_intelligence",
+            run_key=f"dec:{body.dataset_id}",
+            dataset_id=body.dataset_id,
+            actor=actor,
+            event_type=f"Recommendation Decision ({body.decision})",
+            step_order=13,
+            status="completed",
+            node_key="output:recommendations_decisions",
+            input_summary=f"Recommendation {body.recommendation_id}",
+            output_summary=f"Human Decision={body.decision}",
+        )
+        return {"id":rec_event_id,"decision":body.decision,"status":"recorded"}
 
     @app.get("/audit")
     def audit_log(request: Request,

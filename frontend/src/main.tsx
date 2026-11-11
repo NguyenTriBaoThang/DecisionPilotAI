@@ -36,6 +36,11 @@ const TechnicalDocumentationPage = lazy(() =>
     default: module.TechnicalDocumentationPage,
   }))
 )
+const EnterpriseKnowledgeMap = lazy(() =>
+  import('./components/lineage/EnterpriseKnowledgeMap').then((module) => ({
+    default: module.EnterpriseKnowledgeMap,
+  }))
+)
 
 const client = new QueryClient({
   defaultOptions: { queries: { staleTime: 60_000, retry: 1, refetchOnWindowFocus: false } },
@@ -45,6 +50,7 @@ const routeTitles: Record<string, string> = {
   ...Object.fromEntries(navGroups.flatMap((g) => g.items.map((item) => [item.to, item.title]))),
   '/anomalies': 'Anomaly Center',
   '/forecast': 'Forecast Center',
+  '/knowledge-map': 'Enterprise Knowledge Map',
   '/docs': 'Documentation',
 }
 
@@ -234,6 +240,14 @@ function AppShell({ session }: { session: Session }) {
           {!ds.isLoading && !ds.data && (
             <Routes key={`empty:${companyId}`}>
               <Route path="/ask" element={<Ask canEdit={session.role !== 'viewer'} />} />
+              <Route
+                path="/knowledge-map"
+                element={
+                  <Suspense fallback={<Loading />}>
+                    <EnterpriseKnowledgeMap companyId={companyId} session={session} />
+                  </Suspense>
+                }
+              />
               <Route path="/data-sources" element={<DataSourcesPage companyId={companyId} session={session} />} />
               <Route path="/settings" element={<SettingsPage dark={dark} setDark={setDark} session={session} />} />
               <Route
@@ -273,6 +287,14 @@ function AppShell({ session }: { session: Session }) {
                 }
               />
               <Route path="/recommendations" element={<Recommendations dataset={ds.data} />} />
+              <Route
+                path="/knowledge-map"
+                element={
+                  <Suspense fallback={<Loading />}>
+                    <EnterpriseKnowledgeMap companyId={companyId} dataset={ds.data} session={session} />
+                  </Suspense>
+                }
+              />
               <Route path="/data-sources" element={<DataSourcesPage companyId={companyId} dataset={ds.data} session={session} />} />
               <Route path="/settings" element={<SettingsPage dark={dark} setDark={setDark} session={session} />} />
               <Route

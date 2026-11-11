@@ -580,6 +580,119 @@ company_memories = sa.Table(
 )
 sa.Index("ix_company_memories_comp_key", company_memories.c.company_id, company_memories.c.memory_key)
 
+# ---------------------------------------------------------------------------
+# Enterprise Data Lineage, Traceability, Pipeline Runs & Execution Events
+# ---------------------------------------------------------------------------
+
+pipelines = sa.Table(
+    "pipelines", metadata,
+    C("id", sa.String(64), primary_key=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("name", sa.String(160), nullable=False),
+    C("pipeline_type", sa.String(48), nullable=False),
+    C("description", sa.Text, nullable=True),
+    C("status", sa.String(32), nullable=False, server_default="completed"),
+    C("owner", sa.String(100), nullable=False, server_default="system"),
+    C("metadata_json", sa.JSON, nullable=False),
+    C("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    C("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+)
+sa.Index("ix_pipelines_company_type", pipelines.c.company_id, pipelines.c.pipeline_type)
+
+pipeline_runs = sa.Table(
+    "pipeline_runs", metadata,
+    C("id", sa.String(64), primary_key=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("pipeline_id", sa.ForeignKey("pipelines.id", ondelete="CASCADE"), nullable=False, index=True),
+    C("dataset_id", sa.String(64), nullable=True, index=True),
+    C("status", sa.String(32), nullable=False, server_default="running"),
+    C("trigger_type", sa.String(48), nullable=False, server_default="manual"),
+    C("actor", sa.String(100), nullable=False, server_default="system"),
+    C("input_refs_json", sa.JSON, nullable=False),
+    C("output_refs_json", sa.JSON, nullable=False),
+    C("model_version", sa.String(120), nullable=True),
+    C("started_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    C("completed_at", sa.DateTime(timezone=True), nullable=True),
+    C("duration_ms", sa.Float, nullable=True),
+    C("error_message", sa.Text, nullable=True),
+    C("metadata_json", sa.JSON, nullable=False),
+)
+sa.Index("ix_pipeline_runs_comp_pipe_started", pipeline_runs.c.company_id, pipeline_runs.c.pipeline_id, pipeline_runs.c.started_at)
+
+lineage_nodes = sa.Table(
+    "lineage_nodes", metadata,
+    C("id", sa.String(80), primary_key=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("external_id", sa.String(120), nullable=True, index=True),
+    C("pipeline_id", sa.ForeignKey("pipelines.id", ondelete="SET NULL"), nullable=True, index=True),
+    C("dataset_id", sa.String(64), nullable=True, index=True),
+    C("name", sa.String(200), nullable=False),
+    C("node_type", sa.String(40), nullable=False),
+    C("sub_type", sa.String(48), nullable=False),
+    C("status", sa.String(32), nullable=False, server_default="completed"),
+    C("owner", sa.String(100), nullable=False, server_default="system"),
+    C("layer_order", sa.Integer, nullable=False, server_default="0"),
+    C("metadata_json", sa.JSON, nullable=False),
+    C("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    C("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+)
+sa.Index("ix_lineage_nodes_comp_type_status", lineage_nodes.c.company_id, lineage_nodes.c.node_type, lineage_nodes.c.status)
+
+lineage_edges = sa.Table(
+    "lineage_edges", metadata,
+    C("id", sa.String(80), primary_key=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("pipeline_id", sa.ForeignKey("pipelines.id", ondelete="SET NULL"), nullable=True, index=True),
+    C("run_id", sa.ForeignKey("pipeline_runs.id", ondelete="SET NULL"), nullable=True, index=True),
+    C("source_node_id", sa.ForeignKey("lineage_nodes.id", ondelete="CASCADE"), nullable=False, index=True),
+    C("target_node_id", sa.ForeignKey("lineage_nodes.id", ondelete="CASCADE"), nullable=False, index=True),
+    C("relationship_type", sa.String(64), nullable=False),
+    C("status", sa.String(32), nullable=False, server_default="completed"),
+    C("data_transferred", sa.String(160), nullable=True),
+    C("record_count", sa.Integer, nullable=True),
+    C("transformation", sa.Text, nullable=True),
+    C("metadata_json", sa.JSON, nullable=False),
+    C("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    C("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+)
+sa.Index("ix_lineage_edges_comp_src_tgt", lineage_edges.c.company_id, lineage_edges.c.source_node_id, lineage_edges.c.target_node_id)
+
+pipeline_events = sa.Table(
+    "pipeline_events", metadata,
+    C("id", sa.String(80), primary_key=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("pipeline_id", sa.ForeignKey("pipelines.id", ondelete="CASCADE"), nullable=False, index=True),
+    C("pipeline_run_id", sa.ForeignKey("pipeline_runs.id", ondelete="CASCADE"), nullable=False, index=True),
+    C("node_id", sa.ForeignKey("lineage_nodes.id", ondelete="SET NULL"), nullable=True, index=True),
+    C("event_type", sa.String(80), nullable=False),
+    C("step_order", sa.Integer, nullable=False, server_default="0"),
+    C("timestamp", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    C("duration_ms", sa.Float, nullable=True),
+    C("status", sa.String(32), nullable=False, server_default="completed"),
+    C("input_summary", sa.String(255), nullable=True),
+    C("output_summary", sa.String(255), nullable=True),
+    C("error_message", sa.Text, nullable=True),
+    C("metadata_json", sa.JSON, nullable=False),
+)
+sa.Index("ix_pipeline_events_run_ts", pipeline_events.c.pipeline_run_id, pipeline_events.c.step_order, pipeline_events.c.timestamp)
+
+business_insights = sa.Table(
+    "business_insights", metadata,
+    C("id", sa.String(80), primary_key=True),
+    C("company_id", sa.ForeignKey("companies.id"), nullable=False, index=True),
+    C("dataset_id", sa.String(64), nullable=True, index=True),
+    C("pipeline_run_id", sa.ForeignKey("pipeline_runs.id", ondelete="SET NULL"), nullable=True, index=True),
+    C("source_node_id", sa.ForeignKey("lineage_nodes.id", ondelete="SET NULL"), nullable=True, index=True),
+    C("insight_type", sa.String(48), nullable=False),
+    C("name", sa.String(200), nullable=False),
+    C("description", sa.Text, nullable=True),
+    C("output_reference", sa.String(200), nullable=False),
+    C("owner", sa.String(100), nullable=False, server_default="system"),
+    C("metadata_json", sa.JSON, nullable=False),
+    C("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+)
+sa.Index("ix_business_insights_comp_ds", business_insights.c.company_id, business_insights.c.dataset_id)
+
 
 def make_engine(url=None):
     url = url or os.getenv("DATABASE_URL")

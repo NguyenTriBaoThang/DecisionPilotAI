@@ -699,6 +699,26 @@ def run_copilot_turn(
         replace_assistant_id=replace_assistant_id,
     )
 
+    from backend.app.lineage.service import record_runtime_event
+
+    record_runtime_event(
+        engine,
+        company_id=company_id,
+        pipeline_key="decision_intelligence:main",
+        pipeline_name="Decision Intelligence Pipeline",
+        pipeline_type="decision_intelligence",
+        run_key=f"dec:{resolved_ds_id or company_id}",
+        dataset_id=resolved_ds_id,
+        actor=actor,
+        event_type=f"Copilot Synthesis ({intent})",
+        step_order=12,
+        status="completed",
+        node_key="output:copilot_reports",
+        duration_ms=total_ms,
+        input_summary=question[:120],
+        output_summary=f"{len(rag_hits)} citations · {len(tool_results)} tool(s)",
+    )
+
     return {
         "conversation": conv_out,
         "user_message": user_msg,

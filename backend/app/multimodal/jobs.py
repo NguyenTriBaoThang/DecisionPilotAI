@@ -157,12 +157,15 @@ class MultimodalJobQueue:
         fut.add_done_callback(_cleanup)
 
     def _run_wrapper(self, job_id: str) -> None:
+        t0 = time.perf_counter()
+        job_meta: dict[str, Any] = {}
         for retry in range(3):
             try:
                 with self.engine.begin() as conn:
                     row = conn.execute(sa.select(ingestion_jobs).where(ingestion_jobs.c.id == job_id)).mappings().first()
                     if row is None:
                         return
+                    job_meta = dict(row)
                     attempt = int(row.get("attempt") or 0) + 1
                     conn.execute(
                         ingestion_jobs.update()
@@ -180,6 +183,28 @@ class MultimodalJobQueue:
             except sa.exc.OperationalError:
                 time.sleep(0.05 * (retry + 1))
 
+        fid = job_meta.get("file_id")
+        if fid and job_meta.get("company_id"):
+            from backend.app.lineage.service import record_runtime_event
+
+            record_runtime_event(
+                self.engine,
+                company_id=job_meta["company_id"],
+                pipeline_key=f"multimodal:{fid}",
+                pipeline_name=f"Multimodal Pipeline — {fid}",
+                pipeline_type="multimodal_extraction",
+                run_key=f"mm_run:{fid}",
+                dataset_id=job_meta.get("dataset_id"),
+                actor=job_meta.get("created_by") or "system",
+                event_type="Multimodal Extraction Started",
+                step_order=2,
+                status="processing",
+                event_key=f"mm:{fid}:02_extract",
+                node_key=f"proc:mm_extract:{fid}",
+                input_summary=f"Job {job_id}",
+                output_summary="Processing multimodal payload",
+            )
+
         try:
             summary = self.worker_fn(job_id)
             with self.engine.begin() as conn:
@@ -194,6 +219,26 @@ class MultimodalJobQueue:
                         error_message=None,
                         finished_at=_utc_now(),
                     )
+                )
+            if fid and job_meta.get("company_id"):
+                from backend.app.lineage.service import record_runtime_event
+
+                record_runtime_event(
+                    self.engine,
+                    company_id=job_meta["company_id"],
+                    pipeline_key=f"multimodal:{fid}",
+                    pipeline_name=f"Multimodal Pipeline — {fid}",
+                    pipeline_type="multimodal_extraction",
+                    run_key=f"mm_run:{fid}",
+                    dataset_id=job_meta.get("dataset_id"),
+                    actor=job_meta.get("created_by") or "system",
+                    event_type="Multimodal Extraction Completed",
+                    step_order=2,
+                    status="completed",
+                    event_key=f"mm:{fid}:02_extract",
+                    node_key=f"proc:mm_extract:{fid}",
+                    duration_ms=round((time.perf_counter() - t0) * 1000.0, 2),
+                    output_summary=f"{summary.get('total_extracted', 0)} extractions ready for review",
                 )
         except Exception as exc:
             log.warning("Multimodal ingestion job %s failed (%s): %s", job_id, type(exc).__name__, exc)
@@ -214,6 +259,26 @@ class MultimodalJobQueue:
                     break
                 except sa.exc.OperationalError:
                     time.sleep(0.05 * (retry + 1))
+            if fid and job_meta.get("company_id"):
+                from backend.app.lineage.service import record_runtime_event
+
+                record_runtime_event(
+                    self.engine,
+                    company_id=job_meta["company_id"],
+                    pipeline_key=f"multimodal:{fid}",
+                    pipeline_name=f"Multimodal Pipeline — {fid}",
+                    pipeline_type="multimodal_extraction",
+                    run_key=f"mm_run:{fid}",
+                    dataset_id=job_meta.get("dataset_id"),
+                    actor=job_meta.get("created_by") or "system",
+                    event_type="Multimodal Extraction Failed",
+                    step_order=2,
+                    status="failed",
+                    event_key=f"mm:{fid}:02_extract",
+                    node_key=f"proc:mm_extract:{fid}",
+                    duration_ms=round((time.perf_counter() - t0) * 1000.0, 2),
+                    error_message=str(exc)[:2000],
+                )
 
     def wait_for_job(self, job_id: str, timeout: float = 30.0) -> dict[str, Any]:
         with self._lock:

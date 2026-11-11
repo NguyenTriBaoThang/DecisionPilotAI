@@ -507,6 +507,26 @@ def ingest_uploaded_document(
                 payload={"file_name": clean_name, "dataset_id": dataset_id, "chunks": len(candidates), "domain": resolved_domain, "actor": actor},
             )
         )
+    from backend.app.lineage.service import record_runtime_event
+
+    record_runtime_event(
+        engine,
+        company_id=company_id,
+        pipeline_key="rag_knowledge:main",
+        pipeline_name="Enterprise RAG Knowledge Pipeline",
+        pipeline_type="rag_knowledge",
+        run_key="rag_index_main",
+        dataset_id=dataset_id,
+        actor=actor,
+        event_type=f"Document Chunked & Embedded ({clean_name[:32]})",
+        step_order=1,
+        status="completed",
+        event_key=f"rag:{doc_id}:idx",
+        node_key=f"proc:rag_chunk:{doc_id}",
+        input_summary=clean_name,
+        output_summary=f"{len(candidates)} chunks -> {settings.vector_backend.upper()}",
+        model_version=embedder.provider_name,
+    )
     return res
 
 
@@ -565,6 +585,26 @@ def ingest_text_document(
             embedder=embedder,
             dialect_name=conn.dialect.name,
         )
+    from backend.app.lineage.service import record_runtime_event
+
+    record_runtime_event(
+        engine,
+        company_id=company_id,
+        pipeline_key="rag_knowledge:main",
+        pipeline_name="Enterprise RAG Knowledge Pipeline",
+        pipeline_type="rag_knowledge",
+        run_key="rag_index_main",
+        dataset_id=dataset_id,
+        actor=actor,
+        event_type=f"Document Chunked & Embedded ({title[:32]})",
+        step_order=2,
+        status="completed",
+        event_key=f"rag:{doc_id}:idx",
+        node_key=f"proc:rag_chunk:{doc_id}",
+        input_summary=title,
+        output_summary=f"{len(candidates)} chunks -> {settings.vector_backend.upper()}",
+        model_version=embedder.provider_name,
+    )
     return res
 
 

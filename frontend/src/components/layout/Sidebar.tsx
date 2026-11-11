@@ -4,6 +4,7 @@ import {
   BookOpen,
   Compass,
   Database,
+  GitBranch,
   LayoutDashboard,
   MessageSquareText,
   Settings,
@@ -50,6 +51,7 @@ export const navGroups: NavGroup[] = [
     label: 'GOVERNANCE',
     items: [
       { to: '/recommendations', title: 'Recommendations & Audit', icon: Compass },
+      { to: '/knowledge-map', title: 'Enterprise Knowledge Map', icon: GitBranch },
     ],
   },
   {

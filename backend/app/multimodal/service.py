@@ -1249,6 +1249,26 @@ def approve_and_import_file(
         index_multimodal_file(engine, company_id=company_id, file_id=file_id, actor=actor)
     except Exception as exc:
         log.warning("Non-fatal RAG multimodal indexing skipped for %s: %s", file_id, exc)
+
+    from backend.app.lineage.service import record_runtime_event
+
+    record_runtime_event(
+        engine,
+        company_id=company_id,
+        pipeline_key=f"multimodal:{file_id}",
+        pipeline_name=f"Multimodal Pipeline — {frow['file_name']}",
+        pipeline_type="multimodal_extraction",
+        run_key=f"mm_run:{file_id}",
+        dataset_id=ds_id,
+        actor=actor,
+        event_type="HITL Approved & Promoted",
+        step_order=3,
+        status="completed",
+        event_key=f"mm:{file_id}:03_hitl",
+        node_key=f"proc:mm_hitl:{file_id}",
+        input_summary=f"{len(eligible)} extracted records verified",
+        output_summary=f"Promoted {len(financial_rows)} rows, {len(insight_rows)} insight(s)",
+    )
     return {
         "approved": True,
         "file_id": file_id,
