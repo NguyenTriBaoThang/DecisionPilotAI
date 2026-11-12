@@ -109,12 +109,9 @@ Nghiệp vụ suy ra từ KiotViet, Sapo và các bài viết về dashboard cho
 
 ## 8. Điểm kỹ thuật sau vòng review (người viết tự chốt)
 
-1. **Nguồn dữ liệu cho trang Quyết định:** dùng hệ khuyến nghị đang được route hiện tại (XAI `RecommendationsCenter` / `AuditGovernanceCenter`). Gộp 6 trạng thái `workflow_status` thành 3 nhóm:
-   - `approved`, `implemented` → **Đã chọn làm**
-   - `rejected`, `expired` → **Đã bỏ qua**
-   - `pending`, `review_requested` → **Đang chờ**
-
-   Quyết định ghi từ trang Thử trước (`scenario_feedback`) cũng hiện trong danh sách, lấy từ audit. Trước khi code, phải xác minh accept/reject ở Thử trước ghi vào đâu.
+1. **Nguồn dữ liệu cho trang Quyết định:** dùng API cũ `GET /recommendations` (trường `decision`: pending/accepted/rejected) và `GET /audit?kind=decisions`.
+   - *Sửa ngày 12/11, khi lập kế hoạch:* API mới `GET /v1/recommendations` (XAI governance) trả lỗi 500 trên Postgres (`TypeError: Object of type Decimal is not JSON serializable`, `governance/service.py:2072`). Các trang XAI cũ vẫn mở được trong Nâng cao. Lỗi này ghi vào `report/`, không sửa trong đợt redesign.
+   - Đếm: **Đang chờ** = gợi ý có `decision == "pending"`. **Đã chọn làm / Đã bỏ qua** = dòng audit có `payload.decision` là `accepted` / `rejected` (gồm cả quyết định từ Thử trước).
 2. **Thử trước là trang mới, đơn giản, đặt ở `/scenarios`**, gọi thẳng API `/simulate`. Trang làm lại các hành vi đang có:
    - nhận `recommendation_id` và tham số từ gợi ý;
    - Chọn làm / Bỏ qua ghi vào nhật ký.
@@ -128,3 +125,5 @@ Nghiệp vụ suy ra từ KiotViet, Sapo và các bài viết về dashboard cho
    - ROAS ≥ 2: "Tốt"
 
    Số riêng của Facebook (0,76×) chỉ xuất hiện trong ghi chú cảnh báo, khi API cảnh báo trả về. Thẻ "Lãi gộp" hiện tỷ lệ % (`summary.margin`), đúng như mockup.
+6. **Hỏi AI gọi `POST /query`.** API này trả câu trả lời có cấu trúc: `answer`, `chart`, `evidence`, `trace.sources`, và đúng là API mà luồng demo đang kiểm tra ("Facebook Ads is lowest at 0.76×"). Trang chat RAG của đồng đội (`CopilotWorkspace`, `/ask` hiện tại) chuyển sang Nâng cao thành **"Copilot tài liệu"** (`/advanced/copilot`). Giữ hành vi deep link `?q=`: mở trang là tự gửi câu hỏi.
+7. **Dữ liệu thật khác với mockup:** tháng 9/2026 doanh thu **giảm 30,6%** so với tháng 8, và ROAS chung là 2,76× (mức "Tốt"). Vì vậy câu chào và câu tóm tắt **phải sinh từ dữ liệu**, không cố định là "tháng này bán tốt".
