@@ -16,6 +16,7 @@ import { PreferencesProvider, usePageTranslations, usePreferences, useT } from '
 import { ErrorState, Loading, ToastProvider } from './ui'
 import { TodayPage } from './redesign/TodayPage'
 import { TryFirstPage } from './redesign/TryFirstPage'
+import { AskPage } from './redesign/AskPage'
 import { Alerts, Ask, ForecastPage, type ChatMessage } from './WorkspacePages'
 import { Sidebar, BrandLogo, navGroups } from './components/layout/Sidebar'
 import { Topbar } from './components/layout/Topbar'
@@ -324,7 +325,8 @@ function AppShell({ session }: { session: Session }) {
                 path="/"
                 element={<TodayPage dataset={ds.data} options={opts.data} />}
               />
-              <Route path="/ask" element={<Ask dataset={ds.data} options={opts.data} messages={messages} setMessages={setMessages} canEdit={session.role !== 'viewer'} />} />
+              <Route path="/ask" element={<AskPage canEdit={session.role !== 'viewer'} />} />
+              <Route path="/advanced/copilot" element={<Ask dataset={ds.data} options={opts.data} messages={messages} setMessages={setMessages} canEdit={session.role !== 'viewer'} />} />
               <Route path="/anomalies" element={<Alerts dataset={ds.data} />} />
               <Route
                 path="/forecast"

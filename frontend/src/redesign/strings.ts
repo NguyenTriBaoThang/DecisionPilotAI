@@ -87,4 +87,17 @@ export const redesignStrings: Record<string, { vi: string; en: string }> = {
   'See decisions': { vi: 'Xem quyết định', en: 'See decisions' },
   'Could not save the decision.': { vi: 'Chưa lưu được quyết định.', en: 'Could not save the decision.' },
   'Open the 3D version': { vi: 'Mở bản 3D', en: 'Open the 3D version' },
+
+  // Ask
+  'Ask in plain words. Answers use your real shop numbers.': { vi: 'Hỏi bằng lời thường. AI trả lời bằng số thật của shop.', en: 'Ask in plain words. Answers use your real shop numbers.' },
+  'Revenue this month?': { vi: 'Doanh thu tháng này?', en: 'Revenue this month?' },
+  'Which products sell best?': { vi: 'Món nào bán chạy nhất?', en: 'Which products sell best?' },
+  'Which ads are losing money?': { vi: 'Quảng cáo nào đang lỗ?', en: 'Which ads are losing money?' },
+  'How much will we sell next month?': { vi: 'Tháng sau bán được bao nhiêu?', en: 'How much will we sell next month?' },
+  'Could not answer right now. Please try again.': { vi: 'Chưa trả lời được, bạn thử lại nhé.', en: 'Could not answer right now. Please try again.' },
+  'Thinking...': { vi: 'Đang tìm câu trả lời...', en: 'Thinking...' },
+  'Source:': { vi: 'Nguồn:', en: 'Source:' },
+  'Your question': { vi: 'Câu hỏi của bạn', en: 'Your question' },
+  'Ask anything about your shop...': { vi: 'Hỏi gì về shop cũng được...', en: 'Ask anything about your shop...' },
+  'Send': { vi: 'Gửi', en: 'Send' },
 }
