@@ -8,6 +8,9 @@ from backend.app.ingestion.router import require_role, resolve_tenant
 from backend.app.investigation import service, scoring, strategy, timemachine
 from backend.app.investigation.trace import read_after
 from backend.app.analytics import dataset_info
+from backend.app.db import sales
+from backend.app.investigation.evidence import Evidence
+from dataclasses import asdict
 from backend.app.schemas import Question, Filters
 from ai_service.llm_orchestrator import query
 
@@ -28,7 +31,19 @@ def build_investigation_router(engine) -> APIRouter:
         service.scan(engine,cid)
         scoring.seed_history(engine,cid)
         with engine.begin() as conn:
-            cases=[dict(r) for r in conn.execute(sa.select(inv_cases).where(inv_cases.c.company_id==cid).order_by(inv_cases.c.impact_vnd.desc())).mappings()]
+            cases=[]
+            for r in conn.execute(sa.select(inv_cases).where(inv_cases.c.company_id==cid).order_by(inv_cases.c.impact_vnd.desc())).mappings():
+                case=dict(r)
+                rows=conn.scalar(sa.select(sa.func.count()).select_from(sales).where(
+                    sales.c.date.between(case['period_prior'][0],case['period_current'][1])))
+                case['impact_evidence']=asdict(Evidence('ev-orchestrator-impact','orchestrator',
+                    'Ảnh hưởng doanh thu suy từ chênh lệch trung bình/ngày so với tháng lịch trước.',
+                    {'impact_vnd':float(case['impact_vnd'])},'exact',
+                    'SUM(revenue) / số ngày từng kỳ; nhân số ngày kỳ hiện tại.',
+                    {'tables':['sales_transactions'],'start':case['period_prior'][0],
+                     'end':case['period_current'][1],'rows':int(rows or 0)},None,None,
+                    'Phép tính kế toán, không dùng SHAP.'))
+                cases.append(case)
             return {'clock':timemachine.clock(conn,cid),'cases':cases,'scorecard':scoring.scorecard(conn,cid)}
     @router.get('/investigation/cases/{case_id}')
     def get_case(case_id:str,request:Request,x_company_id:Annotated[str|None,Header()]=None):

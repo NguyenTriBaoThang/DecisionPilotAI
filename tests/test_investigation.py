@@ -133,6 +133,8 @@ def test_build_options_returns_three_with_simulation_evidence(inv_env, investiga
         options = build_options(conn, info, summary)
     assert len(options) == 3 and options[0].key == 'hold'
     assert all(o.simulation.get('result_type') == 'scenario estimate' for o in options[1:])
+    assert all(o.simulation['evidence']['parameters']['horizon'] == 14 for o in options[1:])
+    assert all(o.evidence[0].shap is not None for o in options[1:])
 
 
 def test_decide_is_idempotent(inv_env, investigated):

@@ -158,10 +158,21 @@ def run_investigation(engine, case_id: str, info: dict, clock_end: date) -> dict
         data_end = date.fromisoformat(str(info['end'])[:10])
         sufficiency = assess(explained, min((max(c.rows_current,c.rows_prior) for c in confirmed),default=0),
             min((c.days for c in confirmed),default=0), (clock_end-data_end).days*24, None)
+        exclusive_evidence = Evidence('ev-verifier-exclusive','verifier','Phân rã doanh thu/ngày không chồng lấn.',
+            {'total_delta_daily':decomposition.total_delta_daily,'prior_daily':decomposition.prior_daily,
+             'current_daily':decomposition.current_daily,
+             **{f'share_{i}':c.share for i,c in enumerate(decomposition.causes)}},
+            'exact',f'Phân rã tuần tự theo kênh quảng cáo, phân khúc và khu vực; scope={scope}',
+            {'tables':['sales_transactions','customers','marketing_campaigns'],
+             'start':prior[0].isoformat(),'end':current[1].isoformat(),
+             'rows':sum(c.rows_current+c.rows_prior for c in decomposition.causes if c.key=='demand')},
+            {'type':'bar','x':'name','y':'value','rows':[{'name':c.label_vi,'value':c.delta_daily} for c in decomposition.causes]},
+            None,'Phép tính kế toán, không dùng SHAP.')
         summary = {'headline': REFUSAL_TEXT if sufficiency.level == 'refused' else 'Đã kiểm tra các nguyên nhân biến động doanh thu.',
             'scope': scope, 'causes': [asdict(c) for c in decomposition.causes], 'sufficiency': asdict(sufficiency),
-            'evidence': [ev for f in findings for ev in f['evidence']]}
-        write('verifier','verdict', {**asdict(sufficiency), 'text': summary['headline']})
+            'evidence': [ev for f in findings for ev in f['evidence']] + [asdict(exclusive_evidence)]}
+        write('verifier','verdict', {**asdict(sufficiency), 'text': summary['headline'],
+            'evidence':[asdict(exclusive_evidence)]})
         with engine.connect() as conn:
             events = __import__('backend.app.investigation.trace', fromlist=['read_after']).read_after(conn, case_id, 0)
         lines, source = narrate(events)

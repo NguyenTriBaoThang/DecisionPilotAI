@@ -10,6 +10,7 @@ from backend.app import services
 from backend.app.analytics import dataset_info
 from backend.app.db import inv_cases, inv_predictions, products, sales, marketing
 from backend.app.governance.hash_chain import append_audited_event
+from backend.app.governance.service import _compute_forecast_xai
 from backend.app.investigation.evidence import Evidence
 from backend.app.investigation.scoring import calibration_factor
 from backend.app.schemas import MarketingRequest, MarketingParams, PriceRequest, PriceParams
@@ -37,6 +38,11 @@ def _evidence(agent, claim, numbers, simulation, info):
         None if simulation.get("evidence", {}).get("xai") else "Simulator không trả SHAP cho phương án này.")
 
 
+def _attach_xai(conn, info, simulation, scope, target):
+    simulation['evidence']['xai'] = _compute_forecast_xai(
+        conn, info, services.artifact(info), target=target, scope=scope)
+
+
 def build_options(conn, info: dict, summary: dict) -> list[Option]:
     if summary.get("sufficiency", {}).get("level") == "refused":
         return []
@@ -50,27 +56,33 @@ def build_options(conn, info: dict, summary: dict) -> list[Option]:
     factor = calibration_factor(conn, info['company_id'], 'revenue_drop')
     hold = {"result_type": "scenario estimate", "baseline": {"revenue": 0, "profit": 0}, "alternatives": [], "recommended": {"revenue_delta": 0, "profit_delta": 0}, "evidence": {"method": "exact", "assumptions": ["Giữ nguyên, mức thay đổi bằng 0%."]}}
     options = [Option("hold", "Giữ nguyên", metric, {}, 0.0, 0.0, 14, hold,
-                      [_evidence("strategist", "Mức thay đổi so với giữ nguyên là 0%.", {"delta_pct": 0}, hold, info)])]
+                      [Evidence('ev-strategist-hold','strategist','Giữ nguyên, thay đổi bằng 0% so với baseline.',
+                        {'delta_pct':0.0},'exact','Phương án giữ nguyên tham số hiện tại.',
+                        {'tables':['sales_transactions'],'start':info.get('start'),'end':info.get('end'),
+                         'rows':info.get('counts',{}).get('sales_transactions',0)},None,None,
+                        'Không dùng mô hình cho phương án giữ nguyên.')])]
     if channel:
         request = MarketingRequest(type="marketing", objective="profit", horizon=14,
                                    parameters=MarketingParams(channel=channel, changes=[-0.3]))
         key = f"marketing:{channel}:-0.3"
         scope = {"channel": channel}
     else:
-        request = PriceRequest(type="price", objective="profit", horizon=7,
+        request = PriceRequest(type="price", objective="profit", horizon=14,
                                parameters=PriceParams(product=sku[0], discounts=[0.1]))
         key = f"price:{sku[0]}:0.1"
         scope = {"product": sku[0]}
     result = services.simulate(conn, info, request)
+    _attach_xai(conn,info,result,'all' if channel else f'sku:{sku[0]}','revenue' if channel else 'demand')
     alternate = result["alternatives"][0]
     base = result["baseline"]
     denom = float(base.get("profit" if channel else "revenue") or 1)
     delta = float(alternate.get("profit_delta" if channel else "revenue_delta", 0)) / denom
     options.append(Option(key, "Điều chỉnh theo nguyên nhân chính", metric, scope, delta, delta*factor, 14, result,
                           [_evidence("strategist", "Dự báo mô phỏng có điều kiện.", {"delta_pct": delta}, result, info)]))
-    request2 = PriceRequest(type="price", objective="profit", horizon=7,
+    request2 = PriceRequest(type="price", objective="profit", horizon=14,
                             parameters=PriceParams(product=sku[min(1, len(sku)-1)], discounts=[0.05]))
     result2 = services.simulate(conn, info, request2)
+    _attach_xai(conn,info,result2,f'sku:{sku[min(1,len(sku)-1)]}','demand')
     alternate2 = result2["alternatives"][0]
     denom2 = float(result2["baseline"].get("revenue") or 1)
     delta2 = float(alternate2.get("revenue_delta", 0)) / denom2
@@ -80,7 +92,8 @@ def build_options(conn, info: dict, summary: dict) -> list[Option]:
     try:
         quality = services.model_quality(info)
         replay = quality.get("scenario_replay") or {}
-        wape = replay.get("wape")
+        replay_key = 'marketing_replay' if channel else 'price_replay'
+        wape = (replay.get(replay_key) or {}).get('scenario',{}).get('wape')
         if wape is not None and wape > .30:
             options = [Option(**{**o.__dict__, "evidence": o.evidence + [Evidence("ev-strategist-wape", "strategist", "Sai số backtest vượt ngưỡng.", {"wape": float(wape)}, "exact", "services.model_quality(info)", {"tables": ["scenario_backtest.json"], "start": None, "end": None, "rows": 0}, None, None, "Không đủ chất lượng mô hình để dùng SHAP.")]}) for o in options]
     except Exception:

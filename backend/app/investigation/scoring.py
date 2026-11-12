@@ -81,13 +81,16 @@ def seed_history(engine, company_id: str) -> int:
                 if old>0: candidates.append((now/old-1,end,start,prior_start,prior_end))
         from backend.app.analytics import dataset_info
         info=dataset_info(conn,company_id)
-        for _,end,start,prior_start,prior_end in sorted(candidates)[:3]:
+        for daily_change,end,start,prior_start,prior_end in sorted(candidates)[:3]:
             baseline=float(conn.scalar(sa.select(sa.func.sum(sales.c.revenue)).where(sales.c.date.between(end-timedelta(days=27),end))) or 0)/28
             future=float(conn.scalar(sa.select(sa.func.sum(sales.c.revenue)).where(sales.c.date.between(end+timedelta(days=1),end+timedelta(days=14)))) or 0)/14
             actual=future/baseline-1 if baseline else 0.0
             case_id='seed-'+uuid4().hex
+            previous_daily=float(conn.scalar(sa.select(sa.func.sum(sales.c.revenue)).where(
+                sales.c.date.between(prior_start,prior_end))) or 0)/((prior_end-prior_start).days+1)
+            impact=round(-daily_change*previous_daily*((end-start).days+1))
             conn.execute(inv_cases.insert().values(id=case_id,company_id=company_id,dataset_id=info['dataset_id'],kind='revenue_drop',
-                status='scored',title=f'Doanh thu {end:%m/%Y}',impact_vnd=0,period_current=[start.isoformat(),end.isoformat()],
+                status='scored',title=f'Doanh thu {end:%m/%Y}',impact_vnd=impact,period_current=[start.isoformat(),end.isoformat()],
                 period_prior=[prior_start.isoformat(),prior_end.isoformat()],summary=None,run_state='done'))
             conn.execute(inv_predictions.insert().values(id='pred-'+uuid4().hex,case_id=case_id,option_key='hold',metric='revenue',
                 scope={},baseline_daily=baseline,predicted_delta_pct=0.0,calibrated_delta_pct=0.0,start_date=end,horizon_days=14,
