@@ -107,7 +107,7 @@ function AppShell({ session }: { session: Session }) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const { pathname } = useLocation()
 
-  const needsOptions = pathname === '/' || pathname === '/ask' || pathname === '/forecast' || pathname === '/scenarios'
+  const needsOptions = ['/', '/ask', '/forecast', '/scenarios', '/decisions'].includes(pathname)
 
   const ds = useQuery({
     queryKey: ['dataset', companyId],

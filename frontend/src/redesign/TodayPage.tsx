@@ -58,7 +58,7 @@ export function TodayPage({ dataset, options }: { dataset?: Dataset; options?: O
           <>
             {t('Hello,')}
             <br />
-            <span className="bg-gradient-to-r from-amber-200 to-pink-300 bg-clip-text text-transparent">{t("here is today's briefing")}</span>
+            <span className="inline-block bg-gradient-to-r from-amber-200 to-pink-300 bg-clip-text pb-1 leading-[1.2] text-transparent">{t("here is today's briefing")}</span>
           </>
         }
         subtitle={sentence || t('Loading your numbers...')}

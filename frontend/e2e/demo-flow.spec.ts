@@ -27,7 +27,8 @@ test('Today warning -> Ask -> Decisions -> Try first -> Choose settles the log',
   await expect(page.getByText(/Facebook Ads is lowest at/)).toBeVisible({ timeout: 30_000 })
 
   // 2. The pending suggestion on Decisions opens Try first with Facebook Ads and -15% already run.
-  await page.getByRole('link', { name: 'Decisions', exact: true }).click()
+  // Load Decisions directly (not via Today) so it must fetch its own options for the Try-first link.
+  await page.goto('/decisions')
   const row = page.getByTestId('rec-marketing:facebook')
   await expect(row).toBeVisible({ timeout: 30_000 })
   await row.getByRole('link', { name: 'Try first', exact: true }).click()

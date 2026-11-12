@@ -68,7 +68,7 @@ export function DecisionsPage({ dataset, options, canEdit }: { dataset?: Dataset
           <div key={s.id} data-testid={`count-${s.id}`} className="flex items-center gap-3 rounded-[18px] p-4" style={{ background: s.bg }}>
             <Illus name={s.illus} size={36} />
             <div>
-              <div className="text-2xl font-extrabold" style={{ color: s.fg }}>{s.value}</div>
+              <div className="text-2xl font-extrabold" style={{ color: s.fg }}>{recs.isLoading || log.isLoading ? '—' : s.value}</div>
               <div className="text-sm text-slate-700">{s.label}</div>
             </div>
           </div>

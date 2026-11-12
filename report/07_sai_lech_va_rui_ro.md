@@ -51,6 +51,7 @@ Chọn **một nguồn sự thật = artifacts/**; sửa mọi tài liệu về 
 | 3 | Commit file không nên có: `decisionpilot.db`, `test-results/.last-run.json`, 5 file `artifacts/tenant_*.joblib` (dữ liệu/mô hình tenant thử nghiệm) | `git ls-files` | Trung bình |
 | 4 | Phạm vi phình to sát hạn: 6 module "enterprise" (~200 file) trong 1 đêm, chưa có trong `COMPETITION_SUBMISSION.md`, khó để cả đội giải thích trong Q&A | git log 11/11 | Trung bình |
 | 5 | Số RAG eval toàn 1.0 trên bộ test tự soạn rất nhỏ — dễ bị hỏi vặn | `artifacts/rag_evaluation_report.json` | Thấp nếu trình bày đúng |
+| 7 | `GET /v1/recommendations` (XAI governance) trả 500 trên Postgres — Docker demo dùng Postgres nên trang khuyến nghị XAI cũ hỏng khi demo | `TypeError: Object of type Decimal is not JSON serializable`, `governance/service.py:2072` | Trung bình (UI mới không dùng API này) |
 | 6 | Lineage SSE lỗi `created_at` (bảng `ingestion_jobs` không có cột này) | `lineage/router.py:105`, log CI | Thấp |
 
 **Khuyến nghị:** giữ câu chuyện demo cốt lõi (Cảnh báo → Ask → Thử trước → Quyết định, file 13); 6 module mới chỉ nhắc 1 slide "Roadmap đã có bản chạy" thay vì đưa vào video.

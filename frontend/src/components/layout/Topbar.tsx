@@ -224,7 +224,7 @@ export function Topbar({
             }}
           >
             <Building2 size={13} style={{ color: 'var(--primary)' }} className="flex-shrink-0" />
-            <span className="truncate">{activeCompany?.name || companyId}</span>
+            <span className="hidden truncate sm:inline">{activeCompany?.name || companyId}</span>
             <ChevronDown size={12} style={{ color: 'var(--text-muted)' }} className="flex-shrink-0" />
           </button>
 

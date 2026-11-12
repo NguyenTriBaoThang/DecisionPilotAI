@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts'
+import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis } from 'recharts'
 import { decimal, moneyCompact, percent, request, type QueryResult } from '../api'
 import { useT } from '../preferences'
 import { highlightFromChart, scenarioForQuestion } from './logic'
@@ -110,7 +110,9 @@ export function AskPage(_props: { canEdit: boolean }) {
                             <BarChart data={turn.result.chart.rows}>
                               <XAxis dataKey={turn.result.chart.x} tick={{ fontSize: 11 }} />
                               <Tooltip />
-                              <Bar dataKey={turn.result.chart.y} radius={[6, 6, 0, 0]} fill={BAR_COLORS[1]} />
+                              <Bar dataKey={turn.result.chart.y} radius={[6, 6, 0, 0]}>
+                                {turn.result.chart.rows.map((_, i) => <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />)}
+                              </Bar>
                             </BarChart>
                           </ResponsiveContainer>
                         </div>
