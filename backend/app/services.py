@@ -21,6 +21,11 @@ def _read_artifact(path, modified):
     return joblib.load(path)
 
 
+def clear_caches() -> None:
+    """Discard artifact bundles after the demo data changes in place."""
+    _read_artifact.cache_clear()
+
+
 def artifact_path(info):
     if is_partitioned(info):
         return ARTIFACTS / f"tenant_{info['company_id']}__{info['dataset_id']}.joblib"
