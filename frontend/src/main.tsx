@@ -15,6 +15,7 @@ import {
 import { PreferencesProvider, usePageTranslations, usePreferences, useT } from './preferences'
 import { ErrorState, Loading, ToastProvider } from './ui'
 import { TodayPage } from './redesign/TodayPage'
+import { BriefPage } from './investigation/BriefPage'
 import { TryFirstPage } from './redesign/TryFirstPage'
 import { AskPage } from './redesign/AskPage'
 import { DecisionsPage } from './redesign/DecisionsPage'
@@ -327,8 +328,10 @@ function AppShell({ session }: { session: Session }) {
             <Routes key={`${companyId}:${ds.data.dataset_id}`}>
               <Route
                 path="/"
-                element={<TodayPage dataset={ds.data} options={opts.data} />}
+                element={<BriefPage />}
               />
+              <Route path="/today" element={<TodayPage dataset={ds.data} options={opts.data} />} />
+              <Route path="/cases" element={<BriefPage />} />
               <Route path="/ask" element={<AskPage canEdit={session.role !== 'viewer'} />} />
               <Route path="/advanced/copilot" element={<Ask dataset={ds.data} options={opts.data} messages={messages} setMessages={setMessages} canEdit={session.role !== 'viewer'} />} />
               <Route path="/anomalies" element={<Alerts dataset={ds.data} />} />
