@@ -9,6 +9,34 @@ from backend.app.db import make_engine
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_decompose_sums_to_total(inv_env):
+    from datetime import date
+    from backend.app.investigation.decomposition import decompose_revenue, month_periods
+    with inv_env[1].connect() as conn:
+        d = decompose_revenue(conn, *month_periods(date(2026, 9, 30)))
+    assert abs(sum(c.share for c in d.causes) - 1) < 1e-9
+    assert abs(sum(c.delta_daily for c in d.causes) - d.total_delta_daily) < 1
+
+
+def test_decompose_finds_injected_causes(inv_env):
+    from datetime import date
+    from backend.app.investigation.decomposition import decompose_revenue, month_periods
+    with inv_env[1].connect() as conn:
+        d = decompose_revenue(conn, *month_periods(date(2026, 9, 30)))
+    keys = {c.key for c in d.causes}
+    assert {'demand', 'other'} <= keys
+    assert keys & {'marketing:Facebook Ads', 'segment:Returning'}
+    assert 'region:HCMC' in d.raw_slice_shares
+
+
+def test_partial_month_uses_daily_average(inv_env):
+    from datetime import date
+    from backend.app.investigation.decomposition import decompose_revenue, month_periods
+    with inv_env[1].connect() as conn:
+        d = decompose_revenue(conn, *month_periods(date(2026, 9, 7)))
+    assert abs(d.total_delta_daily / d.prior_daily) < 0.6
+
+
 def test_migration_creates_investigation_tables(tmp_path, monkeypatch):
     url = 'sqlite:///' + str(tmp_path / 'investigation.sqlite')
     monkeypatch.setenv('DATABASE_URL', url)
@@ -41,7 +69,7 @@ def inv_env(tmp_path_factory):
     for source in (ROOT / "artifacts").glob("*"):
         if source.suffix in {".joblib", ".json"}:
             shutil.copy2(source, artifacts / source.name)
-    tokens = {role: "investigation-test-token-" + role for role in ("viewer", "analyst", "admin")}
+    tokens = {role: "investigation-isolated-test-token-" + role for role in ("viewer", "analyst", "admin")}
     with pytest.MonkeyPatch.context() as mp:
         mp.setenv("DATABASE_URL", url)
         mp.setenv("LLM_PROVIDER", "none")
