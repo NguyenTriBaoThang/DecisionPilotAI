@@ -106,7 +106,7 @@ def _read_only_poll_marker(engine: sa.Engine, company_id: str) -> str:
             ).mappings()
         ]
         legacy_ds = (
-            conn.execute(sa.select(sa.func.count(), sa.func.max(datasets.c.created_at))).first()
+            conn.execute(sa.select(sa.func.count(), sa.func.max(datasets.c.id))).first()
             if company_id == "comp-default"
             else None
         )
