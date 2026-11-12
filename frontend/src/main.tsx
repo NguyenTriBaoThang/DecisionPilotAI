@@ -107,7 +107,7 @@ function AppShell({ session }: { session: Session }) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const { pathname } = useLocation()
 
-  const needsOptions = ['/', '/ask', '/forecast', '/scenarios', '/decisions'].includes(pathname)
+  const needsOptions = ['/', '/ask', '/forecast', '/scenarios', '/decisions', '/advanced/simulator-3d', '/advanced/copilot'].includes(pathname)
 
   const ds = useQuery({
     queryKey: ['dataset', companyId],
@@ -201,7 +201,7 @@ function AppShell({ session }: { session: Session }) {
           {t('Upload Your Business Data')}
         </Link>
         <Link
-          to="/ask"
+          to="/advanced/copilot"
           className="inline-flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-medium hover:bg-[var(--surface-muted)]"
           style={{ borderColor: 'var(--border-strong)', color: 'var(--primary-text)' }}
         >

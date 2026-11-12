@@ -248,9 +248,9 @@ test('streams Enterprise RAG Copilot answers with doc ingest, citations, convers
   expect((await createCompanyRes).ok()).toBeTruthy()
   await expect(page.getByRole('heading', { name: 'Empty Company Workspace' })).toBeVisible()
 
-  // 2. Open Copilot (/ask) in Document Knowledge Mode and upload a RAG policy file
+  // 2. Open Copilot (/advanced/copilot) in Document Knowledge Mode and upload a RAG policy file
   await page.getByRole('link', { name: 'Ask AI Copilot', exact: true }).click()
-  await expect(page).toHaveURL(/\/ask$/)
+  await expect(page).toHaveURL(/\/advanced\/copilot$/)
   await expect(page.getByText('Ask Business Data').first()).toBeVisible()
 
   const ingestRes = page.waitForResponse(
@@ -511,6 +511,7 @@ test('operates XAI Recommendations (A-I), Native TreeSHAP, Workflow + Outcome Fe
   await expect(page.getByText('Total Recs', { exact: true })).toBeVisible({ timeout: 20_000 })
   await expect(page.getByText('% Post-Impl Effective', { exact: true })).toBeVisible()
   await expect(page.getByText('Not yet evaluated', { exact: true }).first()).toBeVisible()
+  await page.getByText(/Charts: by category, status, priority and confidence/).click()
   await expect(page.getByText('Recommendations by Category', { exact: true })).toBeVisible()
   await expect(page.getByText('Recommendations by Workflow Status', { exact: true })).toBeVisible()
   await expect(page.getByText('Recommendations by Priority', { exact: true })).toBeVisible()

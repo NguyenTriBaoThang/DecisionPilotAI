@@ -49,12 +49,23 @@ export function TryFirstPage({ dataset, options, canEdit }: { dataset?: Dataset;
   const [rec, setRec] = useState(linked.rec)
 
   const client = useQueryClient()
-  const simulate = useMutation({ mutationFn: (body: unknown) => request<Scenario>('/simulate', body) })
+  const [simData, setSimData] = useState<Scenario | undefined>()
+  const [simPending, setSimPending] = useState(false)
+  const [simError, setSimError] = useState(false)
+  const simSeqRef = useRef(0)
+  const mountedRef = useRef(true)
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
+
   const feedback = useMutation({
     mutationFn: (decision: 'accepted' | 'rejected') =>
       request<{ decision: string; id: number }>('/scenarios/feedback', {
-        simulation_id: simulate.data?.simulation_id,
-        dataset_id: simulate.data?.dataset_id,
+        simulation_id: simData?.simulation_id,
+        dataset_id: simData?.dataset_id,
         decision,
         ...(rec ? { recommendation_id: rec } : {}),
       }),
@@ -66,12 +77,25 @@ export function TryFirstPage({ dataset, options, canEdit }: { dataset?: Dataset;
 
   const run = (ty = type, tg = target, v = value) => {
     if (!tg) return
+    const seq = ++simSeqRef.current
     feedback.reset()
-    simulate.mutate(buildRequest(ty, tg, v))
+    setSimPending(true)
+    setSimError(false)
+    void request<Scenario>('/simulate', buildRequest(ty, tg, v))
+      .then((data) => {
+        if (!mountedRef.current || simSeqRef.current !== seq) return
+        setSimData(data)
+        setSimPending(false)
+      })
+      .catch(() => {
+        if (!mountedRef.current || simSeqRef.current !== seq) return
+        setSimError(true)
+        setSimPending(false)
+      })
   }
   const autoRan = useRef(false)
   useEffect(() => {
-    if (linked.autorun && !autoRan.current && dataset) {
+    if (linked.autorun && !autoRan.current && dataset && target) {
       autoRan.current = true
       run(linked.type, target, value)
     }
@@ -84,14 +108,18 @@ export function TryFirstPage({ dataset, options, canEdit }: { dataset?: Dataset;
 
   const pickType = (ty: ScenarioType) => {
     const tg = defaultTarget(ty)
+    simSeqRef.current += 1
+    feedback.reset()
     setType(ty)
     setTarget(tg)
     setValue(SLIDERS[ty].initial)
     setRec(undefined)
-    simulate.reset()
+    setSimData(undefined)
+    setSimPending(false)
+    setSimError(false)
   }
 
-  const result = simulate.data
+  const result = simData
   const base = result?.baseline
   const alt = result ? result.alternatives.find((a) => a.name !== base?.name) ?? result.recommended : undefined
   const third = (() => {
@@ -174,8 +202,8 @@ export function TryFirstPage({ dataset, options, canEdit }: { dataset?: Dataset;
         <p className="mt-1 text-xs text-slate-500">{t('Drag to change, the result updates when you let go.')}</p>
       </div>
 
-      {simulate.isError && <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{t('Could not run this scenario.')}</p>}
-      {simulate.isPending && <p className="text-sm text-slate-500">{t('Calculating...')}</p>}
+      {simError && <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{t('Could not run this scenario.')}</p>}
+      {simPending && <p className="text-sm text-slate-500">{t('Calculating...')}</p>}
 
       {alt && (
         <>
