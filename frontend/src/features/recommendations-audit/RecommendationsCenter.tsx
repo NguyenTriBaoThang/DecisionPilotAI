@@ -31,6 +31,7 @@ import {
 import { AllocationDonutCard } from '../../components/charts/AllocationDonutCard'
 import { ENTERPRISE_DONUT_PALETTE, type DonutSegmentItem } from '../../components/charts/dashboardDonuts'
 import { useT } from '../../preferences'
+import { PageHero, TechDetails } from '../../redesign/ui'
 import {
   Button,
   Card,
@@ -174,26 +175,13 @@ export function RecommendationsCenter({ dataset }: { dataset?: Dataset }) {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        eyebrow="ENTERPRISE EXPLAINABLE AI DECISION INTELLIGENCE"
-        title="Recommendations & Decision Intelligence"
-        subtitle="Inspect machine learning & anomaly evidence, TreeSHAP feature attribution, confidence factors, counterfactual sweeps, and approve governed actions with cryptographic audit logging."
-        aside={
-          <Link
-            to="/audit"
-            className="inline-flex items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold transition-colors hover:bg-[var(--surface-muted)]"
-            style={{
-              borderColor: 'var(--primary-border)',
-              background: 'var(--surface)',
-              color: 'var(--primary-text)',
-            }}
-          >
-            <ShieldCheck size={15} />
-            <span>{t('Open Audit & Governance Center')}</span>
-            <ArrowRight size={13} />
-          </Link>
-        }
-      />
+      <PageHero tone="neutral" illus="bulb" title={t('Explainable recommendations')} subtitle={t('Each suggestion with its evidence, confidence and the factors behind it.')}>
+        <Link to="/audit" className="mt-4 inline-flex min-h-[40px] items-center gap-2 rounded-full bg-white/15 px-4 text-sm font-bold text-white hover:bg-white/25">
+          <ShieldCheck size={15} />
+          {t('Open Audit & Governance Center')}
+          <ArrowRight size={13} />
+        </Link>
+      </PageHero>
 
       <ErrorState
         error={overview.error || feedback.error}
@@ -253,6 +241,7 @@ export function RecommendationsCenter({ dataset }: { dataset?: Dataset }) {
           </div>
 
           {/* 4 Mandatory Overview Donut Charts */}
+          <TechDetails summary={t('Charts: by category, status, priority and confidence')}>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <AllocationDonutCard
               title={t('Recommendations by Category')}
@@ -294,6 +283,7 @@ export function RecommendationsCenter({ dataset }: { dataset?: Dataset }) {
               palette={['#059669', '#2563EB', '#EA580C', '#DC2626']}
             />
           </div>
+          </TechDetails>
 
           {/* Multi-Filter Toolbar */}
           <FilterBar>

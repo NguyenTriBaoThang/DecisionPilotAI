@@ -156,4 +156,8 @@ export const redesignStrings: Record<string, { vi: string; en: string }> = {
   'Technical details: reliability and model comparison': { vi: 'Chi tiết kỹ thuật: độ tin cậy và so sánh mô hình', en: 'Technical details: reliability and model comparison' },
   'Numbers that moved far from normal, ranked by how much they matter.': { vi: 'Những con số lệch xa mức bình thường, xếp theo mức quan trọng.', en: 'Numbers that moved far from normal, ranked by how much they matter.' },
   'Full warning log': { vi: 'Toàn bộ nhật ký cảnh báo', en: 'Full warning log' },
+  'Each suggestion with its evidence, confidence and the factors behind it.': { vi: 'Từng gợi ý kèm bằng chứng, độ tin cậy và các yếu tố phía sau.', en: 'Each suggestion with its evidence, confidence and the factors behind it.' },
+  'Charts: by category, status, priority and confidence': { vi: 'Biểu đồ: theo nhóm, trạng thái, ưu tiên và độ tin cậy', en: 'Charts: by category, status, priority and confidence' },
+  'Every decision and model change, recorded in order and checked for tampering.': { vi: 'Mọi quyết định và thay đổi mô hình được ghi theo thứ tự, có kiểm tra chống sửa xoá.', en: 'Every decision and model change, recorded in order and checked for tampering.' },
+  'Charts: events, model quality, data quality and outcomes': { vi: 'Biểu đồ: sự kiện, chất lượng mô hình, chất lượng dữ liệu và kết quả', en: 'Charts: events, model quality, data quality and outcomes' },
 }

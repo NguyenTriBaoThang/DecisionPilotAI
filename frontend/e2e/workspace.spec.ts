@@ -583,6 +583,7 @@ test('operates XAI Recommendations (A-I), Native TreeSHAP, Workflow + Outcome Fe
   await page.getByRole('button', { name: 'Verify Hash-Chain Integrity', exact: true }).click()
   expect((await verifyRes).ok()).toBeTruthy()
 
+  await page.getByText(/Charts: events, model quality/).click()
   await expect(page.getByTestId('audit-charts-grid')).toBeVisible()
   await expect(page.getByTestId('chart-model-performance-trend')).toBeVisible()
   await expect(page.getByTestId('chart-outcome-comparison')).toBeVisible()
