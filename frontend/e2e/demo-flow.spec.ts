@@ -17,7 +17,7 @@ async function signInIfNeeded(page: Page) {
 }
 
 test('Today warning -> Ask -> Decisions -> Try first -> Choose settles the log', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/today')
   await signInIfNeeded(page)
 
   // 1. The yellow warning note on Today opens Ask with the question already sent.

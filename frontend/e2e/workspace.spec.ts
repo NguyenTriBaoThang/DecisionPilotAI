@@ -42,7 +42,7 @@ test('creates an isolated company workspace, runs 4-step enterprise CSV ingestio
   await page.goto('/')
   await page.getByLabel('Access token', { exact: true }).fill('e2e-admin-token-for-isolated-tests-only')
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await expect(page.getByRole('link', { name: 'Data', exact: true })).toBeVisible()
+  await expect(page.locator('.dp-sidebar nav a[href="/data-sources"]')).toBeVisible()
 
   // 1. Provision a brand-new isolated Company Workspace via Topbar Workspace Switcher
   await page.getByRole('button', { name: 'Company Workspace' }).click()
@@ -119,7 +119,7 @@ test('creates an isolated company workspace, runs 4-step enterprise CSV ingestio
   await expect(page.getByText(/Import Complete — Active Dataset:/i)).toBeVisible()
 
   // 6. Verify the isolated tenant only sees GlobalMart's catalog and USD numbers (zero legacy leak)
-  await page.getByRole('link', { name: 'Today', exact: true }).click()
+  await page.locator('.dp-sidebar nav a[href="/today"]').click()
   await expect(page.getByText(/\$/).first()).toBeVisible()
   await page.getByRole('link', { name: 'Try first', exact: true }).click()
   await page.getByRole('radio', { name: /Change price/ }).click()
@@ -136,7 +136,7 @@ test('ingests a multimodal invoice PNG with async queue, HITL correction, signed
   await page.goto('/')
   await page.getByLabel('Access token', { exact: true }).fill('e2e-admin-token-for-isolated-tests-only')
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await expect(page.getByRole('link', { name: 'Data', exact: true })).toBeVisible()
+  await expect(page.locator('.dp-sidebar nav a[href="/data-sources"]')).toBeVisible()
 
   // 1. Provision isolated company workspace
   await page.getByRole('button', { name: 'Company Workspace' }).click()
@@ -149,7 +149,7 @@ test('ingests a multimodal invoice PNG with async queue, HITL correction, signed
   await expect(page.getByRole('heading', { name: 'Empty Company Workspace' })).toBeVisible()
 
   // 2. Open Multimodal & Media Studio
-  await page.getByRole('link', { name: 'Data', exact: true }).click()
+  await page.locator('.dp-sidebar nav a[href="/data-sources"]').click()
   await page.getByRole('tab', { name: /Multimodal & Media Studio/i }).click()
   await expect(page.getByText('Multimodal Data & Intelligence Studio')).toBeVisible()
 
@@ -219,7 +219,7 @@ test('ingests a multimodal invoice PNG with async queue, HITL correction, signed
 
   // 6. Verify approved insight card + Executive Dashboard reflects multimodal revenue in isolated tenant
   await expect(page.getByText('Verified Multimodal Insights')).toBeVisible({ timeout: 15_000 })
-  await page.getByRole('link', { name: 'Today', exact: true }).click()
+  await page.locator('.dp-sidebar nav a[href="/today"]').click()
   await expect(page.getByText(/1,850|1\.85/).first()).toBeVisible()
   await page.getByRole('link', { name: 'Try first', exact: true }).click()
   await page.getByRole('radio', { name: /Change price/ }).click()
@@ -236,7 +236,7 @@ test('streams Enterprise RAG Copilot answers with doc ingest, citations, convers
   await page.goto('/')
   await page.getByLabel('Access token', { exact: true }).fill('e2e-admin-token-for-isolated-tests-only')
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await expect(page.getByRole('link', { name: 'Ask AI', exact: true }).first()).toBeVisible()
+  await expect(page.locator('.dp-sidebar nav a[href="/ask"]').first()).toBeVisible()
 
   // 1. Provision isolated company without CSV data to test Document Knowledge Mode
   await page.getByRole('button', { name: 'Company Workspace' }).click()
@@ -331,13 +331,13 @@ test('navigates Enterprise Knowledge Map in light mode, traces real lineage, run
   await page.goto('/')
   await page.getByLabel('Access token', { exact: true }).fill('e2e-admin-token-for-isolated-tests-only')
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await expect(page.getByRole('link', { name: 'Advanced', exact: true })).toBeVisible()
+  await expect(page.locator('.dp-sidebar nav a[href="/advanced"]')).toBeVisible()
 
   // Verify Light Mode default
   expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe('light')
 
   // Navigate to Enterprise Knowledge Map
-  await page.getByRole('link', { name: 'Advanced', exact: true }).click()
+  await page.locator('.dp-sidebar nav a[href="/advanced"]').click()
   await page.getByRole('link', { name: /Where a number came from/ }).click()
   await expect(page).toHaveURL(/\/knowledge-map$/)
   await expect(page.getByText('Enterprise Data Traceability').first()).toBeVisible()
@@ -379,7 +379,7 @@ test('navigates Enterprise Knowledge Map in light mode, traces real lineage, run
   await expect(page.getByText(/Step 0 \/ \d+/)).toBeVisible()
 
   // Provision brand-new empty workspace & confirm strict multi-tenant lineage isolation
-  await page.getByRole('link', { name: 'Today', exact: true }).click()
+  await page.locator('.dp-sidebar nav a[href="/today"]').click()
   await page.getByRole('button', { name: 'Company Workspace' }).click()
   await page.getByPlaceholder('e.g. Acme Retail Ltd.').fill('Empty Lineage Tenant')
   const createCompanyRes = page.waitForResponse(
@@ -404,7 +404,7 @@ test('runs Interactive 3D Business Scenario Simulator in light mode, compares sc
   await page.goto('/')
   await page.getByLabel('Access token', { exact: true }).fill('e2e-admin-token-for-isolated-tests-only')
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await expect(page.getByRole('link', { name: 'Advanced', exact: true })).toBeVisible()
+  await expect(page.locator('.dp-sidebar nav a[href="/advanced"]')).toBeVisible()
 
   // Confirm Enterprise Light Mode default
   expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe('light')
@@ -478,7 +478,7 @@ test('runs Interactive 3D Business Scenario Simulator in light mode, compares sc
   await expect(page.getByTestId('twin-ai-recommendation-panel')).toContainText(/Disclosed Model Limitations/i)
 
   // 8. Provision brand-new empty company workspace & verify honest 0/100 empty Twin state (zero leak)
-  await page.getByRole('link', { name: 'Today', exact: true }).click()
+  await page.locator('.dp-sidebar nav a[href="/today"]').click()
   await page.getByRole('button', { name: 'Company Workspace' }).click()
   await page.getByPlaceholder('e.g. Acme Retail Ltd.').fill('Empty Twin Corp')
   const emptyCompRes = page.waitForResponse(
@@ -502,7 +502,7 @@ test('operates XAI Recommendations (A-I), Native TreeSHAP, Workflow + Outcome Fe
   await page.goto('/')
   await page.getByLabel('Access token', { exact: true }).fill('e2e-admin-token-for-isolated-tests-only')
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await expect(page.getByRole('link', { name: 'Advanced', exact: true })).toBeVisible()
+  await expect(page.locator('.dp-sidebar nav a[href="/advanced"]')).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe('light')
 
   // 1. Navigate to Recommendations & XAI Center
@@ -596,7 +596,7 @@ test('operates XAI Recommendations (A-I), Native TreeSHAP, Workflow + Outcome Fe
   await page.getByRole('button', { name: 'Decision & System Audit Log', exact: true }).click()
 
   // 6. Isolate Empty Company Workspace on /recommendations and /audit (Zero Cross-Tenant Leak)
-  await page.getByRole('link', { name: 'Today', exact: true }).click()
+  await page.locator('.dp-sidebar nav a[href="/today"]').click()
   await page.getByRole('button', { name: 'Company Workspace' }).click()
   await page.getByPlaceholder('e.g. Acme Retail Ltd.').fill('Empty Governance Tenant')
   const emptyGovCompRes = page.waitForResponse(
@@ -623,7 +623,7 @@ test('imports a different snapshot through the browser and invalidates the old m
   await page.goto('/')
   await page.getByLabel('Access token', { exact: true }).fill('e2e-admin-token-for-isolated-tests-only')
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await page.getByRole('link', { name: 'Data', exact: true }).click()
+  await page.locator('.dp-sidebar nav a[href="/data-sources"]').click()
   const headers = { Authorization: 'Bearer e2e-admin-token-for-isolated-tests-only' }
   const original = await (await page.request.get('/api/dataset', { headers })).json()
   const bundle = await page.request.get('http://127.0.0.1:8765/e2e/snapshot', { headers })

@@ -19,17 +19,19 @@ export const navGroups: NavGroup[] = [
   {
     label: 'MAIN',
     items: [
-      { to: '/', title: 'Today', illus: 'sun', end: true },
-      { to: '/ask', title: 'Ask AI', illus: 'chat' },
-      { to: '/scenarios', title: 'Try first', illus: 'slider' },
-      { to: '/decisions', title: 'Decisions', illus: 'clipboard' },
+      { to: '/', title: 'Bản tin', illus: 'sun', end: true },
+      { to: '/cases', title: 'Vụ việc', illus: 'clipboard' },
+      { to: '/advanced', title: 'Nâng cao', illus: 'testtube' },
     ],
   },
   {
     label: 'OTHER',
     items: [
       { to: '/data-sources', title: 'Data', illus: 'filebox' },
-      { to: '/advanced', title: 'Advanced', illus: 'testtube' },
+      { to: '/today', title: 'Hôm nay', illus: 'sun' },
+      { to: '/ask', title: 'Hỏi AI', illus: 'chat' },
+      { to: '/scenarios', title: 'Thử trước', illus: 'slider' },
+      { to: '/decisions', title: 'Quyết định', illus: 'clipboard' },
     ],
   },
 ]
