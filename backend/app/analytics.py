@@ -5,6 +5,7 @@ from datetime import date, timedelta
 import sqlalchemy as sa
 from fastapi import HTTPException
 
+from backend.app.cache import current_memo, memo_call
 from backend.app.db import (
     calendar,
     companies,
@@ -273,7 +274,27 @@ def conditions(start, end, filters, info=None):
     return clauses
 
 
+def _info_memo_key(info: dict | None) -> tuple:
+    if not info:
+        return ()
+    return (
+        info.get("company_id"),
+        info.get("dataset_id"),
+        info.get("storage_mode"),
+        info.get("start"),
+        info.get("end"),
+    )
+
+
 def sales_total(conn, start, end, filters, info=None):
+    if current_memo() is not None:
+        fkey = tuple(sorted((k, v) for k, v in (filters or {}).items() if v))
+        mkey = ("sales_total", id(conn), start, end, fkey, _info_memo_key(info))
+        return {**memo_call(mkey, lambda: _sales_total_uncached(conn, start, end, filters, info=info))}
+    return _sales_total_uncached(conn, start, end, filters, info=info)
+
+
+def _sales_total_uncached(conn, start, end, filters, info=None):
     if is_partitioned(info):
         cid, did = info["company_id"], info["dataset_id"]
         caps = _caps(info)
@@ -303,17 +324,21 @@ def sales_total(conn, start, end, filters, info=None):
         }
         if caps.get("has_customer", True):
             total["customers"] = int(row["customers"] or 0)
-            first = (
-                sa.select(tx.customer_id, sa.func.min(tx.date).label("first_day"))
-                .where(tx.company_id == cid, tx.dataset_id == did)
-                .group_by(tx.customer_id)
-                .subquery()
-            )
-            new_cnt = conn.scalar(
-                sa.select(sa.func.count(sa.distinct(tx.customer_id)))
-                .select_from(tenant_transactions.join(first, first.c.customer_id == tx.customer_id))
-                .where(first.c.first_day.between(start, end), *clauses)
-            ) or 0
+            if total["orders"] == 0:
+                new_cnt = 0
+            else:
+                tx2 = sa.alias(tenant_transactions, "tx2")
+                no_prior_tx = ~sa.exists(
+                    sa.select(1).where(
+                        tx2.c.company_id == cid,
+                        tx2.c.dataset_id == did,
+                        tx2.c.customer_id == tx.customer_id,
+                        tx2.c.date < start,
+                    )
+                )
+                new_cnt = conn.scalar(
+                    sa.select(sa.func.count(sa.distinct(tx.customer_id))).where(*clauses, no_prior_tx)
+                ) or 0
             total["new_customers"] = int(new_cnt)
             total["returning_customers"] = max(0, total["customers"] - total["new_customers"])
         else:
@@ -331,10 +356,20 @@ def sales_total(conn, start, end, filters, info=None):
                     sa.func.count(sa.distinct(cols.customer_id)).label("customers"))
                     .select_from(SALES_SOURCE).where(*conditions(start, end, filters))).mappings().one())
     total = {k: int(v) for k, v in total.items()}
-    first = sa.select(cols.customer_id, sa.func.min(cols.date).label("first_day")).group_by(cols.customer_id).subquery()
-    total["new_customers"] = conn.scalar(sa.select(sa.func.count(sa.distinct(cols.customer_id)))
-        .select_from(SALES_SOURCE.join(first, first.c.customer_id == cols.customer_id))
-        .where(first.c.first_day.between(start, end), *conditions(start, end, filters)))
+    if total["orders"] == 0:
+        total["new_customers"] = 0
+    else:
+        s2 = sa.alias(sales, "s2")
+        no_prior = ~sa.exists(
+            sa.select(1).where(s2.c.customer_id == cols.customer_id, s2.c.date < start)
+        )
+        total["new_customers"] = int(
+            conn.scalar(
+                sa.select(sa.func.count(sa.distinct(cols.customer_id)))
+                .select_from(SALES_SOURCE)
+                .where(*conditions(start, end, filters), no_prior)
+            ) or 0
+        )
     total["returning_customers"] = total["customers"] - total["new_customers"]
     total["margin"] = ratio(total["gross_profit"], total["revenue"])
     total["aov"] = ratio(total["revenue"], total["orders"])
@@ -396,6 +431,14 @@ def trend(conn, start, end, filters, grain="daily", info=None):
 
 
 def grouped(conn, start, end, filters, dimension, limit=None, info=None):
+    if current_memo() is not None:
+        fkey = tuple(sorted((k, v) for k, v in (filters or {}).items() if v))
+        mkey = ("grouped", id(conn), start, end, fkey, dimension, limit, _info_memo_key(info))
+        return [dict(r) for r in memo_call(mkey, lambda: _grouped_uncached(conn, start, end, filters, dimension, limit=limit, info=info))]
+    return _grouped_uncached(conn, start, end, filters, dimension, limit=limit, info=info)
+
+
+def _grouped_uncached(conn, start, end, filters, dimension, limit=None, info=None):
     if is_partitioned(info):
         caps = _caps(info)
         has_gp = caps.get("has_cost_or_profit", True)
@@ -450,6 +493,14 @@ def grouped(conn, start, end, filters, dimension, limit=None, info=None):
 
 
 def marketing_summary(conn, start, end, channel=None, info=None):
+    if current_memo() is not None:
+        mkey = ("marketing_summary", id(conn), start, end, channel, _info_memo_key(info))
+        tot, rows = memo_call(mkey, lambda: _marketing_summary_uncached(conn, start, end, channel=channel, info=info))
+        return {**tot}, [dict(r) for r in rows]
+    return _marketing_summary_uncached(conn, start, end, channel=channel, info=info)
+
+
+def _marketing_summary_uncached(conn, start, end, channel=None, info=None):
     if is_partitioned(info):
         caps = _caps(info)
         if not caps.get("has_marketing"):
@@ -502,13 +553,29 @@ def marketing_summary(conn, start, end, channel=None, info=None):
         q = q.where(c.channel == channel)
     rows = [{k: int(v) if k != "name" else v for k,v in row.items()}
             for row in conn.execute(q.group_by(c.channel).order_by(c.channel)).mappings()]
-    s = sales.c
-    # First-order attribution uses date and transaction ID as a deterministic tie-break.
-    ranked = sa.select(s.customer_id, s.date, s.campaign_id, sa.func.row_number().over(
-        partition_by=s.customer_id, order_by=(s.date, s.transaction_id)).label("purchase_number")).subquery()
-    acquisition = dict(conn.execute(sa.select(c.channel, sa.func.count()).select_from(
-        ranked.join(marketing, sa.and_(ranked.c.date == c.date, ranked.c.campaign_id == c.campaign_id)))
-        .where(ranked.c.purchase_number == 1, ranked.c.date.between(start,end)).group_by(c.channel)).all())
+    if rows:
+        s = sales.c
+        s2 = sa.alias(sales, "s2")
+        # First-order attribution uses date and transaction ID as a deterministic tie-break.
+        no_earlier_tx = ~sa.exists(
+            sa.select(1).where(
+                s2.c.customer_id == s.customer_id,
+                sa.or_(
+                    s2.c.date < s.date,
+                    sa.and_(s2.c.date == s.date, s2.c.transaction_id < s.transaction_id),
+                ),
+            )
+        )
+        acq_q = (
+            sa.select(c.channel, sa.func.count())
+            .select_from(sales.join(marketing, sa.and_(s.date == c.date, s.campaign_id == c.campaign_id)))
+            .where(s.date.between(start, end), s.campaign_id.is_not(None), no_earlier_tx)
+        )
+        if channel:
+            acq_q = acq_q.where(c.channel == channel)
+        acquisition = dict(conn.execute(acq_q.group_by(c.channel)).all())
+    else:
+        acquisition = {}
     for row in rows:
         row.update(roas=ratio(row["attributed_revenue"], row["spend"]),
                    conversion=ratio(row["orders"],row["leads"]),

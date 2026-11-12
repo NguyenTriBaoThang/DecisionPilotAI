@@ -17,6 +17,7 @@ import sqlalchemy as sa
 from ai_service import anomaly, explainability, root_cause, scenario
 from ai_service.features import FEATURES, anomaly_frame, observed_series
 from backend.app import services
+from backend.app.cache import current_memo, memo_call, memo_scope
 from backend.app.analytics import (
     availability,
     dataset_info,
@@ -296,6 +297,20 @@ def _compute_evidence_bundle(
 
 
 def _compute_forecast_xai(
+    conn: sa.Connection,
+    info: dict[str, Any],
+    bundle: dict[str, Any] | None,
+    *,
+    target: str,
+    scope: str,
+) -> dict[str, Any]:
+    if current_memo() is not None:
+        xkey = ("forecast_xai", id(conn), info.get("company_id"), info.get("dataset_id"), id(bundle) if bundle else 0, target, scope)
+        return memo_call(xkey, lambda: _compute_forecast_xai_uncached(conn, info, bundle, target=target, scope=scope))
+    return _compute_forecast_xai_uncached(conn, info, bundle, target=target, scope=scope)
+
+
+def _compute_forecast_xai_uncached(
     conn: sa.Connection,
     info: dict[str, Any],
     bundle: dict[str, Any] | None,
@@ -1984,31 +1999,74 @@ def ensure_governance_synced(
 
         legacy_decision_map = _needs_legacy_status_sync(conn, company_id, did, existing_rows)
 
-        specs = _build_candidate_specs(conn, info, bundle)
-        persisted: list[dict[str, Any]] = []
-        now = _utc_now()
-        for sp in specs:
-            rkey = sp["rec_key"]
-            rec_id = _det_id("rec", company_id, did, rkey)
-            existing = existing_rows.get(rkey)
-            conf = sp["confidence"]
+        with memo_scope():
+            specs = _build_candidate_specs(conn, info, bundle)
+            persisted: list[dict[str, Any]] = []
+            now = _utc_now()
+            for sp in specs:
+                rkey = sp["rec_key"]
+                rec_id = _det_id("rec", company_id, did, rkey)
+                existing = existing_rows.get(rkey)
+                conf = sp["confidence"]
 
-            if existing:
-                keep_status = existing["status"]
-                if keep_status == "pending" and rkey in legacy_decision_map:
-                    keep_status = _decision_to_status_default(legacy_decision_map[rkey])
-                conn.execute(
-                    xai_recommendations.update()
-                    .where(xai_recommendations.c.id == existing["id"])
-                    .values(
+                if existing:
+                    keep_status = existing["status"]
+                    if keep_status == "pending" and rkey in legacy_decision_map:
+                        keep_status = _decision_to_status_default(legacy_decision_map[rkey])
+                    conn.execute(
+                        xai_recommendations.update()
+                        .where(xai_recommendations.c.id == existing["id"])
+                        .values(
+                            title=sp["title"],
+                            category_code=sp["category_code"],
+                            category_label=sp["category_label"],
+                            priority=sp["priority"],
+                            status=keep_status,
+                            problem_statement=sp["problem_statement"],
+                            recommended_action=sp["recommended_action"],
+                            goal=sp["goal"],
+                            confidence_level=conf["level"],
+                            confidence_score=conf["score"],
+                            confidence_components_json=conf,
+                            why_json=sp["why_json"],
+                            model_performance_json=sp["model_performance_json"],
+                            xai_json=sp["xai_json"],
+                            evidence_json=sp["evidence_json"],
+                            expected_impact_json=sp["expected_impact_json"],
+                            alternatives_json=sp["alternatives_json"],
+                            action_plan_json=sp["action_plan_json"],
+                            assumptions_json=sp["assumptions_json"],
+                            risks_json=sp["risks_json"],
+                            data_scope_json=sp["data_scope_json"],
+                            legacy_payload_json=sp["legacy_payload_json"],
+                            lineage_node_id=sp["lineage_node_id"],
+                            score=sp["score"],
+                            updated_at=now,
+                        )
+                    )
+                    persisted.append({**existing, **sp, "id": existing["id"], "status": keep_status, "confidence_level": conf["level"], "confidence_score": conf["score"]})
+                else:
+                    init_status = _decision_to_status_default(legacy_decision_map.get(rkey))
+                    vals = dict(
+                        id=rec_id,
+                        rec_key=rkey,
+                        company_id=company_id,
+                        dataset_id=did,
                         title=sp["title"],
                         category_code=sp["category_code"],
                         category_label=sp["category_label"],
                         priority=sp["priority"],
-                        status=keep_status,
+                        status=init_status,
                         problem_statement=sp["problem_statement"],
                         recommended_action=sp["recommended_action"],
                         goal=sp["goal"],
+                        creator=sp["creator"],
+                        owner=sp["owner"],
+                        deadline=sp["deadline"],
+                        resources_needed=sp["resources_needed"],
+                        tracking_kpi=sp["tracking_kpi"],
+                        success_criteria=sp["success_criteria"],
+                        stop_criteria=sp["stop_criteria"],
                         confidence_level=conf["level"],
                         confidence_score=conf["score"],
                         confidence_components_json=conf,
@@ -2025,69 +2083,27 @@ def ensure_governance_synced(
                         legacy_payload_json=sp["legacy_payload_json"],
                         lineage_node_id=sp["lineage_node_id"],
                         score=sp["score"],
-                        updated_at=now,
+                        is_new=True,
                     )
-                )
-                persisted.append({**existing, **sp, "id": existing["id"], "status": keep_status, "confidence_level": conf["level"], "confidence_score": conf["score"]})
-            else:
-                init_status = _decision_to_status_default(legacy_decision_map.get(rkey))
-                vals = dict(
-                    id=rec_id,
-                    rec_key=rkey,
-                    company_id=company_id,
-                    dataset_id=did,
-                    title=sp["title"],
-                    category_code=sp["category_code"],
-                    category_label=sp["category_label"],
-                    priority=sp["priority"],
-                    status=init_status,
-                    problem_statement=sp["problem_statement"],
-                    recommended_action=sp["recommended_action"],
-                    goal=sp["goal"],
-                    creator=sp["creator"],
-                    owner=sp["owner"],
-                    deadline=sp["deadline"],
-                    resources_needed=sp["resources_needed"],
-                    tracking_kpi=sp["tracking_kpi"],
-                    success_criteria=sp["success_criteria"],
-                    stop_criteria=sp["stop_criteria"],
-                    confidence_level=conf["level"],
-                    confidence_score=conf["score"],
-                    confidence_components_json=conf,
-                    why_json=sp["why_json"],
-                    model_performance_json=sp["model_performance_json"],
-                    xai_json=sp["xai_json"],
-                    evidence_json=sp["evidence_json"],
-                    expected_impact_json=sp["expected_impact_json"],
-                    alternatives_json=sp["alternatives_json"],
-                    action_plan_json=sp["action_plan_json"],
-                    assumptions_json=sp["assumptions_json"],
-                    risks_json=sp["risks_json"],
-                    data_scope_json=sp["data_scope_json"],
-                    legacy_payload_json=sp["legacy_payload_json"],
-                    lineage_node_id=sp["lineage_node_id"],
-                    score=sp["score"],
-                    is_new=True,
-                )
-                conn.execute(xai_recommendations.insert().values(**vals))
-                append_audited_event(
-                    conn,
-                    company_id=company_id,
-                    kind="recommendation_generated",
-                    subject=rkey,
-                    payload={
-                        "recommendation_id": rec_id,
-                        "rec_key": rkey,
-                        "dataset_id": did,
-                        "category": sp["category_code"],
-                        "priority": sp["priority"],
-                        "confidence_level": conf["level"],
-                        "actor": actor,
-                    },
-                )
-                persisted.append({**vals})
+                    conn.execute(xai_recommendations.insert().values(**vals))
+                    append_audited_event(
+                        conn,
+                        company_id=company_id,
+                        kind="recommendation_generated",
+                        subject=rkey,
+                        payload={
+                            "recommendation_id": rec_id,
+                            "rec_key": rkey,
+                            "dataset_id": did,
+                            "category": sp["category_code"],
+                            "priority": sp["priority"],
+                            "confidence_level": conf["level"],
+                            "actor": actor,
+                        },
+                    )
+                    persisted.append({**vals})
 
-        _sync_model_evaluations_and_risks(conn, info, bundle, persisted)
+            _sync_model_evaluations_and_risks(conn, info, bundle, persisted)
     return info
 
 

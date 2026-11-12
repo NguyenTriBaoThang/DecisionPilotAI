@@ -9,6 +9,7 @@ from fastapi import HTTPException
 
 from ai_service import anomaly, forecasting, root_cause, scenario
 from ai_service.features import anomaly_frame, observed_series
+from backend.app.cache import current_memo, get_cached_recs, memo_call, memo_scope, set_cached_recs
 from backend.app.analytics import (FORMULAS, approved_multimodal_insights, availability, bounds, grouped, is_partitioned,
                                    marketing_summary, options, previous_period, ratio, sales_total, trend)
 from backend.app.db import ARTIFACTS, inventory, products, tenant_inventory_daily, tenant_products
@@ -45,6 +46,11 @@ def checked_filters(conn, dimensions, info=None):
 
 
 def dashboard(conn, info, filters):
+    with memo_scope():
+        return _dashboard_uncached(conn, info, filters)
+
+
+def _dashboard_uncached(conn, info, filters):
     start,end = bounds(info,filters.start,filters.end)
     dims = checked_filters(conn,filters.dimensions(),info=info)
     prior = previous_period(start,end)
@@ -84,6 +90,22 @@ def dashboard(conn, info, filters):
 
 
 def forecast(conn, info, request):
+    if current_memo() is not None:
+        fkey = (
+            "forecast",
+            id(conn),
+            info.get("company_id"),
+            info.get("dataset_id"),
+            request.target,
+            request.product,
+            request.category,
+            request.horizon,
+        )
+        return {**memo_call(fkey, lambda: _forecast_uncached(conn, info, request))}
+    return _forecast_uncached(conn, info, request)
+
+
+def _forecast_uncached(conn, info, request):
     dec = is_partitioned(info)
     caps = info.get("capabilities") or {}
     if dec and not caps.get("supports_forecast", True):
@@ -195,6 +217,11 @@ def alert_detail(conn,info,alert):
 
 
 def simulate(conn,info,request):
+    with memo_scope():
+        return _simulate_uncached(conn, info, request)
+
+
+def _simulate_uncached(conn, info, request):
     if request.type == "marketing":
         values = scenario.marketing_scenario(conn,info,request)
     else:
@@ -218,6 +245,35 @@ def simulate(conn,info,request):
 
 
 def recommendations(conn,info):
+    eng = getattr(conn, "engine", None)
+    db_url = str(eng.url) if eng is not None else ""
+    cache_key = None
+    if eng is not None and ":memory:" not in db_url:
+        art_path = artifact_path(info)
+        art_mtime = art_path.stat().st_mtime_ns if art_path.is_file() else 0
+        counts_sig = tuple(sorted((info.get("counts") or {}).items()))
+        cache_key = (
+            db_url,
+            id(eng),
+            info.get("company_id"),
+            info.get("dataset_id"),
+            info.get("storage_mode"),
+            info.get("start"),
+            info.get("end"),
+            counts_sig,
+            art_mtime,
+        )
+        cached = get_cached_recs(cache_key)
+        if cached is not None:
+            return cached
+    with memo_scope():
+        rows = _recommendations_uncached(conn, info)
+    if cache_key is not None:
+        set_cached_recs(cache_key, rows)
+    return rows
+
+
+def _recommendations_uncached(conn,info):
     end = date.fromisoformat(info["end"])
     start = max(end.replace(day=1),date.fromisoformat(info["start"]))
     candidates = alerts(conn,info,start,end)

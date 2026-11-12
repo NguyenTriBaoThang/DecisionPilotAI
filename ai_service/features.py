@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import sqlalchemy as sa
 
+from backend.app.cache import current_memo, memo_call
 from backend.app.db import (
     calendar,
     customers,
@@ -33,6 +34,21 @@ def lag_features(history, day, scale, holiday=None):
 
 def observed_series(conn, info):
     """Target matrices are indexed by dataset date and scope, with zero-sale days retained."""
+    key = (
+        "observed_series",
+        id(conn),
+        info.get("company_id"),
+        info.get("dataset_id"),
+        info.get("storage_mode"),
+        info.get("start"),
+        info.get("end"),
+    )
+    if current_memo() is not None:
+        return memo_call(key, lambda: _observed_series_uncached(conn, info))
+    return _observed_series_uncached(conn, info)
+
+
+def _observed_series_uncached(conn, info):
     dates = pd.date_range(info["start"], info["end"])
     if info.get("storage_mode") == "partitioned":
         cid, did = info["company_id"], info["dataset_id"]
@@ -111,6 +127,21 @@ def observed_series(conn, info):
 
 
 def anomaly_frame(conn, info):
+    key = (
+        "anomaly_frame",
+        id(conn),
+        info.get("company_id"),
+        info.get("dataset_id"),
+        info.get("storage_mode"),
+        info.get("start"),
+        info.get("end"),
+    )
+    if current_memo() is not None:
+        return memo_call(key, lambda: _anomaly_frame_uncached(conn, info)).copy()
+    return _anomaly_frame_uncached(conn, info)
+
+
+def _anomaly_frame_uncached(conn, info):
     days = pd.date_range(info["start"],info["end"])
     if info.get("storage_mode") == "partitioned":
         cid, did = info["company_id"], info["dataset_id"]

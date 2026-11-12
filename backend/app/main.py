@@ -18,6 +18,7 @@ from pydantic import ValidationError
 
 from ai_service.llm_orchestrator import query
 from backend.app import services
+from backend.app.cache import invalidate_recs_cache
 from backend.app.analytics import dataset_info, options
 from backend.app.db import audit, companies, datasets, make_engine, read_connection, simulations, xai_recommendations
 from backend.app.governance import service as governance_service
@@ -577,6 +578,7 @@ def create_app(engine=None, storage: ObjectStorage | None = None):
                 actor=request.state.identity["actor"])
             with engine.begin() as conn:
                 ingestion_service.sync_default_legacy_dataset(conn, "comp-default")
+            invalidate_recs_cache("comp-default")
             return info
 
         try:
