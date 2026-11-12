@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 
-// The 2-minute demo story: warning -> ask -> try the recommendation first -> accept -> decision log.
+// The 2-minute demo story on the redesigned UI: warning -> ask -> try the suggestion first -> choose -> decision log.
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('dp-preferences', JSON.stringify({ language: 'en', currency: 'vnd' }))
@@ -16,35 +16,34 @@ async function signInIfNeeded(page: Page) {
   }
 }
 
-test('alert -> Ask -> recommendation -> simulator -> one decision settles card and log', async ({ page }) => {
+test('Today warning -> Ask -> Decisions -> Try first -> Choose settles the log', async ({ page }) => {
   await page.goto('/')
   await signInIfNeeded(page)
 
-  // 1. The dashboard warning opens Ask with the question already sent.
-  await page.getByRole('link', { name: 'Investigate causes with AI Copilot' }).click()
-  await expect(page).toHaveURL(/\/ask$/)
+  // 1. The yellow warning note on Today opens Ask with the question already sent.
+  await page.getByRole('link', { name: 'See why', exact: true }).click()
+  await expect(page).toHaveURL(/\/ask/)
   await expect(page.getByText('Which marketing channel had the lowest ROAS?').first()).toBeVisible()
   await expect(page.getByText(/Facebook Ads is lowest at/)).toBeVisible({ timeout: 30_000 })
 
-  // 2. The recommendation opens the simulator with Facebook Ads and -15% already run.
-  await page.goto('/recommendations')
-  await expect(page.getByText('Review Facebook Ads allocation')).toBeVisible({ timeout: 30_000 })
-  await expect(page.getByText('STATUS: PENDING').first()).toBeVisible()
-  await page.getByRole('link', { name: 'Try first in simulator' }).click()
-  await expect(page.getByText('Recommended Reallocation: -15% budget')).toBeVisible({ timeout: 60_000 })
-  await expect(page.getByText('-15% Budget', { exact: true })).toBeVisible()
+  // 2. The pending suggestion on Decisions opens Try first with Facebook Ads and -15% already run.
+  await page.getByRole('link', { name: 'Decisions', exact: true }).click()
+  const row = page.getByTestId('rec-marketing:facebook')
+  await expect(row).toBeVisible({ timeout: 30_000 })
+  await row.getByRole('link', { name: 'Try first', exact: true }).click()
+  await expect(page.getByText('Budget change: -15%')).toBeVisible()
+  const choose = page.getByRole('button', { name: 'Choose', exact: true })
+  await expect(choose).toBeEnabled({ timeout: 60_000 })
 
-  // 3. One decision updates the scenario and the recommendation card.
-  await page.getByRole('button', { name: 'AI Recommendations', exact: true }).click()
+  // 3. One decision is recorded against the recommendation and shows in the log.
   const decision = page.waitForResponse(r => r.url().endsWith('/scenarios/feedback') && r.request().method() === 'POST')
-  await page.getByRole('button', { name: 'Accept scenario', exact: true }).click()
+  await choose.click()
   const response = await decision
   expect(response.ok()).toBeTruthy()
   expect(response.request().postDataJSON().recommendation_id).toBe('marketing:facebook')
-  await expect(page.getByText(/Decision recorded: accepted/)).toBeVisible()
+  await expect(page.getByText(/Recorded: Choose/)).toBeVisible()
 
-  await page.goto('/recommendations')
-  await expect(page.getByText('STATUS: ACCEPTED').first()).toBeVisible({ timeout: 30_000 })
-  await expect(page.getByRole('cell', { name: 'recommendation_feedback', exact: true })).toBeVisible()
-  await expect(page.getByRole('cell', { name: 'scenario_feedback', exact: true })).toBeVisible()
+  await page.getByRole('link', { name: 'See decisions', exact: true }).click()
+  await expect(page.getByText(/recommendation_feedback/).first()).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByTestId('rec-marketing:facebook')).toHaveCount(0)
 })

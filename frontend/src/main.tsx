@@ -18,6 +18,7 @@ import { TodayPage } from './redesign/TodayPage'
 import { TryFirstPage } from './redesign/TryFirstPage'
 import { AskPage } from './redesign/AskPage'
 import { DecisionsPage } from './redesign/DecisionsPage'
+import { AdvancedPage, DataPage } from './redesign/AdvancedPage'
 import { Alerts, Ask, ForecastPage, type ChatMessage } from './WorkspacePages'
 import { Sidebar, BrandLogo, navGroups } from './components/layout/Sidebar'
 import { Topbar } from './components/layout/Topbar'
@@ -267,7 +268,7 @@ function AppShell({ session }: { session: Session }) {
             <Routes key={`empty:${companyId}`}>
               <Route path="/ask" element={<Ask canEdit={session.role !== 'viewer'} />} />
               <Route
-                path="/scenarios"
+                path="/advanced/simulator-3d"
                 element={
                   <Suspense fallback={<Loading />}>
                     <ScenarioSimulator3D session={session} />
@@ -306,7 +307,7 @@ function AppShell({ session }: { session: Session }) {
                   </Suspense>
                 }
               />
-              <Route path="/data-sources" element={<DataSourcesPage companyId={companyId} session={session} />} />
+              <Route path="/data-sources" element={<DataPage><DataSourcesPage companyId={companyId} session={session} /></DataPage>} />
               <Route path="/settings" element={<SettingsPage dark={dark} setDark={setDark} session={session} />} />
               <Route
                 path="/docs"
@@ -349,6 +350,7 @@ function AppShell({ session }: { session: Session }) {
                   )
                 }
               />
+              <Route path="/advanced" element={<AdvancedPage />} />
               <Route path="/decisions" element={<DecisionsPage dataset={ds.data} options={opts.data} canEdit={session.role !== 'viewer'} />} />
               <Route
                 path="/recommendations"
@@ -382,7 +384,7 @@ function AppShell({ session }: { session: Session }) {
                   </Suspense>
                 }
               />
-              <Route path="/data-sources" element={<DataSourcesPage companyId={companyId} dataset={ds.data} session={session} />} />
+              <Route path="/data-sources" element={<DataPage><DataSourcesPage companyId={companyId} dataset={ds.data} session={session} /></DataPage>} />
               <Route path="/settings" element={<SettingsPage dark={dark} setDark={setDark} session={session} />} />
               <Route
                 path="/docs"

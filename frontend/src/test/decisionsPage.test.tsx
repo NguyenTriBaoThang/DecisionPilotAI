@@ -64,6 +64,23 @@ describe('DecisionsPage', () => {
     expect(within(screen.getByTestId('log-2')).getByText('Đã chọn làm')).toBeTruthy()
   })
 
+  it('merges the two log rows one Try-first decision produces', async () => {
+    vi.mocked(api.request).mockImplementation(async (path: string) => {
+      if (path === '/recommendations') return { rows: [] } as never
+      return {
+        rows: [
+          { id: 4, occurred_at: '2026-11-12T09:01:00+07:00', kind: 'recommendation_feedback', subject: 'marketing:facebook', payload: { decision: 'accepted', actor: 'a', simulation_id: 'sim-9', recommendation: { title: 'Review Facebook Ads allocation' } } },
+          { id: 3, occurred_at: '2026-11-12T09:01:00+07:00', kind: 'scenario_feedback', subject: 'sim-9', payload: { decision: 'accepted', actor: 'a', simulation_id: 'sim-9' } },
+        ],
+        next_before: null,
+      } as never
+    })
+    renderPage(<DecisionsPage dataset={DATASET} options={OPTIONS} canEdit />)
+    await screen.findByTestId('log-4')
+    expect(screen.queryByTestId('log-3')).toBeNull()
+    expect(within(screen.getByTestId('count-chosen')).getByText('1')).toBeTruthy()
+  })
+
   it('disables decisions for viewers', async () => {
     renderPage(<DecisionsPage dataset={DATASET} options={OPTIONS} canEdit={false} />)
     const fb = await screen.findByTestId('rec-marketing:facebook')

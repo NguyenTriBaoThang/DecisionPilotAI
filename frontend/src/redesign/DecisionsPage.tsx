@@ -46,7 +46,12 @@ export function DecisionsPage({ dataset, options, canEdit }: { dataset?: Dataset
   }
 
   const pending = (recs.data?.rows ?? []).filter((r) => decisionBucket(r.decision) === 'pending')
-  const logRows = log.data?.rows ?? []
+  // A Try-first decision on a recommendation writes scenario_feedback + recommendation_feedback with the same
+  // simulation_id; show it once (the recommendation row carries the title).
+  const linkedSims = new Set(
+    (log.data?.rows ?? []).filter((r) => r.kind === 'recommendation_feedback' && r.payload.simulation_id).map((r) => String(r.payload.simulation_id))
+  )
+  const logRows = (log.data?.rows ?? []).filter((r) => !(r.kind === 'scenario_feedback' && linkedSims.has(String(r.payload.simulation_id))))
   const count = (b: 'chosen' | 'skipped') => logRows.filter((r) => decisionBucket(String(r.payload.decision ?? '')) === b).length
   const stats: { id: 'chosen' | 'skipped' | 'pending'; illus: IllusName; label: string; value: number; bg: string; fg: string }[] = [
     { id: 'chosen', illus: 'check', label: t('Chosen'), value: count('chosen'), bg: '#dcfce7', fg: '#15803d' },

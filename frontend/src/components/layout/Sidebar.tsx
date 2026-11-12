@@ -1,24 +1,12 @@
 import { Link, NavLink } from 'react-router-dom'
-import {
-  Activity,
-  BookOpen,
-  Compass,
-  Database,
-  GitBranch,
-  LayoutDashboard,
-  MessageSquareText,
-  Settings,
-  ShieldCheck,
-  SlidersHorizontal,
-  TrendingUp,
-  X,
-} from 'lucide-react'
+import { X } from 'lucide-react'
 import { useT } from '../../preferences'
+import { illus, type IllusName } from '../../redesign/illustrations'
 
 export interface NavItem {
   to: string
   title: string
-  icon: typeof LayoutDashboard
+  illus: IllusName
   end?: boolean
 }
 
@@ -29,39 +17,19 @@ export interface NavGroup {
 
 export const navGroups: NavGroup[] = [
   {
-    label: 'OVERVIEW',
+    label: 'MAIN',
     items: [
-      { to: '/', title: 'Executive Dashboard', icon: LayoutDashboard, end: true },
-      { to: '/ask', title: 'Ask Business Data', icon: MessageSquareText },
+      { to: '/', title: 'Today', illus: 'sun', end: true },
+      { to: '/ask', title: 'Ask AI', illus: 'chat' },
+      { to: '/scenarios', title: 'Try first', illus: 'slider' },
+      { to: '/decisions', title: 'Decisions', illus: 'clipboard' },
     ],
   },
   {
-    label: 'INTELLIGENCE',
+    label: 'OTHER',
     items: [
-      { to: '/anomalies', title: 'Anomaly Center', icon: Activity },
-      { to: '/forecast', title: 'Forecast Center', icon: TrendingUp },
-    ],
-  },
-  {
-    label: 'PLANNING',
-    items: [
-      { to: '/scenarios', title: 'Scenario Simulator', icon: SlidersHorizontal },
-    ],
-  },
-  {
-    label: 'GOVERNANCE',
-    items: [
-      { to: '/recommendations', title: 'Recommendations & XAI', icon: Compass },
-      { to: '/audit', title: 'Audit & Governance', icon: ShieldCheck },
-      { to: '/knowledge-map', title: 'Enterprise Knowledge Map', icon: GitBranch },
-    ],
-  },
-  {
-    label: 'ADMINISTRATION',
-    items: [
-      { to: '/data-sources', title: 'Data Sources', icon: Database },
-      { to: '/settings', title: 'Settings', icon: Settings },
-      { to: '/docs', title: 'Documentation', icon: BookOpen },
+      { to: '/data-sources', title: 'Data', illus: 'filebox' },
+      { to: '/advanced', title: 'Advanced', illus: 'testtube' },
     ],
   },
 ]
@@ -73,18 +41,7 @@ interface SidebarProps {
 }
 
 export function BrandLogo() {
-  return (
-    <span
-      className="flex h-8 w-8 items-center justify-center rounded-lg text-white flex-shrink-0"
-      style={{ background: 'var(--primary)' }}
-    >
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <rect x="3" y="13" width="4" height="8" rx="1" fill="currentColor" fillOpacity="0.85" />
-        <rect x="10" y="8" width="4" height="13" rx="1" fill="currentColor" fillOpacity="0.95" />
-        <rect x="17" y="4" width="4" height="17" rx="1" fill="currentColor" />
-      </svg>
-    </span>
-  )
+  return <img src={illus('airplane')} alt="" aria-hidden="true" width={30} height={30} className="flex-shrink-0" />
 }
 
 export function Sidebar({
@@ -98,26 +55,27 @@ export function Sidebar({
     <aside
       aria-label="Primary navigation"
       className={`dp-sidebar ${open ? 'sidebar-open' : ''}`}
+      style={{ background: 'linear-gradient(180deg,#14306b,#1b2c5c)', borderColor: 'transparent' }}
     >
       {/* Brand Header */}
       <div
         className={`flex items-center justify-between border-b px-4 py-3.5 ${
           collapsed ? 'lg:justify-center lg:px-2' : ''
         }`}
-        style={{ borderColor: 'var(--border)' }}
+        style={{ borderColor: 'rgba(255,255,255,0.12)' }}
       >
         <Link to="/" className="flex items-center gap-2.5 min-w-0">
           <BrandLogo />
           <div className={`min-w-0 ${collapsed ? 'lg:hidden' : ''}`}>
             <strong
               className="block text-sm font-bold tracking-tight truncate"
-              style={{ color: 'var(--heading)' }}
+              style={{ color: '#ffffff' }}
             >
-              DecisionPilot <span style={{ color: 'var(--primary)' }}>AI</span>
+              DecisionPilot <span style={{ color: '#fde68a' }}>AI</span>
             </strong>
             <small
               className="block text-[10px] font-medium tracking-wide truncate"
-              style={{ color: 'var(--text-secondary)' }}
+              style={{ color: '#c7d4ff' }}
             >
               {t('Decision Intelligence')}
             </small>
@@ -141,14 +99,14 @@ export function Sidebar({
           <div key={group.label} className="space-y-1">
             {!collapsed && (
               <div
-                className="px-2.5 pb-1 text-[10px] font-semibold tracking-wider uppercase"
-                style={{ color: 'var(--text-muted)' }}
+                className="px-2.5 pb-1 text-[11px] font-bold tracking-wider uppercase"
+                style={{ color: '#8fa3d6' }}
               >
                 {t(group.label)}
               </div>
             )}
             <nav className="space-y-0.5">
-              {group.items.map(({ to, title, icon: Icon, end }) => (
+              {group.items.map(({ to, title, illus: art, end }) => (
                 <NavLink
                   key={to}
                   to={to}
@@ -156,30 +114,28 @@ export function Sidebar({
                   title={t(title)}
                   aria-label={collapsed ? t(title) : undefined}
                   style={({ isActive }) =>
-                    isActive
-                      ? {
-                          background: 'var(--sidebar-active)',
-                          color: 'var(--primary-text)',
-                        }
-                      : {
-                          color: 'var(--text-secondary)',
-                        }
+                    isActive ? { background: 'rgba(255,255,255,0.14)', color: '#ffffff' } : { color: '#dbe4ff' }
                   }
                   className={({ isActive }) =>
-                    `group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] transition-colors ${
+                    `group flex min-h-[40px] items-center gap-3 rounded-xl px-2.5 py-2 text-[14px] transition-colors ${
                       isActive
                         ? 'font-semibold'
-                        : 'font-medium hover:bg-[var(--sidebar-hover)] hover:text-[var(--heading)]'
+                        : 'font-semibold hover:bg-white/10 hover:text-white'
                     } ${collapsed ? 'lg:justify-center lg:px-2' : ''}`
                   }
                 >
-                  <Icon size={17} className="flex-shrink-0" />
+                  <img src={illus(art)} alt="" aria-hidden="true" width={22} height={22} className="flex-shrink-0" />
                   <span className={`truncate ${collapsed ? 'lg:hidden' : ''}`}>{t(title)}</span>
                 </NavLink>
               ))}
             </nav>
           </div>
         ))}
+      </div>
+      <div className={`border-t px-3 py-3 ${collapsed ? 'lg:hidden' : ''}`} style={{ borderColor: 'rgba(255,255,255,0.12)' }}>
+        <Link to="/settings" className="block rounded-xl px-2.5 py-2 text-[13px] font-semibold text-[#c7d4ff] hover:bg-white/10 hover:text-white">
+          {t('Settings')}
+        </Link>
       </div>
     </aside>
   )

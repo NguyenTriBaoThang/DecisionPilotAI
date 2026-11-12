@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { QueryClient } from '@tanstack/react-query'
 import * as api from '../api'
 import { TryFirstPage } from '../redesign/TryFirstPage'
 import { OPTIONS, renderPage } from './redesignHelpers'
@@ -53,6 +54,18 @@ describe('TryFirstPage', () => {
       )
     )
     expect(await screen.findByText(/Đã ghi: Chọn làm/)).toBeTruthy()
+  })
+
+  it('refreshes recommendations and the decision log after a decision', async () => {
+    const spy = vi.spyOn(QueryClient.prototype, 'invalidateQueries')
+    renderPage(<TryFirstPage dataset={DATASET} options={OPTIONS} canEdit />, { route: ROUTE })
+    fireEvent.click(await screen.findByRole('button', { name: 'Chọn làm' }))
+    await waitFor(() => {
+      const keys = spy.mock.calls.map((c) => JSON.stringify(c[0]))
+      expect(keys).toContain(JSON.stringify({ queryKey: ['recommendations'] }))
+      expect(keys).toContain(JSON.stringify({ queryKey: ['audit'] }))
+    })
+    spy.mockRestore()
   })
 
   it('disables decisions for viewers', async () => {

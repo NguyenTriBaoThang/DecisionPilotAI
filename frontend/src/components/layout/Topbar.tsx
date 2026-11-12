@@ -424,20 +424,7 @@ export function Topbar({
           )}
         </div>
 
-        {/* Theme Switcher Quick Button */}
-        <button
-          type="button"
-          onClick={() => setDark(!dark)}
-          aria-label={dark ? t('Switch to light theme') : t('Switch to dark theme')}
-          className="flex h-8 w-8 items-center justify-center rounded-lg border hover:bg-[var(--surface-muted)] transition-colors"
-          style={{
-            background: 'var(--surface)',
-            borderColor: 'var(--border)',
-            color: 'var(--text-secondary)',
-          }}
-        >
-          {dark ? <Sun size={15} /> : <Moon size={15} />}
-        </button>
+        {/* Theme switcher hidden: light-only redesign (spec §6). */}
 
         {/* User Profile Menu */}
         <div className="relative" ref={profileRef}>

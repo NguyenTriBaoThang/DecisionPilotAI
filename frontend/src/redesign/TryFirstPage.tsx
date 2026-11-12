@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
 import { integer, moneyCompact, request, type Dataset, type Options, type Row, type Scenario } from '../api'
 import { useT } from '../preferences'
@@ -48,6 +48,7 @@ export function TryFirstPage({ dataset, options, canEdit }: { dataset?: Dataset;
   const [value, setValue] = useState(initialValue)
   const [rec, setRec] = useState(linked.rec)
 
+  const client = useQueryClient()
   const simulate = useMutation({ mutationFn: (body: unknown) => request<Scenario>('/simulate', body) })
   const feedback = useMutation({
     mutationFn: (decision: 'accepted' | 'rejected') =>
@@ -57,6 +58,10 @@ export function TryFirstPage({ dataset, options, canEdit }: { dataset?: Dataset;
         decision,
         ...(rec ? { recommendation_id: rec } : {}),
       }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ['recommendations'] })
+      void client.invalidateQueries({ queryKey: ['audit'] })
+    },
   })
 
   const run = (ty = type, tg = target, v = value) => {
