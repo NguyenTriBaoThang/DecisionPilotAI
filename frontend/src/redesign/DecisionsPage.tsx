@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { dateLabel, request, type Audit, type Dataset, type Options, type Recommendation } from '../api'
 import { useT } from '../preferences'
-import { decisionBucket, tryFirstHref } from './logic'
-import { ActionButton, EmptyState, Illus, PageHero, Pill, SectionLabel } from './ui'
+import { decisionBucket, impactItems, localizeRecTitle, sortByPriority, tryFirstHref } from './logic'
+import { ActionButton, EmptyState, formatMetric, Illus, PageHero, Pill, SectionLabel } from './ui'
 import type { IllusName } from './illustrations'
 
 const ICON_BY_PREFIX: Record<string, IllusName> = { marketing: 'megaphone', price: 'moneybag', inventory: 'package' }
@@ -13,6 +13,12 @@ const STATUS = {
   skipped: { key: 'Skipped', cls: 'bg-slate-100 text-slate-700' },
   pending: { key: 'Waiting', cls: 'bg-amber-100 text-amber-800' },
 } as const
+
+const PRIORITY: Record<string, { key: string; cls: string }> = {
+  high: { key: 'High priority', cls: 'bg-rose-100 text-rose-700' },
+  medium: { key: 'Medium priority', cls: 'bg-amber-100 text-amber-800' },
+  low: { key: 'Low priority', cls: 'bg-slate-100 text-slate-700' },
+}
 
 const FEEDBACK_KINDS = new Set(['recommendation_feedback', 'scenario_feedback'])
 const KIND_LABEL: Record<string, string> = { recommendation_feedback: 'Suggestion', scenario_feedback: 'Try first' }
@@ -64,7 +70,7 @@ export function DecisionsPage({ dataset, options, canEdit }: { dataset?: Dataset
     return <EmptyState title={t('No business data yet')} body={t('Upload a sales file to see your daily briefing.')} action={{ label: t('Go to Data'), to: '/data-sources' }} />
   }
 
-  const pending = (recs.data?.rows ?? []).filter((r) => decisionBucket(r.decision) === 'pending')
+  const pending = sortByPriority((recs.data?.rows ?? []).filter((r) => decisionBucket(r.decision) === 'pending'))
   // A Try-first decision on a recommendation writes scenario_feedback + recommendation_feedback with the same
   // simulation_id; show it once (the recommendation row carries the title).
   const linkedSims = new Set(
@@ -110,8 +116,23 @@ export function DecisionsPage({ dataset, options, canEdit }: { dataset?: Dataset
                 <li key={r.id} data-testid={`rec-${r.id}`} className="flex flex-wrap items-center gap-3 rounded-[18px] bg-white p-4 shadow-sm">
                   <Illus name={iconFor(r.id)} size={40} />
                   <div className="min-w-0 flex-1">
-                    <div className="font-extrabold text-slate-900">{t(r.title)}</div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-extrabold text-slate-900">{localizeRecTitle(r.title, t)}</span>
+                      {PRIORITY[r.priority] && <Pill className={PRIORITY[r.priority].cls}>{t(PRIORITY[r.priority].key)}</Pill>}
+                    </div>
+                    {r.context && <div className="mt-0.5 text-[13px] text-slate-700"><b>{t('Why:')}</b> {t(r.context)}</div>}
                     {r.action && <div className="text-xs text-slate-500">{r.action}</div>}
+                    {impactItems(r.expected_impact).length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {impactItems(r.expected_impact).map((x) => (
+                          <span key={x.label} className="rounded-xl bg-slate-50 px-2.5 py-1 text-[12px]">
+                            <span className="text-slate-500">{t(x.label)}</span>{' '}
+                            <b className={`tabular-nums ${!x.signed ? 'text-slate-800' : (x.value >= 0) === x.upIsGood ? 'text-emerald-700' : 'text-rose-600'}`}>{formatMetric(x.kind, x.value, x.signed)}</b>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {r.risk && <div className="mt-1.5 text-[12px] text-amber-800"><b>{t('Watch out:')}</b> {t(r.risk)}</div>}
                   </div>
                   <Pill className={STATUS.pending.cls}>{t(STATUS.pending.key)}</Pill>
                   <div className="flex flex-wrap gap-2">

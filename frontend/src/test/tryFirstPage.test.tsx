@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient } from '@tanstack/react-query'
 import * as api from '../api'
 import { TryFirstPage } from '../redesign/TryFirstPage'
@@ -43,9 +43,9 @@ describe('TryFirstPage', () => {
     await waitFor(() => expect(api.request).toHaveBeenCalledWith('/simulate', expect.objectContaining({ type: 'marketing' })))
     const body = vi.mocked(api.request).mock.calls.find((c) => c[0] === '/simulate')?.[1] as { parameters: { channel: string; changes: number[] } }
     expect(body.parameters).toEqual({ channel: 'Facebook Ads', changes: [-0.15] })
-    expect(await screen.findByText('Doanh thu')).toBeTruthy()
+    expect((await screen.findAllByText('Doanh thu')).length).toBeGreaterThan(0)
     expect(screen.getByText('Lãi')).toBeTruthy()
-    expect(screen.getByText('Tiền quảng cáo')).toBeTruthy()
+    expect(screen.getAllByText('Tiền quảng cáo').length).toBeGreaterThan(0)
     fireEvent.click(screen.getByRole('button', { name: 'Chọn làm' }))
     await waitFor(() =>
       expect(api.request).toHaveBeenCalledWith(
@@ -70,8 +70,25 @@ describe('TryFirstPage', () => {
 
   it('disables decisions for viewers', async () => {
     renderPage(<TryFirstPage dataset={DATASET} options={OPTIONS} canEdit={false} />, { route: ROUTE })
-    await screen.findByText('Doanh thu')
+    await screen.findAllByText('Doanh thu')
     expect((screen.getByRole('button', { name: 'Chọn làm' }) as HTMLButtonElement).disabled).toBe(true)
     expect((screen.getByRole('button', { name: 'Bỏ qua' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('shows a before/after table and the assumptions behind the estimate', async () => {
+    vi.mocked(api.request).mockImplementation(async (path: string) => {
+      if (path === '/simulate')
+        return { ...SIM, assumptions: ['Baseline is the latest 28 observed days.'], evidence: { historical_range: ['2026-09-03', '2026-09-30'] } } as never
+      throw new Error('unexpected ' + path)
+    })
+    renderPage(<TryFirstPage dataset={DATASET} options={OPTIONS} canEdit />, { route: ROUTE })
+    const table = await screen.findByRole('table', { name: 'So sánh trước / sau' })
+    expect(within(table).getByText('Hiện tại')).toBeTruthy()
+    expect(within(table).getByText('Nếu làm')).toBeTruthy()
+    const spend = within(table).getByText('Tiền quảng cáo').closest('tr') as HTMLElement
+    // Spend going down is good: the change cell is green.
+    expect(spend.querySelector('.text-emerald-700')?.textContent).toMatch(/^−/)
+    expect(screen.getByText('Baseline is the latest 28 observed days.')).toBeTruthy()
+    expect(screen.getByText(/Giả định của phép tính/)).toBeTruthy()
   })
 })

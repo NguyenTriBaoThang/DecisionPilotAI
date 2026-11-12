@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { decimal, integer, moneyCompact, percent } from '../api'
 import { illus, type IllusName } from './illustrations'
+import type { MetricKind } from './logic'
 
 export type Tone = 'today' | 'ask' | 'try' | 'decide' | 'neutral'
 
@@ -230,4 +232,12 @@ export function TechDetails({ summary, children }: { summary: string; children: 
       <div className="mt-4 space-y-5">{children}</div>
     </details>
   )
+}
+
+/** One number in the format its kind calls for; `signed` adds +/− (deltas). */
+export function formatMetric(kind: MetricKind, v: number, signed = false): string {
+  const sign = signed ? (v > 0 ? '+' : v < 0 ? '−' : '') : v < 0 ? '−' : ''
+  const a = Math.abs(v)
+  const body = kind === 'money' ? moneyCompact(a) : kind === 'pct' ? percent(a) : kind === 'ratio' ? decimal(a) + '×' : integer(a)
+  return sign + body
 }

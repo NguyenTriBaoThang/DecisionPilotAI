@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import * as api from '../api'
 import { AskPage } from '../redesign/AskPage'
 import { renderPage } from './redesignHelpers'
@@ -30,7 +30,7 @@ describe('AskPage', () => {
     expect(await screen.findByText('Which marketing channel had the lowest ROAS?')).toBeTruthy()
     await waitFor(() => expect(api.request).toHaveBeenCalledTimes(1))
     expect(vi.mocked(api.request).mock.calls[0]).toEqual(['/query', { question: 'Which marketing channel had the lowest ROAS?' }])
-    expect(await screen.findByText('0.76×')).toBeTruthy()
+    expect((await screen.findAllByText('0.76×')).length).toBeGreaterThan(0)
     expect(screen.getByText(/marketing_campaigns/)).toBeTruthy()
     expect(screen.getByRole('link', { name: /Try first/ }).getAttribute('href')).toBe('/scenarios?type=marketing')
   })
@@ -39,5 +39,14 @@ describe('AskPage', () => {
     renderPage(<AskPage canEdit />, { route: '/ask' })
     fireEvent.click(screen.getByRole('button', { name: /Doanh thu tháng này\?/ }))
     await waitFor(() => expect(api.request).toHaveBeenCalledWith('/query', { question: 'Doanh thu tháng này?' }))
+  })
+
+  it('shows the answer data as a table and the period it covers', async () => {
+    vi.mocked(api.request).mockResolvedValue({ ...ANSWER, trace: { ...ANSWER.trace, range: ['2026-09-01', '2026-09-30'] } } as never)
+    renderPage(<AskPage canEdit />, { route: '/ask?q=roas', language: 'en' })
+    const table = await screen.findByRole('table', { name: 'Answer data' })
+    expect(within(table).getByText('Google Ads')).toBeTruthy()
+    expect(within(table).getByText('3.89×')).toBeTruthy()
+    expect(screen.getByText(/Period:.*2026/)).toBeTruthy()
   })
 })

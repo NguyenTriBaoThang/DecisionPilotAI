@@ -3,7 +3,7 @@ import { Area, AreaChart, CartesianGrid, Cell, Legend, Pie, PieChart, Responsive
 import { compact, dateLabel, decimal, integer, moneyCompact, percent, request, shortDate, type Row, type Alert, type Dataset, type Forecast, type KPI, type Options, type Recommendation } from '../api'
 import { investigateHref } from '../investigate'
 import { useT } from '../preferences'
-import { briefingSentence, roasLabel, tryFirstHref } from './logic'
+import { briefingSentence, localizeRecTitle, roasLabel, tryFirstHref } from './logic'
 import { BarList, EmptyState, Illus, NoteCard, PageHero, Panel, SectionLabel, StatCard } from './ui'
 
 const ALERT_TITLE: Record<string, string> = {
@@ -142,7 +142,7 @@ export function TodayPage({ dataset, options }: { dataset?: Dataset; options?: O
               illus="bulb"
               pin
               title={t('Suggested next step')}
-              body={t(topRec.rec.title)}
+              body={localizeRecTitle(topRec.rec.title, t)}
               action={{ label: t('Try first'), to: topRec.href as string }}
             />
           )}

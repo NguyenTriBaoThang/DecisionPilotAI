@@ -108,4 +108,30 @@ describe('DecisionsPage', () => {
     const fb = await screen.findByTestId('rec-marketing:facebook')
     expect((within(fb).getByRole('button', { name: 'Chọn làm' }) as HTMLButtonElement).disabled).toBe(true)
   })
+
+  it('shows priority, reason, expected impact and risk, high priority first', async () => {
+    vi.mocked(api.request).mockImplementation(async (path: string) => {
+      if (path === '/recommendations')
+        return {
+          rows: [
+            { id: 'inventory:P001', title: 'Review replenishment for SmartDesk Mini', decision: 'pending', priority: 'medium', context: 'Current stock is below estimated lead-time sales.', expected_impact: { estimated_units_recovered: 111.75, purchase_commitment: 237600000 }, risk: 'Observed sales can be constrained by stock, and late receipts may leave unmet demand.' },
+            { id: 'marketing:facebook', title: 'Review Facebook Ads allocation', decision: 'pending', priority: 'high', context: 'Attributed return is below the recent baseline.', expected_impact: { contribution_profit_delta_vnd: 28820670 }, risk: 'Attribution can overstate incremental revenue.' },
+          ],
+        } as never
+      if (path.startsWith('/audit')) return { rows: [], next_before: null } as never
+      throw new Error('unexpected ' + path)
+    })
+    renderPage(<DecisionsPage dataset={DATASET} options={OPTIONS} canEdit />)
+    const fb = await screen.findByTestId('rec-marketing:facebook')
+    const cards = screen.getAllByTestId(/^rec-/)
+    expect(cards[0]).toBe(fb)
+    expect(within(fb).getByText('Ưu tiên cao')).toBeTruthy()
+    expect(within(fb).getByText(/Tiền thu về từ quảng cáo đang thấp hơn mức gần đây/)).toBeTruthy()
+    expect(within(fb).getByText('Lãi')).toBeTruthy()
+    expect(within(fb).getByText(/Số liệu quy cho quảng cáo có thể cao hơn thực tế/)).toBeTruthy()
+    const inv = screen.getByTestId('rec-inventory:P001')
+    expect(within(inv).getByText('Ưu tiên vừa')).toBeTruthy()
+    expect(within(inv).getByText('Tiền nhập hàng')).toBeTruthy()
+    expect(within(inv).getByText('Xem lại việc nhập thêm SmartDesk Mini')).toBeTruthy()
+  })
 })

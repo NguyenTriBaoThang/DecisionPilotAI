@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis } from 'recharts'
-import { decimal, moneyCompact, percent, request, type QueryResult } from '../api'
+import { dateLabel, request, type QueryResult, type Row } from '../api'
 import { useT } from '../preferences'
-import { highlightFromChart, scenarioForQuestion } from './logic'
-import { Illus, PageHero } from './ui'
+import { highlightFromChart, metricKind, scenarioForQuestion } from './logic'
+import { formatMetric, Illus, PageHero } from './ui'
 import type { IllusName } from './illustrations'
 
 type Turn = { id: number; question: string; result?: QueryResult; error?: boolean }
@@ -18,10 +18,36 @@ const CHIPS: { illus: IllusName; text: string }[] = [
 
 const BAR_COLORS = ['#fb7185', '#a78bfa', '#60a5fa', '#34d399', '#fbbf24']
 
-function formatHighlight(y: string, v: number) {
-  if (y === 'roas') return decimal(v) + '×'
-  if (y.includes('margin') || y.includes('conversion') || y.includes('share')) return percent(v)
-  return moneyCompact(v)
+const COLUMN_LABEL: Record<string, string> = { name: 'Name', revenue: 'Revenue', gross_profit: 'Gross profit', orders: 'Orders', units: 'Units', spend: 'Spend', roas: 'ROAS', margin: 'Margin' }
+
+function DataTable({ rows, t }: { rows: Row[]; t: (s: string) => string }) {
+  const cols = Object.keys(rows[0] ?? {})
+  return (
+    <details className="mt-2 rounded-xl border border-slate-200 px-3 py-2">
+      <summary className="cursor-pointer text-[13px] font-bold text-violet-700">{t('See the numbers ({n} rows)').replace('{n}', String(rows.length))}</summary>
+      <div className="mt-2 overflow-x-auto">
+        <table aria-label={t('Answer data')} className="w-full text-[12px]">
+          <thead>
+            <tr className="border-b border-slate-200 text-left text-slate-500">
+              {cols.map((c) => <th key={c} className={`py-1.5 pr-3 font-bold ${typeof rows[0][c] === 'number' ? 'text-right' : ''}`}>{t(COLUMN_LABEL[c] ?? c)}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={i} className="border-b border-slate-100 last:border-0">
+                {cols.map((c) => {
+                  const v = r[c]
+                  return typeof v === 'number'
+                    ? <td key={c} className="py-1.5 pr-3 text-right tabular-nums text-slate-700">{formatMetric(metricKind(c), v)}</td>
+                    : <td key={c} className="py-1.5 pr-3 font-semibold text-slate-800">{String(v ?? '')}</td>
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  )
 }
 
 export function AskPage(_props: { canEdit: boolean }) {
@@ -99,7 +125,7 @@ export function AskPage(_props: { canEdit: boolean }) {
                     <>
                       {hl && (
                         <div className="mb-1 flex items-baseline gap-2">
-                          <span className="text-2xl font-extrabold text-violet-700">{formatHighlight(hl.y, hl.value)}</span>
+                          <span className="text-2xl font-extrabold text-violet-700">{formatMetric(metricKind(hl.y), hl.value)}</span>
                           <span className="text-sm text-slate-500">{hl.name}</span>
                         </div>
                       )}
@@ -116,6 +142,12 @@ export function AskPage(_props: { canEdit: boolean }) {
                             </BarChart>
                           </ResponsiveContainer>
                         </div>
+                      )}
+                      {turn.result.chart && turn.result.chart.rows.length > 0 && <DataTable rows={turn.result.chart.rows} t={t} />}
+                      {turn.result.trace?.range?.length === 2 && (
+                        <p className="mt-2 text-xs text-slate-500">
+                          {t('Period:')} {dateLabel(turn.result.trace.range[0])} – {dateLabel(turn.result.trace.range[1])}
+                        </p>
                       )}
                       {turn.result.trace?.sources?.length ? (
                         <p className="mt-2 text-xs text-slate-500">

@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
-import { integer, moneyCompact, request, type Dataset, type Options, type Row, type Scenario } from '../api'
+import { dateLabel, integer, moneyCompact, request, type Dataset, type Options, type Row, type Scenario } from '../api'
 import { useT } from '../preferences'
-import { parseTryFirstParams, type ScenarioType } from './logic'
-import { ActionButton, EmptyState, Illus, PageHero } from './ui'
+import { compareRows, parseTryFirstParams, type ScenarioType } from './logic'
+import { ActionButton, EmptyState, formatMetric, Illus, PageHero, Panel, TechDetails } from './ui'
 import type { IllusName } from './illustrations'
 
 type Slider = { min: number; max: number; step: number; initial: number; format: (v: number) => string }
@@ -112,6 +112,8 @@ export function TryFirstPage({ dataset, options, canEdit }: { dataset?: Dataset;
   const revenueDelta = num(alt, 'revenue_delta')
   const profitDelta = num(alt, 'profit_delta')
   const decided = feedback.data?.decision
+  const compare = compareRows(type, base, alt)
+  const range = result?.evidence.historical_range as [string, string] | undefined
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-5 pb-10">
@@ -182,9 +184,47 @@ export function TryFirstPage({ dataset, options, canEdit }: { dataset?: Dataset;
             {third && <ResultCard label={third.label} text={third.text} good={third.good} />}
             <ResultCard label={t('Profit')} text={signedMoney(profitDelta)} good={(profitDelta ?? 0) >= 0} />
           </div>
+          {compare.length > 0 && (
+            <Panel title={t('Before / after')} illus="barchart">
+              <div className="overflow-x-auto">
+                <table aria-label={t('Before / after')} className="w-full min-w-[420px] text-[13px]">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
+                      <th className="py-2 font-bold">{t('Metric')}</th>
+                      <th className="py-2 text-right font-bold">{t('Now')}</th>
+                      <th className="py-2 text-right font-bold">{t('If you do it')}</th>
+                      <th className="py-2 text-right font-bold">{t('Change')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {compare.map((r) => {
+                      const d = r.after - r.before
+                      const tone = Math.abs(d) < 1e-9 ? 'text-slate-500' : (d > 0) === r.upIsGood ? 'text-emerald-700' : 'text-rose-600'
+                      return (
+                        <tr key={r.key} className="border-b border-slate-100 last:border-0">
+                          <td className="py-2 font-semibold text-slate-800">{t(r.label)}</td>
+                          <td className="py-2 text-right tabular-nums text-slate-600">{formatMetric(r.kind, r.before)}</td>
+                          <td className="py-2 text-right tabular-nums font-bold text-slate-900">{formatMetric(r.kind, r.after)}</td>
+                          <td className={`py-2 text-right tabular-nums font-bold ${tone}`}>{formatMetric(r.kind, d, true)}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </Panel>
+          )}
           <div className="-rotate-[0.4deg] rounded-md bg-amber-100 px-4 py-3 text-[13px] text-amber-950 shadow-sm">
             {t('This is an estimate from past data, not a promise. Try it small for a week first.')}
           </div>
+          {Boolean(result?.assumptions.length || range) && (
+            <TechDetails summary={t('Assumptions behind this estimate')}>
+              {range && <p className="text-sm text-slate-600">{t('Based on data from {from} to {to}.').replace('{from}', dateLabel(range[0])).replace('{to}', dateLabel(range[1]))}</p>}
+              <ul className="list-disc space-y-1 pl-5 text-sm text-slate-600">
+                {result?.assumptions.map((a) => <li key={a}>{t(a)}</li>)}
+              </ul>
+            </TechDetails>
+          )}
           <div className="flex flex-wrap items-center gap-3">
             <ActionButton tone="decide" disabled={!canEdit || feedback.isPending || Boolean(decided)} title={canEdit ? undefined : t('Viewers cannot record decisions')} onClick={() => feedback.mutate('accepted')}>
               {t('Choose')}

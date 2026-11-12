@@ -1,4 +1,4 @@
-import type { Alert, KPI, Options, QueryResult } from '../api'
+import type { Alert, KPI, Options, QueryResult, Row } from '../api'
 
 export type ScenarioType = 'marketing' | 'price' | 'inventory'
 
@@ -101,4 +101,68 @@ export function parseTryFirstParams(sp: URLSearchParams): TryFirstParams {
     rec: sp.get('rec') ?? undefined,
     autorun: raw != null || sp.get('autorun') === '1',
   }
+}
+
+export type MetricKind = 'money' | 'count' | 'pct' | 'ratio'
+
+/** Format family from a column name returned by /query or /simulate. */
+export function metricKind(key: string): MetricKind {
+  if (key === 'roas') return 'ratio'
+  if (/margin|conversion|share|rate/.test(key)) return 'pct'
+  if (/revenue|profit|spend|cost|price|commitment|value|aov|cac/.test(key)) return 'money'
+  return 'count'
+}
+
+export type CompareRow = { key: string; label: string; before: number; after: number; kind: MetricKind; upIsGood: boolean }
+
+// Order = reading order in the table. `risk` is unmet demand (units), `first_stockout_day` is a day number.
+const COMPARE: Record<ScenarioType, { key: string; label: string; upIsGood?: boolean }[]> = {
+  marketing: [
+    { key: 'revenue', label: 'Revenue' }, { key: 'gross_profit', label: 'Gross profit' }, { key: 'profit', label: 'Profit after ads' },
+    { key: 'spend', label: 'Ad spend', upIsGood: false }, { key: 'roas', label: 'Ad return (ROAS)' },
+    { key: 'leads', label: 'Interested people' }, { key: 'fulfilled', label: 'Orders' },
+  ],
+  price: [
+    { key: 'unit_price', label: 'Selling price' }, { key: 'revenue', label: 'Revenue' }, { key: 'gross_profit', label: 'Gross profit' },
+    { key: 'margin', label: 'Margin' }, { key: 'demand', label: 'Customer demand' }, { key: 'fulfilled', label: 'Units sold' },
+    { key: 'risk', label: 'Missed sales (units)', upIsGood: false },
+  ],
+  inventory: [
+    { key: 'revenue', label: 'Revenue' }, { key: 'gross_profit', label: 'Gross profit' }, { key: 'fulfilled', label: 'Units sold' },
+    { key: 'risk', label: 'Missed sales (units)', upIsGood: false }, { key: 'purchase_commitment', label: 'Purchase cost', upIsGood: false },
+    { key: 'first_stockout_day', label: 'First stock-out day' },
+  ],
+}
+
+export function compareRows(type: ScenarioType, base: Row | undefined, alt: Row | undefined): CompareRow[] {
+  if (!base || !alt) return []
+  return COMPARE[type].flatMap(({ key, label, upIsGood = true }) => {
+    const b = base[key], a = alt[key]
+    if (typeof b !== 'number' || typeof a !== 'number') return []
+    return [{ key, label, before: b, after: a, kind: key === 'first_stockout_day' ? 'count' : metricKind(key), upIsGood }]
+  })
+}
+
+const IMPACT: Record<string, { label: string; kind: MetricKind; signed: boolean; upIsGood: boolean }> = {
+  contribution_profit_delta_vnd: { label: 'Profit', kind: 'money', signed: true, upIsGood: true },
+  profit_delta_vnd: { label: 'Profit', kind: 'money', signed: true, upIsGood: true },
+  attributed_revenue_delta_vnd: { label: 'Revenue', kind: 'money', signed: true, upIsGood: true },
+  estimated_units_recovered: { label: 'Extra units sold', kind: 'count', signed: true, upIsGood: true },
+  avoided_stockout_units: { label: 'Extra units sold', kind: 'count', signed: true, upIsGood: true },
+  purchase_commitment: { label: 'Purchase cost', kind: 'money', signed: false, upIsGood: false },
+}
+
+export function impactItems(impact: Record<string, number> | null | undefined) {
+  return Object.entries(impact ?? {}).flatMap(([k, value]) => (IMPACT[k] && typeof value === 'number' ? [{ ...IMPACT[k], value }] : []))
+}
+
+const PRIORITY_RANK: Record<string, number> = { high: 0, medium: 1, low: 2 }
+export function sortByPriority<T extends { priority?: string }>(rows: T[]): T[] {
+  return [...rows].sort((a, b) => (PRIORITY_RANK[a.priority ?? ''] ?? 3) - (PRIORITY_RANK[b.priority ?? ''] ?? 3))
+}
+
+/** Backend titles are English templates; only the product name varies. */
+export function localizeRecTitle(title: string, t: (s: string) => string): string {
+  const m = /^Review replenishment for (.+)$/.exec(title)
+  return m ? t('Review replenishment for {name}').replace('{name}', m[1]) : t(title)
 }

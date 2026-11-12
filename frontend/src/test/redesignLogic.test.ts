@@ -99,3 +99,54 @@ describe('parseTryFirstParams', () => {
     expect(parseTryFirstParams(new URLSearchParams(''))).toMatchObject({ type: 'marketing', autorun: false })
   })
 })
+
+import { compareRows, impactItems, metricKind, sortByPriority } from '../redesign/logic'
+
+describe('compareRows (Try first before/after table)', () => {
+  const base = { revenue: 100, gross_profit: 40, profit: -60, margin: 0.4, spend: 200, roas: 0.5, leads: 1000, fulfilled: 50 }
+  const alt = { revenue: 90, gross_profit: 36, profit: -40, margin: 0.4, spend: 170, roas: 0.53, leads: 900, fulfilled: 46 }
+
+  it('lists marketing metrics with spend marked as lower-is-better', () => {
+    const rows = compareRows('marketing', base, alt)
+    expect(rows.map((r) => r.key)).toEqual(['revenue', 'gross_profit', 'profit', 'spend', 'roas', 'leads', 'fulfilled'])
+    expect(rows.find((r) => r.key === 'spend')).toMatchObject({ before: 200, after: 170, upIsGood: false, kind: 'money' })
+    expect(rows.find((r) => r.key === 'roas')?.kind).toBe('ratio')
+  })
+
+  it('skips metrics the scenario did not return and handles inventory fields', () => {
+    const rows = compareRows('inventory', { revenue: 1, fulfilled: 55, purchase_commitment: 0, risk: 150, first_stockout_day: 9 }, { revenue: 2, fulfilled: 95, purchase_commitment: 66, risk: 110, first_stockout_day: 9 })
+    expect(rows.map((r) => r.key)).toEqual(['revenue', 'fulfilled', 'risk', 'purchase_commitment', 'first_stockout_day'])
+    expect(rows.find((r) => r.key === 'risk')?.upIsGood).toBe(false)
+  })
+
+  it('returns nothing without a result', () => {
+    expect(compareRows('price', undefined, undefined)).toEqual([])
+  })
+})
+
+describe('impactItems (Decisions expected impact)', () => {
+  it('maps known impact keys to labelled, signed values and drops unknown keys', () => {
+    expect(impactItems({ contribution_profit_delta_vnd: 28820670, attributed_revenue_delta_vnd: -11220616, weird_key: 3 })).toEqual([
+      { label: 'Profit', value: 28820670, kind: 'money', signed: true, upIsGood: true },
+      { label: 'Revenue', value: -11220616, kind: 'money', signed: true, upIsGood: true },
+    ])
+    expect(impactItems({ estimated_units_recovered: 111.75, purchase_commitment: 237600000 })).toEqual([
+      { label: 'Extra units sold', value: 111.75, kind: 'count', signed: true, upIsGood: true },
+      { label: 'Purchase cost', value: 237600000, kind: 'money', signed: false, upIsGood: false },
+    ])
+    expect(impactItems(null)).toEqual([])
+  })
+})
+
+describe('metricKind / sortByPriority', () => {
+  it('guesses the format from the column name', () => {
+    expect(metricKind('revenue')).toBe('money')
+    expect(metricKind('gross_profit')).toBe('money')
+    expect(metricKind('units')).toBe('count')
+    expect(metricKind('margin')).toBe('pct')
+    expect(metricKind('roas')).toBe('ratio')
+  })
+  it('puts high priority first and keeps order otherwise', () => {
+    expect(sortByPriority([{ id: 'a', priority: 'medium' }, { id: 'b', priority: 'high' }, { id: 'c', priority: 'low' }, { id: 'd', priority: 'high' }]).map((x) => x.id)).toEqual(['b', 'd', 'a', 'c'])
+  })
+})
