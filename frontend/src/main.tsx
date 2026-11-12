@@ -14,7 +14,7 @@ import {
 } from './api'
 import { PreferencesProvider, usePageTranslations, usePreferences, useT } from './preferences'
 import { ErrorState, Loading, ToastProvider } from './ui'
-import { Dashboard } from './Dashboard'
+import { TodayPage } from './redesign/TodayPage'
 import { Alerts, Ask, ForecastPage, type ChatMessage } from './WorkspacePages'
 import { Sidebar, BrandLogo, navGroups } from './components/layout/Sidebar'
 import { Topbar } from './components/layout/Topbar'
@@ -321,7 +321,7 @@ function AppShell({ session }: { session: Session }) {
             <Routes key={`${companyId}:${ds.data.dataset_id}`}>
               <Route
                 path="/"
-                element={opts.data ? <Dashboard dataset={ds.data} options={opts.data} /> : <Loading />}
+                element={<TodayPage dataset={ds.data} options={opts.data} />}
               />
               <Route path="/ask" element={<Ask dataset={ds.data} options={opts.data} messages={messages} setMessages={setMessages} canEdit={session.role !== 'viewer'} />} />
               <Route path="/anomalies" element={<Alerts dataset={ds.data} />} />
