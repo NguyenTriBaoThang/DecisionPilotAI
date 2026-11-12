@@ -123,6 +123,34 @@ def test_llm_failure_falls_back_to_template(inv_env, monkeypatch):
         assert conn.scalar(sa.select(inv_cases.c.run_state).where(inv_cases.c.id == case_id)) == 'done'
 
 
+def test_build_options_returns_three_with_simulation_evidence(inv_env, investigated):
+    from datetime import date
+    from backend.app.investigation.strategy import build_options
+    case_id, summary, _ = investigated
+    with inv_env[1].connect() as conn:
+        from backend.app.analytics import dataset_info
+        info = dataset_info(conn)
+        options = build_options(conn, info, summary)
+    assert len(options) == 3 and options[0].key == 'hold'
+    assert all(o.simulation.get('result_type') == 'scenario estimate' for o in options[1:])
+
+
+def test_decide_is_idempotent(inv_env, investigated):
+    from datetime import date
+    from backend.app.db import inv_predictions, audit
+    from backend.app.investigation.strategy import decide
+    case_id = investigated[0]
+    first = decide(inv_env[1], case_id, 'hold', 'analyst-test', date(2026, 9, 30))
+    second = decide(inv_env[1], case_id, 'hold', 'analyst-test', date(2026, 9, 30))
+    assert first['id'] == second['id']
+    with inv_env[1].connect() as conn:
+        assert conn.scalar(sa.select(sa.func.count()).select_from(inv_predictions).where(inv_predictions.c.case_id == case_id)) == 1
+        assert conn.scalar(sa.select(sa.func.count()).select_from(audit).where(audit.c.kind == 'investigation_decision', audit.c.subject == case_id)) == 1
+    with pytest.raises(Exception) as exc:
+        decide(inv_env[1], case_id, 'price:P001:0.1', 'analyst-test', date(2026,9,30))
+    assert getattr(exc.value, 'status_code', None) == 409
+
+
 def test_migration_creates_investigation_tables(tmp_path, monkeypatch):
     url = 'sqlite:///' + str(tmp_path / 'investigation.sqlite')
     monkeypatch.setenv('DATABASE_URL', url)
