@@ -20,11 +20,13 @@ Thứ tự: **A → B → C → D → E**. Mỗi tầng chạy nhanh hơn tầng
 
 Chuyển ngôn ngữ ở Settings (VI mặc định) và lặp lại bước 1–2 ở EN, vì slide/pitch bằng tiếng Anh.
 
-### B1. Khởi động & Dashboard `/`
+> **Giao diện đã đổi (PR #17, 12/11):** 4 tab Hôm nay `/` · Hỏi AI `/ask` · Thử trước `/scenarios` · Quyết định `/decisions`; module cũ nằm trong Nâng cao `/advanced` (3D: `/advanced/simulator-3d`, copilot tài liệu: `/advanced/copilot`, khuyến nghị XAI `/recommendations`, kiểm toán `/audit`). B1, B5, B6 dưới đây đã cập nhật theo UI mới.
+
+### B1. Khởi động & Hôm nay `/`
 1. Mở http://localhost:8090 → trang tải, không lỗi console (F12).
-2. Thấy KPI: doanh thu, lợi nhuận gộp, biên, đơn, AOV, ROAS, tồn kho **kèm so sánh kỳ trước**.
+2. Thấy 8 thẻ chỉ số: doanh thu, lãi gộp (kèm biên), đơn, ROAS, giá trị đơn TB, khách mới/quay lại, chi quảng cáo, tỷ lệ chuyển đổi, **mỗi thẻ có ▲▼% so kỳ trước**; 3 ghi chú (cảnh báo, gợi ý, 30 ngày tới); biểu đồ theo ngày, kênh bán, top sản phẩm, khu vực, bảng ROAS.
    - Kỳ vọng (từ API): doanh thu ≈ 3,38 tỷ ₫ (T9), biên ≈ 39,6%, ROAS ≈ 2,76; kỳ trước doanh thu ≈ 4,87 tỷ → **giảm ~31%**.
-3. Đổi bộ lọc (khu vực/kênh/danh mục/SKU) → số thay đổi, không treo.
+3. Bấm **Xem vì sao** ở ghi chú vàng → sang Hỏi AI với câu hỏi đã gửi sẵn. (Trang Hôm nay không còn bộ lọc khu vực/kênh/SKU.)
 4. Bấm trang tài liệu (`/docs`) và nút quay lại.
 
 ### B2. Ask AI `/ask` — chạy lần lượt
@@ -54,17 +56,18 @@ Chuyển ngôn ngữ ở Settings (VI mặc định) và lặp lại bước 1�
 2. Đổi sang đơn hàng, nhu cầu, một danh mục, rồi SKU P001.
 3. **Lưu ý khi demo:** dự báo doanh thu toàn bộ là mô hình moving average → đường **phẳng** (~112 triệu ₫/ngày, dải 37–187 triệu). Hiển thị cảnh báo độ phủ nếu có. Cần chuẩn bị lời giải thích (cổng 2% chọn baseline vì LightGBM không đủ tốt hơn). SKU P001 mới dùng LightGBM.
 
-### B5. Scenario Simulator `/scenarios` (tính năng chính của pitch)
+### B5. Thử trước `/scenarios` (tính năng chính của pitch) + Bản 3D `/advanced/simulator-3d`
+0. Trang Thử trước: chọn Đổi giá / Quảng cáo / Nhập hàng, kéo thanh trượt, thả tay → 3 thẻ kết quả + bảng **So sánh trước / sau** + khối **Giả định của phép tính**; **Chọn làm** → "Đã ghi: Chọn làm" → **Xem quyết định**. Các bước 1–5 dưới đây làm ở Bản 3D.
 1. **Giá — P001**, mức giảm 0/5/10%: xem doanh thu, lợi nhuận, rủi ro hết hàng; có bảng độ nhạy ε±0,3. Kiểm tra: giảm giá nhiều thì doanh số tăng nhưng lợi nhuận có thể giảm.
 2. **Marketing — Facebook Ads**, ±15%/+30%: kết quả lõm (hiệu quả giảm dần); đọc cảnh báo "replay kém hơn baseline" nếu hiển thị.
 3. **Tồn kho — P003 (FocusCam Pro)**, nhập 100 cái, ngày về 1/7/14: xem ngày hết hàng thay đổi theo lead time.
 4. Đổi 3 chế độ 3D (Overview/Focus/Comparison), các tab Business/Pricing/Marketing/Inventory/Recommendations; thử trên màn hình nhỏ và kiểm tra có chậm/giật (bundle three.js 534 kB).
 5. Tab **AI Recommendations** → bấm **Accept scenario** → thông báo "Decision recorded: accepted"; bấm lại cùng quyết định → vẫn OK (idempotent); Reject → ghi nhận quyết định mới.
 
-### B6. Recommendations & Audit `/recommendations`
-1. Thấy danh sách khuyến nghị xếp hạng + ảnh hưởng ước tính + bằng chứng.
-2. Accept/Reject một khuyến nghị → trạng thái đổi.
-3. Bảng audit có dòng mới: loại `scenario_feedback`/recommendation, **người thực hiện** (`local-workspace`), bằng chứng đã xem.
+### B6. Quyết định `/decisions` (+ Nâng cao → Giải thích AI `/recommendations`, Nhật ký kiểm toán `/audit`)
+1. Thấy gợi ý đang chờ, ưu tiên cao lên đầu, mỗi thẻ có mức ưu tiên, vì sao, tác động dự kiến, lưu ý.
+2. Chọn làm / Bỏ qua một gợi ý → thẻ chuyển xuống *Nhật ký quyết định*, bộ đếm đổi.
+3. Nhật ký kiểm toán có dòng mới: loại `scenario_feedback`/recommendation, **người thực hiện** (`local-workspace`), bằng chứng đã xem.
 
 ### B7. Data Sources `/data-sources` & Settings `/settings`
 - Data Sources: thấy dataset ID, model `dp-1.1`, ô chọn file; chọn file sai định dạng → bị từ chối; nút "Replace snapshot" **bị khóa** cho tới khi tick xác nhận. **Không nhập token import trên dữ liệu đang demo** (sẽ thay dữ liệu và vô hiệu model — mặc định đã tắt `DEMO_ALLOW_IMPORT=false`).
@@ -100,8 +103,8 @@ Thu nhỏ trình duyệt (mobile): menu mở/đóng; thanh bên có link về do
 1. Dashboard: "Tháng 9 doanh thu giảm ~31%".
 2. Ask: "Why did revenue decrease this month?" → nêu nguyên nhân + trace.
 3. Anomaly: Facebook spend ×1,85 mà ROAS giảm.
-4. Simulator: giảm ngân sách Facebook / giảm giá P001 5% → so sánh lợi nhuận & rủi ro hết hàng.
-5. Accept scenario → mở audit: có người duyệt + bằng chứng.
+4. Quyết định → Thử trước: giảm ngân sách Facebook 15% → bảng trước / sau.
+5. Chọn làm → Xem quyết định: có người duyệt + thời điểm. (Kịch bản chi tiết: file 13.)
 6. Kết: "AI đề xuất, con người quyết định, mọi thứ có dấu vết".
 
 ## Ghi nhận khi chạy thử hôm nay

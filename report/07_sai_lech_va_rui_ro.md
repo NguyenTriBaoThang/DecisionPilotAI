@@ -46,12 +46,14 @@ Chọn **một nguồn sự thật = artifacts/**; sửa mọi tài liệu về 
 ## F. Rủi ro mới sau commit 11–12/11
 | # | Rủi ro | Bằng chứng | Mức |
 |---|---|---|---|
-| 1 | **CI `main` đỏ** — giám khảo mở repo thấy dấu ❌ | Backend test + e2e fail ở luồng OCR hóa đơn (file 05) | Cao |
+| 1 | **CI `main` đỏ** — giám khảo mở repo thấy dấu ❌. Sau PR #17 e2e còn tệ hơn: **6/9 test fail** (trước 1) | Backend: test OCR. E2e: nút Choose bị khóa trên backend e2e, các test module cũ chưa theo route mới (file 05) | **Cao** |
 | 2 | OCR chỉ chạy trên Windows/tesseract; Docker không cài → tính năng "đọc hóa đơn ảnh" hỏng khi demo bằng Docker | `ocr_and_extractors.py:53-123`, `Dockerfile` | Cao nếu đưa vào demo |
-| 3 | Commit file không nên có: `decisionpilot.db`, `test-results/.last-run.json`, 5 file `artifacts/tenant_*.joblib` (dữ liệu/mô hình tenant thử nghiệm) | `git ls-files` | Trung bình |
+| 3 | Commit file không nên có: `decisionpilot.db`, `test-results/.last-run.json`, **6** file `artifacts/tenant_*.joblib` (thêm 1 ở `2e58835`) (dữ liệu/mô hình tenant thử nghiệm) | `git ls-files` | Trung bình |
 | 4 | Phạm vi phình to sát hạn: 6 module "enterprise" (~200 file) trong 1 đêm, chưa có trong `COMPETITION_SUBMISSION.md`, khó để cả đội giải thích trong Q&A | git log 11/11 | Trung bình |
 | 5 | Số RAG eval toàn 1.0 trên bộ test tự soạn rất nhỏ — dễ bị hỏi vặn | `artifacts/rag_evaluation_report.json` | Thấp nếu trình bày đúng |
 | 7 | ~~ĐÃ SỬA 12/11 (`db.json_serializer`)~~ `GET /v1/recommendations` (XAI governance) trả 500 trên Postgres — Docker demo dùng Postgres nên trang khuyến nghị XAI cũ hỏng khi demo | `TypeError: Object of type Decimal is not JSON serializable`, `governance/service.py:2072` | Trung bình (UI mới không dùng API này) |
-| 6 | Lineage SSE lỗi `created_at` (bảng `ingestion_jobs` không có cột này) | `lineage/router.py:105`, log CI | Thấp |
+| 6 | ~~ĐÃ SỬA 12/11 (`2e58835`)~~ Lineage lỗi `KeyError: 'created_at'` (bảng `datasets` không có cột này). Bản sửa dùng `max(datasets.id)` — id dạng chuỗi, không phản ánh thời gian | `lineage/router.py` | Thấp |
+| 8 | **Ảnh slide/video cũ**: `screenshots/demo-flow/` chụp giao diện trước PR #17 (menu Recommendations, Dashboard cũ) — không khớp app hiện tại | so với `screenshots/redesign/` | Cao (giám khảo đối chiếu video với app) |
+| 9 | Một số câu từ backend vẫn tiếng Anh trên UI tiếng Việt: dòng "nên làm gì" của gợi ý, danh sách giả định, câu trả lời Hỏi AI | `services.py` sinh câu ghép số | Thấp (demo quay bằng EN) |
 
-**Khuyến nghị:** giữ câu chuyện demo cốt lõi (Cảnh báo → Ask → Thử trước → Quyết định, file 13); 6 module mới chỉ nhắc 1 slide "Roadmap đã có bản chạy" thay vì đưa vào video.
+**Khuyến nghị:** giữ câu chuyện demo cốt lõi (Hôm nay → Hỏi AI → Quyết định → Thử trước → Chọn làm, file 13); 6 module mới chỉ nhắc 1 slide "Roadmap đã có bản chạy" thay vì đưa vào video.
