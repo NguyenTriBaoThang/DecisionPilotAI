@@ -34,6 +34,36 @@ def advance(engine, company_id: str, days: int) -> dict:
                 is_weekend=d.weekday()>=5,is_holiday=False,event_name=None,promotion_flag=False))
             active=conn.execute(sa.select(inv_predictions.c.option_key).join(inv_cases,inv_predictions.c.case_id==inv_cases.c.id)
                 .where(inv_cases.c.company_id==company_id,inv_predictions.c.status=='tracking',inv_predictions.c.start_date<d)).scalars().all()
+            campaigns={}
+            prior_campaigns=conn.execute(sa.select(marketing.c.channel,
+                *(sa.func.sum(marketing.c[name]) for name in ('spend','impressions','clicks','leads','orders','attributed_revenue')))
+                .where(marketing.c.date.between(d-timedelta(days=28),d-timedelta(days=1)))
+                .group_by(marketing.c.channel).order_by(marketing.c.channel)).all()
+            for idx,(ad_channel,spend,impressions,clicks,leads,orders,attributed) in enumerate(prior_campaigns):
+                factor=1.0
+                for key in active:
+                    parts=key.split(':')
+                    if len(parts)==3 and parts[0]=='marketing' and parts[1]==ad_channel:
+                        factor*=1+float(parts[2])
+                campaign_id=f'FUT{d:%Y%m%d}{idx:02d}'
+                campaigns[ad_channel]=campaign_id
+                daily_impressions=max(0,round(float(impressions or 0)/28*factor))
+                daily_clicks=min(daily_impressions,max(0,round(float(clicks or 0)/28*factor)))
+                daily_leads=min(daily_clicks,max(0,round(float(leads or 0)/28*factor)))
+                daily_orders=min(daily_leads,max(0,round(float(orders or 0)/28*factor)))
+                conn.execute(marketing.insert().values(campaign_id=campaign_id,date=d,channel=ad_channel,
+                    campaign_name=f'Kênh {ad_channel}',spend=max(0,round(float(spend or 0)/28*factor)),
+                    impressions=daily_impressions,clicks=daily_clicks,leads=daily_leads,orders=daily_orders,
+                    attributed_revenue=max(0,round(float(attributed or 0)/28*factor**TRUE_MARKETING_EXPONENT))))
+            physical=conn.execute(sa.select(products).where(products.c.is_physical.is_(True))).mappings().all()
+            stock={}
+            for prod in physical:
+                sku=prod['product_id']
+                old=conn.execute(sa.select(inventory.c.closing_stock).where(inventory.c.product_id==sku,
+                    inventory.c.date<d).order_by(inventory.c.date.desc()).limit(1)).scalar_one_or_none()
+                opening=int(old if old is not None else prod['current_stock'])
+                received=max(0,int(prod['reorder_point'] or 0)*2) if opening<=int(prod['reorder_point'] or 0) else 0
+                stock[sku]=(opening,received,opening+received)
             recent=conn.execute(sa.select(sales.c.product_id,sales.c.region,sales.c.sales_channel,
                 sa.func.count(),sa.func.avg(sales.c.quantity)).where(sales.c.date.between(d-timedelta(days=28),d-timedelta(days=1)))
                 .group_by(sales.c.product_id,sales.c.region,sales.c.sales_channel)).all()
@@ -43,31 +73,33 @@ def advance(engine, company_id: str, days: int) -> dict:
                 prod=conn.execute(sa.select(products).where(products.c.product_id==sku)).mappings().first()
                 expected=float(count or 0)/28
                 price_multiplier=1.0
+                ad_channel=tuple(campaigns)[int(rng.integers(0,len(campaigns)))] if campaigns else None
                 for key in active:
                     parts=key.split(':')
                     if len(parts)==3 and parts[0]=='price' and parts[1]==sku:
                         discount=float(parts[2]); price_multiplier*=1-discount
                         expected*= (1-discount)**float(prod['elasticity'])
-                    elif len(parts)==3 and parts[0]=='marketing' and parts[1]==channel:
+                    elif len(parts)==3 and parts[0]=='marketing' and parts[1]==ad_channel:
                         expected*= (1+float(parts[2]))**TRUE_MARKETING_EXPONENT
                 if not customer_ids: continue
                 orders=int(rng.poisson(max(0,expected)))
                 if not orders: continue
                 qty=max(1,int(round(orders*float(avg or 1))))
+                if sku in stock:
+                    qty=min(qty,stock[sku][2]-sold_by_product.get(sku,0))
+                    if qty<=0: continue
                 price=max(1,int(round(prod['list_price']*price_multiplier)))
                 cost=int(prod['unit_cost']); tid=f'T{d:%Y%m%d}{i:05d}'
                 cust=customer_ids[int(rng.integers(0,len(customer_ids)))]
                 conn.execute(sales.insert().values(transaction_id=tid,date=d,customer_id=cust,product_id=sku,quantity=qty,
                     unit_price=price,discount_pct=0,revenue=price*qty,unit_cost=cost,total_cost=cost*qty,
-                    gross_profit=(price-cost)*qty,region=region,sales_channel=channel,campaign_id=None))
+                    gross_profit=(price-cost)*qty,region=region,sales_channel=channel,
+                    campaign_id=campaigns.get(ad_channel)))
                 sold_by_product[sku]=sold_by_product.get(sku,0)+qty
-            for prod in conn.execute(sa.select(products).where(products.c.is_physical.is_(True))).mappings():
+            for prod in physical:
                 sku=prod['product_id']
-                old=conn.execute(sa.select(inventory.c.closing_stock).where(inventory.c.product_id==sku,
-                    inventory.c.date<d).order_by(inventory.c.date.desc()).limit(1)).scalar_one_or_none()
-                opening=int(old if old is not None else prod['current_stock'])
-                received=max(0,int(prod['reorder_point'] or 0)*2) if opening<=int(prod['reorder_point'] or 0) else 0
-                sold=min(sold_by_product.get(sku,0),opening+received)
+                opening,received,_=stock[sku]
+                sold=sold_by_product.get(sku,0)
                 closing=opening+received-sold
                 conn.execute(inventory.insert().values(date=d,product_id=sku,opening_stock=opening,received_qty=received,
                     sold_qty=sold,closing_stock=closing,stockout_flag=closing==0))

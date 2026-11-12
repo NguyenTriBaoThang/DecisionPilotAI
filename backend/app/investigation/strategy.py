@@ -8,7 +8,8 @@ from fastapi import HTTPException
 
 from backend.app import services
 from backend.app.analytics import dataset_info
-from backend.app.db import inv_cases, inv_predictions, products, sales, marketing
+from backend.app.db import inv_cases, inv_predictions, products, sales, marketing, customers
+from backend.app.investigation.decomposition import SOURCE, month_periods
 from backend.app.governance.hash_chain import append_audited_event
 from backend.app.governance.service import _compute_forecast_xai
 from backend.app.investigation.evidence import Evidence
@@ -43,13 +44,32 @@ def _attach_xai(conn, info, simulation, scope, target):
         conn, info, services.artifact(info), target=target, scope=scope)
 
 
+def _lost_revenue_skus(conn, info, cause_key=None):
+    current, prior = month_periods(date.fromisoformat(info['end'][:10]))
+    def totals(period):
+        start,end=period
+        query=sa.select(sales.c.product_id,sa.func.sum(sales.c.revenue)).select_from(SOURCE).where(
+            sales.c.date.between(start,end))
+        if cause_key:
+            dimension,_,value=cause_key.partition(':')
+            column={'region':sales.c.region,'segment':customers.c.customer_segment,
+                    'marketing':marketing.c.channel}.get(dimension)
+            if column is not None: query=query.where(column==value)
+        return {sku:float(revenue)/((end-start).days+1) for sku,revenue in
+                conn.execute(query.group_by(sales.c.product_id))}
+    now,old=totals(current),totals(prior)
+    eligible={sku for sku, in conn.execute(sa.select(sales.c.product_id).where(
+        sales.c.date.between(current[1]-timedelta(days=89),current[1])).distinct())}
+    return sorted(eligible,key=lambda sku:(now.get(sku,0)-old.get(sku,0),sku))
+
+
 def build_options(conn, info: dict, summary: dict) -> list[Option]:
     if summary.get("sufficiency", {}).get("level") == "refused":
         return []
     causes = [c for c in summary.get("causes", []) if c["key"] not in {"demand", "other"}]
     primary = max(causes, key=lambda c: abs(c["delta_daily"]), default=None)
     channel = primary["key"].split(":", 1)[1] if primary and primary["key"].startswith("marketing:") else None
-    sku = conn.execute(sa.select(products.c.product_id).order_by(products.c.list_price.desc()).limit(2)).scalars().all()
+    sku = _lost_revenue_skus(conn,info,primary['key'] if primary else None)
     if not sku:
         raise HTTPException(422, "Không có sản phẩm để mô phỏng phương án giá.")
     metric = "gross_profit" if channel else "revenue"
@@ -79,15 +99,18 @@ def build_options(conn, info: dict, summary: dict) -> list[Option]:
     delta = float(alternate.get("profit_delta" if channel else "revenue_delta", 0)) / denom
     options.append(Option(key, "Điều chỉnh theo nguyên nhân chính", metric, scope, delta, delta*factor, 14, result,
                           [_evidence("strategist", "Dự báo mô phỏng có điều kiện.", {"delta_pct": delta}, result, info)]))
+    returning = next((c for c in causes if c['key']=='segment:Returning'),None)
+    second_candidates = _lost_revenue_skus(conn,info,'segment:Returning') if returning else sku[1:]
+    second_sku = (second_candidates or sku)[0]
     request2 = PriceRequest(type="price", objective="profit", horizon=14,
-                            parameters=PriceParams(product=sku[min(1, len(sku)-1)], discounts=[0.05]))
+                            parameters=PriceParams(product=second_sku, discounts=[0.05]))
     result2 = services.simulate(conn, info, request2)
-    _attach_xai(conn,info,result2,f'sku:{sku[min(1,len(sku)-1)]}','demand')
+    _attach_xai(conn,info,result2,f'sku:{second_sku}','demand')
     alternate2 = result2["alternatives"][0]
     denom2 = float(result2["baseline"].get("revenue") or 1)
     delta2 = float(alternate2.get("revenue_delta", 0)) / denom2
-    key2 = f"price:{sku[min(1, len(sku)-1)]}:0.05"
-    options.append(Option(key2, "Giảm giá nhẹ cho sản phẩm chủ lực", "revenue", {"product": sku[min(1, len(sku)-1)]}, delta2, delta2*factor, 14, result2,
+    key2 = f"price:{second_sku}:0.05"
+    options.append(Option(key2, "Giảm giá nhẹ cho sản phẩm chủ lực", "revenue", {"product": second_sku}, delta2, delta2*factor, 14, result2,
                           [_evidence("strategist", "Dự báo mô phỏng có điều kiện.", {"delta_pct": delta2}, result2, info)]))
     try:
         quality = services.model_quality(info)

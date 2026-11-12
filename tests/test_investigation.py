@@ -137,6 +137,17 @@ def test_build_options_returns_three_with_simulation_evidence(inv_env, investiga
     assert all(o.evidence[0].shap is not None for o in options[1:])
 
 
+def test_marketing_option_uses_14_day_simulation_and_quality_gate(inv_env, investigated):
+    from backend.app.investigation.strategy import build_options
+    from backend.app.analytics import dataset_info
+    summary={**investigated[1], 'causes':[{'key':'marketing:Facebook Ads','delta_daily':-1}]}
+    with inv_env[1].connect() as conn:
+        options=build_options(conn,dataset_info(conn),summary)
+    assert options[1].key=='marketing:Facebook Ads:-0.3'
+    assert options[1].simulation['evidence']['parameters']['horizon']==14
+    assert any(e.numbers.get('wape',0)>.30 for e in options[1].evidence)
+
+
 def test_decide_is_idempotent(inv_env, investigated):
     from datetime import date
     from backend.app.db import inv_predictions, audit
