@@ -1,0 +1,137 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import * as api from '../api'
+import { DecisionsPage } from '../redesign/DecisionsPage'
+import { OPTIONS, renderPage } from './redesignHelpers'
+
+vi.mock('../api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../api')>()
+  return { ...actual, request: vi.fn() }
+})
+
+const DATASET = { dataset_id: 'd1', kind: 'demo', start: '2025-01-01', end: '2026-09-30', title: 'Demo', counts: {} } as api.Dataset
+
+beforeEach(() => {
+  vi.mocked(api.request).mockReset()
+  vi.mocked(api.request).mockImplementation(async (path: string) => {
+    if (path === '/recommendations')
+      return {
+        rows: [
+          { id: 'marketing:facebook', title: 'Review Facebook Ads allocation', decision: 'pending' },
+          { id: 'sales:decline', title: 'Investigate the largest product contribution', decision: 'pending' },
+          { id: 'inventory:P001', title: 'Review replenishment for SmartDesk Mini', decision: 'accepted' },
+        ],
+      } as never
+    if (path.startsWith('/audit'))
+      return {
+        rows: [
+          { id: 2, occurred_at: '2026-11-12T09:00:00+07:00', kind: 'scenario_feedback', subject: 'sim-1', payload: { decision: 'accepted', actor: 'chi-lan' } },
+          { id: 1, occurred_at: '2026-11-10T09:00:00+07:00', kind: 'recommendation_feedback', subject: 'price:P001', payload: { decision: 'rejected', actor: 'chi-lan', recommendation: { title: 'Discount SmartDesk 10%' } } },
+        ],
+        next_before: null,
+      } as never
+    if (path === '/recommendations/feedback') return { ok: true } as never
+    throw new Error('unexpected ' + path)
+  })
+})
+
+describe('DecisionsPage', () => {
+  it('counts chosen / skipped / pending and lists pending suggestions first', async () => {
+    renderPage(<DecisionsPage dataset={DATASET} options={OPTIONS} canEdit />)
+    await waitFor(() => {
+      expect(within(screen.getByTestId('count-chosen')).getByText('1')).toBeTruthy()
+      expect(within(screen.getByTestId('count-skipped')).getByText('1')).toBeTruthy()
+      expect(within(screen.getByTestId('count-pending')).getByText('2')).toBeTruthy()
+    })
+
+    const fb = screen.getByTestId('rec-marketing:facebook')
+    expect(within(fb).getByRole('link', { name: 'Thử trước' }).getAttribute('href')).toContain('/scenarios?type=marketing')
+    const sales = screen.getByTestId('rec-sales:decline')
+    expect(within(sales).queryByRole('link', { name: 'Thử trước' })).toBeNull()
+
+    fireEvent.click(within(sales).getByRole('button', { name: 'Bỏ qua' }))
+    await waitFor(() =>
+      expect(api.request).toHaveBeenCalledWith('/recommendations/feedback', expect.objectContaining({ recommendation_id: 'sales:decline', decision: 'rejected' }))
+    )
+  })
+
+  it('shows each logged decision with actor, title and status', async () => {
+    renderPage(<DecisionsPage dataset={DATASET} options={OPTIONS} canEdit />)
+    const row = await screen.findByTestId('log-1')
+    expect(within(row).getByText('Discount SmartDesk 10%')).toBeTruthy()
+    expect(within(row).getByText(/chi-lan/)).toBeTruthy()
+    expect(within(row).getByText('Đã bỏ qua')).toBeTruthy()
+    expect(within(screen.getByTestId('log-2')).getByText('Đã chọn làm')).toBeTruthy()
+  })
+
+  it('merges the two log rows one Try-first decision produces', async () => {
+    vi.mocked(api.request).mockImplementation(async (path: string) => {
+      if (path === '/recommendations') return { rows: [] } as never
+      return {
+        rows: [
+          { id: 4, occurred_at: '2026-11-12T09:01:00+07:00', kind: 'recommendation_feedback', subject: 'marketing:facebook', payload: { decision: 'accepted', actor: 'a', simulation_id: 'sim-9', recommendation: { title: 'Review Facebook Ads allocation' } } },
+          { id: 3, occurred_at: '2026-11-12T09:01:00+07:00', kind: 'scenario_feedback', subject: 'sim-9', payload: { decision: 'accepted', actor: 'a', simulation_id: 'sim-9' } },
+        ],
+        next_before: null,
+      } as never
+    })
+    renderPage(<DecisionsPage dataset={DATASET} options={OPTIONS} canEdit />)
+    await screen.findByTestId('log-4')
+    expect(screen.queryByTestId('log-3')).toBeNull()
+    expect(within(screen.getByTestId('count-chosen')).getByText('1')).toBeTruthy()
+  })
+
+  it('titles Try-first decisions from their request, translates the kind, hides non-feedback rows, flags capped counts', async () => {
+    vi.mocked(api.request).mockImplementation(async (path: string) => {
+      if (path === '/recommendations') return { rows: [] } as never
+      return {
+        rows: [
+          { id: 9, occurred_at: '2026-11-12T09:00:00+07:00', kind: 'scenario_feedback', subject: 'a'.repeat(64), payload: { decision: 'accepted', actor: 'a', simulation_id: 'x', request: { type: 'marketing', parameters: { channel: 'Facebook Ads', changes: [-0.15] } } } },
+          { id: 8, occurred_at: '2026-11-12T08:00:00+07:00', kind: 'recommendation_action', subject: 'r1', payload: { action: 'comment' } },
+        ],
+        next_before: 8,
+      } as never
+    })
+    renderPage(<DecisionsPage dataset={DATASET} options={OPTIONS} canEdit />)
+    const row = await screen.findByTestId('log-9')
+    expect(row.textContent).toContain('Facebook Ads')
+    expect(row.textContent).not.toContain('a'.repeat(64))
+    expect(row.textContent).not.toContain('scenario_feedback')
+    expect(within(row).getByText(/Thử trước/)).toBeTruthy()
+    expect(screen.queryByTestId('log-8')).toBeNull()
+    await waitFor(() => expect(within(screen.getByTestId('count-chosen')).getByText('1+')).toBeTruthy())
+    expect(vi.mocked(api.request).mock.calls.some((c) => String(c[0]).includes('limit=100'))).toBe(true)
+  })
+
+  it('disables decisions for viewers', async () => {
+    renderPage(<DecisionsPage dataset={DATASET} options={OPTIONS} canEdit={false} />)
+    const fb = await screen.findByTestId('rec-marketing:facebook')
+    expect((within(fb).getByRole('button', { name: 'Chọn làm' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('shows priority, reason, expected impact and risk, high priority first', async () => {
+    vi.mocked(api.request).mockImplementation(async (path: string) => {
+      if (path === '/recommendations')
+        return {
+          rows: [
+            { id: 'inventory:P001', title: 'Review replenishment for SmartDesk Mini', decision: 'pending', priority: 'medium', context: 'Current stock is below estimated lead-time sales.', expected_impact: { estimated_units_recovered: 111.75, purchase_commitment: 237600000 }, risk: 'Observed sales can be constrained by stock, and late receipts may leave unmet demand.' },
+            { id: 'marketing:facebook', title: 'Review Facebook Ads allocation', decision: 'pending', priority: 'high', context: 'Attributed return is below the recent baseline.', expected_impact: { contribution_profit_delta_vnd: 28820670 }, risk: 'Attribution can overstate incremental revenue.' },
+          ],
+        } as never
+      if (path.startsWith('/audit')) return { rows: [], next_before: null } as never
+      throw new Error('unexpected ' + path)
+    })
+    renderPage(<DecisionsPage dataset={DATASET} options={OPTIONS} canEdit />)
+    const fb = await screen.findByTestId('rec-marketing:facebook')
+    const cards = screen.getAllByTestId(/^rec-/)
+    expect(cards[0]).toBe(fb)
+    expect(within(fb).getByText('Ưu tiên cao')).toBeTruthy()
+    expect(within(fb).getByText(/Tiền thu về từ quảng cáo đang thấp hơn mức gần đây/)).toBeTruthy()
+    expect(within(fb).getByText('Lãi')).toBeTruthy()
+    expect(within(fb).getByText(/Số liệu quy cho quảng cáo có thể cao hơn thực tế/)).toBeTruthy()
+    const inv = screen.getByTestId('rec-inventory:P001')
+    expect(within(inv).getByText('Ưu tiên vừa')).toBeTruthy()
+    expect(within(inv).getByText('Tiền nhập hàng')).toBeTruthy()
+    expect(within(inv).getByText('Xem lại việc nhập thêm SmartDesk Mini')).toBeTruthy()
+  })
+})

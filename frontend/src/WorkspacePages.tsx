@@ -67,6 +67,7 @@ import {
 } from './ui'
 import { Scenario3DLandscape } from './components/Scenario3DLandscape'
 import { useT } from './preferences'
+import { PageHero, TechDetails } from './redesign/ui'
 export { ScenarioSimulator3D } from './features/scenario-simulator/components/ScenarioSimulator3D'
 
 function Contribution({
@@ -200,11 +201,7 @@ export function Alerts({ dataset }: { dataset: Dataset }) {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        eyebrow="RISK RADAR & ANOMALY DETECTION"
-        title="Anomaly Center"
-        subtitle="Monitor sudden revenue contractions, ad spend spikes, margin pressure and stockout risks detected via Hybrid Isolation Forest & Rolling Z-Scores."
-      />
+      <PageHero tone="neutral" illus="warning" title={t('Warning details')} subtitle={t('Numbers that moved far from normal, ranked by how much they matter.')} />
 
       {/* Severity Overview Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -467,6 +464,7 @@ export function Alerts({ dataset }: { dataset: Dataset }) {
 
       {/* All Anomalies Structured Table */}
       {allAlerts.length > 0 && (
+        <TechDetails summary={t('Full warning log')}>
         <Card>
           <SectionHeader title="Anomaly Detection Log" detail="Full tabular breakdown of flagged deviations" />
           <Table
@@ -507,6 +505,7 @@ export function Alerts({ dataset }: { dataset: Dataset }) {
             ]}
           />
         </Card>
+        </TechDetails>
       )}
 
       <ModelQuality datasetId={dataset.dataset_id} />
@@ -515,6 +514,7 @@ export function Alerts({ dataset }: { dataset: Dataset }) {
 }
 
 export function ForecastPage({ dataset, options }: { dataset?: Dataset; options: Options }) {
+  const { t } = useT()
   const [target, setTarget] = useState('revenue')
   const [scope, setScope] = useState('')
   const [horizon, setHorizon] = useState('30')
@@ -573,16 +573,13 @@ export function ForecastPage({ dataset, options }: { dataset?: Dataset; options:
   const driverRows = result
     ? Object.entries(result.drivers)
         .map(([name, value]) => ({ name, value: Number(value) || 0 }))
+        .filter((r) => r.value > 0) // drivers of a non-ML baseline (e.g. method=0) carry no information
         .sort((a, b) => b.value - a.value)
     : []
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        eyebrow="PREDICTIVE INTELLIGENCE"
-        title="Forecast Center"
-        subtitle="Compare baseline and LightGBM forecasts using historical holdout errors and empirical prediction intervals."
-      />
+      <PageHero tone="neutral" illus="crystal" title={t('Forecast details')} subtitle={t('How much you will likely sell, and how accurate past forecasts were.')} />
 
       <FilterBar>
         <Select
@@ -729,6 +726,7 @@ export function ForecastPage({ dataset, options }: { dataset?: Dataset; options:
             </div>
           </Card>
 
+          <TechDetails summary={t('Technical details: reliability and model comparison')}>
           {result.warnings?.length > 0 && (
             <Card>
               <SectionHeader title="Forecast reliability" detail={result.interval_method} />
@@ -762,7 +760,7 @@ export function ForecastPage({ dataset, options }: { dataset?: Dataset; options:
               />
             </Card>
 
-            <Card>
+            {driverRows.length > 0 && <Card>
               <SectionHeader title="Model Feature Drivers" detail="Global feature importance gain" />
               {driverRows.length > 0 && (
                 <div className="mb-4">
@@ -784,8 +782,9 @@ export function ForecastPage({ dataset, options }: { dataset?: Dataset; options:
                 ]}
               />
               <Source>Sales Transactions · Versioned Artifact Bundle {result.model_version}</Source>
-            </Card>
+            </Card>}
           </div>
+          </TechDetails>
         </div>
       )}
     </div>

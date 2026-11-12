@@ -4,7 +4,24 @@ import os
 from contextlib import contextmanager
 from pathlib import Path
 
+import json
+from datetime import date, datetime
+from decimal import Decimal
+
 import sqlalchemy as sa
+
+
+def _json_default(obj):
+    if isinstance(obj, Decimal):
+        return float(obj)
+    if isinstance(obj, (date, datetime)):
+        return obj.isoformat()
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+
+def json_serializer(obj) -> str:
+    """JSON-column serializer: Postgres NUMERIC arrives as Decimal (governance sync used to 500 on it)."""
+    return json.dumps(obj, default=_json_default)
 
 ROOT = Path(__file__).resolve().parents[2]
 ARTIFACTS = Path(os.getenv("ARTIFACT_DIR", ROOT / "artifacts"))
@@ -955,7 +972,7 @@ def make_engine(url=None):
         url = "sqlite:///" + str(ROOT / "data" / "local.sqlite")
     is_sqlite_url = str(url).startswith("sqlite")
     connect_args = {"timeout": 30.0, "check_same_thread": False} if is_sqlite_url else {}
-    engine = sa.create_engine(url, pool_pre_ping=True, connect_args=connect_args)
+    engine = sa.create_engine(url, pool_pre_ping=True, connect_args=connect_args, json_serializer=json_serializer)
     if engine.dialect.name == "sqlite":
         db_name = engine.url.database or ""
         is_memory = (not db_name) or (":memory:" in db_name) or ("mode=memory" in str(url))

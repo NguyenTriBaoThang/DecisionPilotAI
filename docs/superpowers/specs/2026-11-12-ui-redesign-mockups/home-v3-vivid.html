@@ -1,0 +1,86 @@
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  .app{display:flex;border-radius:18px;overflow:hidden;background:#f4f6fb;font:14px/1.45 "Plus Jakarta Sans",system-ui,sans-serif;color:#1c2430;min-height:640px}
+  .nav{width:190px;background:linear-gradient(180deg,#14306b,#1b2c5c);color:#dbe4ff;padding:18px 12px;display:flex;flex-direction:column;gap:4px}
+  .nav .logo{display:flex;align-items:center;gap:8px;font-weight:800;color:#fff;font-size:16px;margin:0 6px 16px}
+  .nav .logo img{width:28px}
+  .nav a{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:12px;font-weight:600}
+  .nav a img{width:22px}
+  .nav a.on{background:rgba(255,255,255,.14);color:#fff}
+  .nav .grp{font-size:11px;letter-spacing:.08em;color:#8fa3d6;margin:12px 8px 4px}
+  .main{flex:1;display:flex;flex-direction:column}
+  .hero{position:relative;padding:22px 26px 70px;background:linear-gradient(120deg,#1d3a8a 0%,#4a2a8f 55%,#8a2a6a 100%);color:#fff}
+  .pill{display:inline-flex;gap:6px;align-items:center;font-size:12px;font-weight:700;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:4px 10px}
+  .pill i{width:7px;height:7px;border-radius:50%;background:#34d399;display:inline-block}
+  .h1{font-size:34px;font-weight:800;line-height:1.1;margin-top:12px}
+  .h1 span{background:linear-gradient(90deg,#fde68a,#f9a8d4);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{opacity:.85;margin-top:8px;max-width:48ch}
+  .mascot{position:absolute;right:26px;top:20px;display:flex;align-items:flex-start;gap:10px}
+  .bubble{background:#fff;color:#1c2430;border-radius:14px;padding:10px 12px;max-width:230px;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.2)}
+  .bubble b{color:#db2777}
+  .mascot img{width:86px}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:-50px 26px 0;position:relative}
+  .k{position:relative;overflow:hidden;background:#fff;border-radius:18px;padding:16px;box-shadow:0 12px 30px rgba(20,40,90,.12)}
+  .k::after{content:"";position:absolute;right:-30px;top:-30px;width:110px;height:110px;border-radius:50%;opacity:.18}
+  .k .ic{width:48px;height:48px;border-radius:14px;display:grid;place-items:center}
+  .k .ic img{width:32px}
+  .k .v{font-size:24px;font-weight:800;margin-top:10px}
+  .k .l{color:#5b6475;font-size:13px}
+  .badge{position:absolute;right:12px;top:12px;font-size:11px;font-weight:800;border-radius:999px;padding:2px 8px;z-index:1}
+  .k1{background:linear-gradient(135deg,#1e40af,#1d2f6f);color:#fff}.k1 .l{color:#c7d4ff}.k1 .ic{background:rgba(255,255,255,.18)}.k1::after{background:#60a5fa;opacity:.35}
+  .k2 .ic{background:#dcfce7}.k2 .v{color:#15803d}.k2::after{background:#22c55e}
+  .k3 .ic{background:#f3e8ff}.k3 .v{color:#7e22ce}.k3::after{background:#a855f7}
+  .k4 .ic{background:#ffe4e6}.k4 .v{color:#e11d48}.k4::after{background:#fb7185}
+  .sec{margin:22px 26px 6px;font-size:12px;font-weight:800;letter-spacing:.08em;color:#5b6475}
+  .notes{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:8px 26px 24px}
+  .n{position:relative;border-radius:6px;padding:20px 16px 16px;box-shadow:0 8px 18px rgba(20,40,90,.1)}
+  .n .tape{position:absolute;top:-8px;left:30%;width:70px;height:16px;opacity:.75;transform:rotate(-3deg)}
+  .n .pin{position:absolute;top:-10px;left:50%;width:26px}
+  .n .h{font-weight:800;display:flex;gap:8px;align-items:center}
+  .n .h img{width:28px}
+  .n .d{color:#3d4655;font-size:13px;margin:6px 0 10px}
+  .btn{display:inline-block;color:#fff;border-radius:999px;padding:6px 14px;font-weight:700;font-size:13px}
+  .yel{background:#fef3c7;transform:rotate(-1deg)}.yel .tape{background:#fbbf24}.yel .btn{background:#d97706}
+  .grn{background:#dcfce7;transform:rotate(1deg)}.grn .btn{background:#15803d}
+  .blu{background:#dbeafe;transform:rotate(-.6deg)}.blu .tape{background:#93c5fd}.blu .btn{background:#1d4ed8}
+</style>
+
+<h2>Phương án A, phong cách nhiều màu theo trang tham khảo</h2>
+<p class="subtitle">Lấy từ HCMUE AI: menu xanh đậm, dải đầu trang chuyển xanh sang tím sang hồng, chữ tiêu đề chuyển vàng sang hồng, nhân vật dẫn đường có bong bóng thoại, mỗi thẻ một màu, ghi chú dạng giấy dán.</p>
+
+<div class="app">
+  <div class="nav">
+    <div class="logo"><img src="https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Airplane/3D/airplane_3d.png">DecisionPilot</div>
+    <a class="on"><img src="https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Sun%20with%20face/3D/sun_with_face_3d.png">Hôm nay</a>
+    <a><img src="https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Speech%20balloon/3D/speech_balloon_3d.png">Hỏi AI</a>
+    <a><img src="https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Level%20slider/3D/level_slider_3d.png">Thử trước</a>
+    <a><img src="https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Clipboard/3D/clipboard_3d.png">Quyết định</a>
+    <div class="grp">KHÁC</div>
+    <a><img src="https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Card%20file%20box/3D/card_file_box_3d.png">Dữ liệu</a>
+    <a><img src="https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Test%20tube/3D/test_tube_3d.png">Nâng cao</a>
+  </div>
+  <div class="main">
+    <div class="hero">
+      <span class="pill"><i></i>Dữ liệu cập nhật tháng 9/2026</span>
+      <div class="h1">Chào chị Lan,<br><span>tháng này bán tốt đó!</span></div>
+      <div class="sub">Doanh thu tăng so với tháng trước. Riêng quảng cáo Facebook đang tốn nhiều mà ít ra đơn.</div>
+      <div class="mascot">
+        <div class="bubble">Mình chỉ dùng <b>số liệu thật của shop</b>, không bịa số đâu nha!</div>
+        <img src="https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Pilot/Default/3D/pilot_3d_default.png">
+      </div>
+    </div>
+    <div class="kpis">
+      <div class="k k1"><div class="ic"><img src="https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Money%20bag/3D/money_bag_3d.png"></div><div class="v">3,38 tỷ</div><div class="l">Doanh thu tháng</div></div>
+      <div class="k k2"><span class="badge" style="background:#dcfce7;color:#15803d">Ổn định</span><div class="ic"><img src="https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Chart%20increasing/3D/chart_increasing_3d.png"></div><div class="v">39,6%</div><div class="l">Lãi gộp</div></div>
+      <div class="k k3"><span class="badge" style="background:#f3e8ff;color:#7e22ce">Tăng</span><div class="ic"><img src="https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Shopping%20cart/3D/shopping_cart_3d.png"></div><div class="v">1.537</div><div class="l">Đơn hàng</div></div>
+      <div class="k k4"><span class="badge" style="background:#e11d48;color:#fff">Đang lỗ</span><div class="ic"><img src="https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Megaphone/3D/megaphone_3d.png"></div><div class="v">0,76×</div><div class="l">Quảng cáo thu về</div></div>
+    </div>
+    <div class="sec">VIỆC CẦN CHÚ Ý HÔM NAY</div>
+    <div class="notes">
+      <div class="n yel"><span class="tape"></span><div class="h"><img src="https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Warning/3D/warning_3d.png">Chi Facebook cao bất thường</div><div class="d">Cao hơn mức bình thường 84%, đơn không tăng theo.</div><span class="btn">Xem vì sao</span></div>
+      <div class="n grn"><img class="pin" src="https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Pushpin/3D/pushpin_3d.png"><div class="h"><img src="https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Light%20bulb/3D/light_bulb_3d.png">Nên làm</div><div class="d">Giảm 15% ngân sách Facebook, chuyển sang Google.</div><span class="btn">Thử trước</span></div>
+      <div class="n blu"><span class="tape"></span><div class="h"><img src="https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/Crystal%20ball/3D/crystal_ball_3d.png">30 ngày tới</div><div class="d">Dự kiến doanh thu đi ngang, khoảng 3,3 đến 3,5 tỷ.</div><span class="btn">Xem dự báo</span></div>
+    </div>
+  </div>
+</div>
+<p class="subtitle">Số "3,3 đến 3,5 tỷ" ở thẻ dự báo là số minh hoạ, khi làm thật sẽ lấy từ mô hình.</p>

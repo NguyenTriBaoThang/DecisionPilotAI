@@ -1,6 +1,6 @@
 # 07 · Sai lệch tài liệu ↔ thực tế & rủi ro
 
-Đây là phần quan trọng nhất. Luật cuộc thi cho phép BTC "yêu cầu cung cấp thông tin để xác minh" và có thể hủy tư cách; giám khảo kỹ thuật dễ mở artifacts/code ra kiểm tra.
+> **Cập nhật 12/11:** mục A và B đã được sửa trong PR #15 (README, COMPETITION_SUBMISSION, research-proposal, docs-site, TechnicalDocumentationPage). Kiểm tra lại trên `main` = `27a4b90`: không còn 11,2% / 92,4% / 96,5% / ε −1.42 / Hill ngoài thư mục `report/`. Rủi ro mới nằm ở mục F. Bảng A–D giữ lại làm lịch sử.
 
 ## A. Số liệu trong tài liệu nộp bài không khớp artifact
 | Chỉ số | Tài liệu nói (file) | Artifact/code thật |
@@ -42,3 +42,16 @@
 
 ## E. Đề xuất xử lý (chi tiết ở file 09)
 Chọn **một nguồn sự thật = artifacts/**; sửa mọi tài liệu về đúng số đó; bỏ/đổi các mô tả không có trong code (hoặc sửa code cho khớp nếu kịp). Trình bày hạn chế như một điểm mạnh về minh bạch.
+
+## F. Rủi ro mới sau commit 11–12/11
+| # | Rủi ro | Bằng chứng | Mức |
+|---|---|---|---|
+| 1 | **CI `main` đỏ** — giám khảo mở repo thấy dấu ❌ | Backend test + e2e fail ở luồng OCR hóa đơn (file 05) | Cao |
+| 2 | OCR chỉ chạy trên Windows/tesseract; Docker không cài → tính năng "đọc hóa đơn ảnh" hỏng khi demo bằng Docker | `ocr_and_extractors.py:53-123`, `Dockerfile` | Cao nếu đưa vào demo |
+| 3 | Commit file không nên có: `decisionpilot.db`, `test-results/.last-run.json`, 5 file `artifacts/tenant_*.joblib` (dữ liệu/mô hình tenant thử nghiệm) | `git ls-files` | Trung bình |
+| 4 | Phạm vi phình to sát hạn: 6 module "enterprise" (~200 file) trong 1 đêm, chưa có trong `COMPETITION_SUBMISSION.md`, khó để cả đội giải thích trong Q&A | git log 11/11 | Trung bình |
+| 5 | Số RAG eval toàn 1.0 trên bộ test tự soạn rất nhỏ — dễ bị hỏi vặn | `artifacts/rag_evaluation_report.json` | Thấp nếu trình bày đúng |
+| 7 | ~~ĐÃ SỬA 12/11 (`db.json_serializer`)~~ `GET /v1/recommendations` (XAI governance) trả 500 trên Postgres — Docker demo dùng Postgres nên trang khuyến nghị XAI cũ hỏng khi demo | `TypeError: Object of type Decimal is not JSON serializable`, `governance/service.py:2072` | Trung bình (UI mới không dùng API này) |
+| 6 | Lineage SSE lỗi `created_at` (bảng `ingestion_jobs` không có cột này) | `lineage/router.py:105`, log CI | Thấp |
+
+**Khuyến nghị:** giữ câu chuyện demo cốt lõi (Cảnh báo → Ask → Thử trước → Quyết định, file 13); 6 module mới chỉ nhắc 1 slide "Roadmap đã có bản chạy" thay vì đưa vào video.
