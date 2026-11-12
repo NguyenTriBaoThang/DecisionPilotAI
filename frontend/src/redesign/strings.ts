@@ -100,4 +100,15 @@ export const redesignStrings: Record<string, { vi: string; en: string }> = {
   'Your question': { vi: 'Câu hỏi của bạn', en: 'Your question' },
   'Ask anything about your shop...': { vi: 'Hỏi gì về shop cũng được...', en: 'Ask anything about your shop...' },
   'Send': { vi: 'Gửi', en: 'Send' },
+
+  // Decisions
+  'Every choose or skip is recorded: who, when and based on what.': { vi: 'Mọi lần chọn làm hay bỏ qua đều được ghi lại: ai quyết, lúc nào, dựa vào đâu.', en: 'Every choose or skip is recorded: who, when and based on what.' },
+  'Chosen': { vi: 'Đã chọn làm', en: 'Chosen' },
+  'Skipped': { vi: 'Đã bỏ qua', en: 'Skipped' },
+  'Waiting': { vi: 'Đang chờ', en: 'Waiting' },
+  'Suggestions waiting': { vi: 'Gợi ý đang chờ', en: 'Suggestions waiting' },
+  'Could not load decisions.': { vi: 'Chưa tải được danh sách quyết định.', en: 'Could not load decisions.' },
+  'WAITING FOR YOU': { vi: 'ĐANG CHỜ BẠN QUYẾT', en: 'WAITING FOR YOU' },
+  'DECISION LOG': { vi: 'NHẬT KÝ QUYẾT ĐỊNH', en: 'DECISION LOG' },
+  'No decisions yet. Choose or skip a suggestion to start the log.': { vi: 'Chưa có quyết định nào. Chọn làm hoặc bỏ qua một gợi ý để bắt đầu.', en: 'No decisions yet. Choose or skip a suggestion to start the log.' },
 }

@@ -17,6 +17,7 @@ import { ErrorState, Loading, ToastProvider } from './ui'
 import { TodayPage } from './redesign/TodayPage'
 import { TryFirstPage } from './redesign/TryFirstPage'
 import { AskPage } from './redesign/AskPage'
+import { DecisionsPage } from './redesign/DecisionsPage'
 import { Alerts, Ask, ForecastPage, type ChatMessage } from './WorkspacePages'
 import { Sidebar, BrandLogo, navGroups } from './components/layout/Sidebar'
 import { Topbar } from './components/layout/Topbar'
@@ -348,6 +349,7 @@ function AppShell({ session }: { session: Session }) {
                   )
                 }
               />
+              <Route path="/decisions" element={<DecisionsPage dataset={ds.data} options={opts.data} canEdit={session.role !== 'viewer'} />} />
               <Route
                 path="/recommendations"
                 element={
