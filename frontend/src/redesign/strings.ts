@@ -152,4 +152,8 @@ export const redesignStrings: Record<string, { vi: string; en: string }> = {
   'Warnings': { vi: 'Cảnh báo', en: 'Warnings' },
   'Could not load warnings': { vi: 'Chưa tải được cảnh báo', en: 'Could not load warnings' },
   'Could not load suggestions': { vi: 'Chưa tải được gợi ý', en: 'Could not load suggestions' },
+  'How much you will likely sell, and how accurate past forecasts were.': { vi: 'Sắp tới bán được bao nhiêu, và các lần dự báo trước đúng tới đâu.', en: 'How much you will likely sell, and how accurate past forecasts were.' },
+  'Technical details: reliability and model comparison': { vi: 'Chi tiết kỹ thuật: độ tin cậy và so sánh mô hình', en: 'Technical details: reliability and model comparison' },
+  'Numbers that moved far from normal, ranked by how much they matter.': { vi: 'Những con số lệch xa mức bình thường, xếp theo mức quan trọng.', en: 'Numbers that moved far from normal, ranked by how much they matter.' },
+  'Full warning log': { vi: 'Toàn bộ nhật ký cảnh báo', en: 'Full warning log' },
 }

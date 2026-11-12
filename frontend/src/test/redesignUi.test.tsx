@@ -27,3 +27,14 @@ describe('redesign primitives', () => {
     expect(screen.getByRole('link', { name: 'Xem vì sao' }).getAttribute('href')).toBe('/ask?q=x')
   })
 })
+
+import { TechDetails } from '../redesign/ui'
+
+describe('TechDetails', () => {
+  it('keeps technical content collapsed until opened', () => {
+    const { container } = render(<TechDetails summary="Xem chi tiết kỹ thuật"><p>MAE table</p></TechDetails>)
+    const details = container.querySelector('details') as HTMLDetailsElement
+    expect(details.open).toBe(false)
+    expect(screen.getByText('Xem chi tiết kỹ thuật')).toBeTruthy()
+  })
+})

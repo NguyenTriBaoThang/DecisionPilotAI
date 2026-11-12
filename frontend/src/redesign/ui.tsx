@@ -218,3 +218,16 @@ export function EmptyState({ title, body, action }: { title: string; body?: stri
 export function SectionLabel({ children }: { children: ReactNode }) {
   return <h2 className="mb-3 mt-6 text-xs font-extrabold tracking-[0.08em] text-slate-500">{children}</h2>
 }
+
+/** Collapsed-by-default block for analyst-level detail, so judges see the headline first. */
+export function TechDetails({ summary, children }: { summary: string; children: ReactNode }) {
+  return (
+    <details className="group rounded-[18px] border border-slate-200 bg-white/70 p-4">
+      <summary className="flex min-h-[40px] cursor-pointer list-none items-center gap-2 font-extrabold text-slate-800">
+        <span aria-hidden="true" className="inline-block transition-transform group-open:rotate-90">▶</span>
+        {summary}
+      </summary>
+      <div className="mt-4 space-y-5">{children}</div>
+    </details>
+  )
+}
