@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import { dateLabel, decimal, integer, moneyCompact, percent, request, type Alert, type Dataset, type Forecast, type KPI, type Options, type Recommendation } from '../api'
+import { Area, AreaChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { compact, dateLabel, decimal, integer, moneyCompact, percent, request, shortDate, type Row, type Alert, type Dataset, type Forecast, type KPI, type Options, type Recommendation } from '../api'
 import { investigateHref } from '../investigate'
 import { useT } from '../preferences'
 import { briefingSentence, roasLabel, tryFirstHref } from './logic'
-import { EmptyState, Illus, NoteCard, PageHero, SectionLabel, StatCard } from './ui'
+import { BarList, EmptyState, Illus, NoteCard, PageHero, Panel, SectionLabel, StatCard } from './ui'
 
 const ALERT_TITLE: Record<string, string> = {
   facebook_spend: 'Facebook spend is unusually high',
@@ -41,6 +42,8 @@ export function TodayPage({ dataset, options }: { dataset?: Dataset; options?: O
   }
 
   const s = kpi.data?.summary
+  const c = kpi.data?.changes
+  const vsPrev = t('vs last period')
   const roas = roasLabel(s?.roas ?? null)
   const alertRows = alerts.data?.rows ?? []
   const topAlert = alertRows.find((a) => a.severity === 'critical' || a.severity === 'high')
@@ -85,19 +88,35 @@ export function TodayPage({ dataset, options }: { dataset?: Dataset; options?: O
           <p className="col-span-full rounded-2xl bg-white p-4 text-sm text-rose-700">{t('Could not load your numbers.')}</p>
         ) : (
           <>
-            <StatCard illus="moneybag" variant="solid" label={t('Revenue')} value={moneyCompact(s?.revenue)} />
-            <StatCard illus="chartup" variant="green" label={t('Gross margin')} value={percent(s?.margin)} />
-            <StatCard illus="cart" variant="violet" label={t('Orders')} value={integer(s?.orders)} />
+            <StatCard illus="moneybag" variant="solid" label={t('Revenue')} value={moneyCompact(s?.revenue)} delta={{ value: c?.revenue, caption: vsPrev }} />
+            <StatCard illus="chartup" variant="green" label={t('Gross margin')} value={moneyCompact(s?.gross_profit)} sub={t('Margin rate') + ' ' + percent(s?.margin)} delta={{ value: c?.gross_profit, caption: vsPrev }} />
+            <StatCard illus="cart" variant="violet" label={t('Orders')} value={integer(s?.orders)} delta={{ value: c?.orders, caption: vsPrev }} />
             <StatCard
               illus="megaphone"
               variant="rose"
               label={t('Ad payback')}
               value={s?.roas == null ? '—' : decimal(s.roas) + '×'}
               badge={roas ? { text: t(roas.key), kind: roas.kind } : undefined}
+              delta={{ value: c?.roas, caption: vsPrev }}
             />
           </>
         )}
       </div>
+      {!kpi.isError && (
+        <div className="mt-3 grid grid-cols-2 gap-3 px-3 sm:px-6 lg:grid-cols-4">
+          <StatCard illus="receipt" variant="amber" label={t('Average order value')} value={moneyCompact(s?.aov)} delta={{ value: c?.aov, caption: vsPrev }} />
+          <StatCard
+            illus="people"
+            variant="teal"
+            label={t('Customers')}
+            value={integer(s?.customers)}
+            sub={s?.new_customers != null ? t('{n} new · {m} returning').replace('{n}', integer(s.new_customers)).replace('{m}', integer(s?.returning_customers)) : undefined}
+            delta={{ value: c?.customers, caption: vsPrev }}
+          />
+          <StatCard illus="megaphone" variant="sky" label={t('Ad spend')} value={moneyCompact(s?.spend)} delta={{ value: c?.spend, caption: vsPrev, upIsGood: false }} />
+          <StatCard illus="check" variant="blue" label={t('Conversion rate')} value={percent(s?.conversion)} delta={{ value: c?.conversion, caption: vsPrev }} />
+        </div>
+      )}
 
       <div className="px-3 sm:px-6">
         <SectionLabel>{t('WHAT NEEDS YOUR ATTENTION TODAY')}</SectionLabel>
@@ -140,6 +159,102 @@ export function TodayPage({ dataset, options }: { dataset?: Dataset; options?: O
           />
         </div>
       </div>
+
+      {kpi.data && (
+        <div className="mt-6 flex flex-col gap-4 px-3 sm:px-6">
+          <div className="grid gap-4 lg:grid-cols-3">
+            <Panel title={t('Revenue & gross profit by day')} illus="barchart" className="lg:col-span-2">
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={kpi.data.trend}>
+                    <defs>
+                      <linearGradient id="dpRev" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#4f46e5" stopOpacity={0.35} /><stop offset="100%" stopColor="#4f46e5" stopOpacity={0} /></linearGradient>
+                      <linearGradient id="dpGp" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#10b981" stopOpacity={0.35} /><stop offset="100%" stopColor="#10b981" stopOpacity={0} /></linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#eef2f7" vertical={false} />
+                    <XAxis dataKey="date" tickFormatter={(d: string) => shortDate(d)} tick={{ fontSize: 11 }} minTickGap={24} />
+                    <YAxis tickFormatter={(v: number) => compact(v)} tick={{ fontSize: 11 }} width={48} />
+                    <Tooltip formatter={(v: number) => moneyCompact(v)} labelFormatter={(d: string) => dateLabel(d)} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Area type="monotone" dataKey="revenue" name={t('Revenue')} stroke="#4f46e5" strokeWidth={2} fill="url(#dpRev)" />
+                    <Area type="monotone" dataKey="gross_profit" name={t('Gross margin')} stroke="#10b981" strokeWidth={2} fill="url(#dpGp)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </Panel>
+            <Panel title={t('Sales channels')} illus="store">
+              <div className="h-40">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={rowsOf(kpi.data.sales_channels, 'revenue')} dataKey="value" nameKey="name" innerRadius={40} outerRadius={68} paddingAngle={2}>
+                      {rowsOf(kpi.data.sales_channels, 'revenue').map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
+                    </Pie>
+                    <Tooltip formatter={(v: number) => moneyCompact(v)} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <ul className="mt-2 flex flex-col gap-1 text-[13px]">
+                {rowsOf(kpi.data.sales_channels, 'revenue').map((r, i) => (
+                  <li key={r.name} className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-2"><span aria-hidden="true" className="h-2.5 w-2.5 rounded-full" style={{ background: PALETTE[i % PALETTE.length] }} />{r.name}</span>
+                    <span className="tabular-nums text-slate-600">{percent(r.value / Math.max(1, s?.revenue ?? 1))}</span>
+                  </li>
+                ))}
+              </ul>
+            </Panel>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-3">
+            <Panel title={t('Top products')} illus="package">
+              <BarList rows={rowsOf(kpi.data.products, 'revenue').slice(0, 6)} format={moneyCompact} color="linear-gradient(90deg,#818cf8,#4f46e5)" />
+            </Panel>
+            <Panel title={t('Revenue by region')} illus="map">
+              <BarList rows={rowsOf(kpi.data.regions, 'revenue')} format={moneyCompact} color="linear-gradient(90deg,#5eead4,#0d9488)" />
+            </Panel>
+            <Panel title={t('Ad performance by channel')} illus="megaphone">
+              <table className="w-full text-[13px]" aria-label={t('Ad performance by channel')}>
+                <thead>
+                  <tr className="text-left text-xs text-slate-500">
+                    <th className="pb-2 font-semibold">{t('Channel')}</th>
+                    <th className="pb-2 text-right font-semibold">{t('Spend')}</th>
+                    <th className="pb-2 text-right font-semibold">ROAS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {kpi.data.marketing_channels.map((m) => {
+                    const r = typeof m.roas === 'number' ? m.roas : null
+                    const lbl = roasLabel(r)
+                    return (
+                      <tr key={String(m.name)} className="border-t border-slate-100">
+                        <td className="py-2 font-semibold text-slate-800">{String(m.name)}</td>
+                        <td className="py-2 text-right tabular-nums text-slate-600">{moneyCompact(typeof m.spend === 'number' ? m.spend : null)}</td>
+                        <td className="py-2 text-right">
+                          <span className="tabular-nums font-bold">{r == null ? '—' : decimal(r) + '×'}</span>
+                          {lbl && <span className={`ml-1.5 inline-block rounded-full px-1.5 py-0.5 text-[10px] font-extrabold ${ROAS_PILL[lbl.kind]}`}>{t(lbl.key)}</span>}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </Panel>
+          </div>
+          {kpi.data.previous_range && (
+            <p className="text-xs text-slate-500">
+              {t('Compared with')} {dateLabel(kpi.data.previous_range[0])} – {dateLabel(kpi.data.previous_range[1])}.
+            </p>
+          )}
+        </div>
+      )}
     </div>
   )
+}
+
+const PALETTE = ['#4f46e5', '#10b981', '#f59e0b', '#ec4899', '#0ea5e9']
+const ROAS_PILL = { good: 'bg-emerald-100 text-emerald-800', normal: 'bg-slate-100 text-slate-700', bad: 'bg-rose-100 text-rose-700' } as const
+
+function rowsOf(rows: Row[] | undefined, key: string): { name: string; value: number }[] {
+  return (rows ?? [])
+    .map((r) => ({ name: String(r.name), value: typeof r[key] === 'number' ? (r[key] as number) : 0 }))
+    .sort((a, b) => b.value - a.value)
 }

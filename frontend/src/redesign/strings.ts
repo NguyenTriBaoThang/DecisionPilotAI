@@ -131,4 +131,19 @@ export const redesignStrings: Record<string, { vi: string; en: string }> = {
   'Bring in your sales, stock and ad files. Nothing reaches your numbers until you approve it.': { vi: 'Đưa file bán hàng, tồn kho, quảng cáo vào. Chưa duyệt thì chưa tính vào số liệu.', en: 'Bring in your sales, stock and ad files. Nothing reaches your numbers until you approve it.' },
 
   'No decisions yet. Choose or skip a suggestion to start the log.':{ vi: 'Chưa có quyết định nào. Chọn làm hoặc bỏ qua một gợi ý để bắt đầu.', en: 'No decisions yet. Choose or skip a suggestion to start the log.' },
+
+  // Today dashboard detail
+  'vs last period': { vi: 'so với kỳ trước', en: 'vs last period' },
+  'Margin rate': { vi: 'Tỷ suất lãi', en: 'Margin rate' },
+  'Average order value': { vi: 'Giá trị đơn TB', en: 'Average order value' },
+  'Customers': { vi: 'Khách hàng', en: 'Customers' },
+  '{n} new · {m} returning': { vi: '{n} mới · {m} quay lại', en: '{n} new · {m} returning' },
+  'Conversion rate': { vi: 'Tỷ lệ chuyển đổi', en: 'Conversion rate' },
+  'Revenue & gross profit by day': { vi: 'Doanh thu & lãi gộp theo ngày', en: 'Revenue & gross profit by day' },
+  'Sales channels': { vi: 'Kênh bán hàng', en: 'Sales channels' },
+  'Top products': { vi: 'Top sản phẩm', en: 'Top products' },
+  'Revenue by region': { vi: 'Doanh thu theo khu vực', en: 'Revenue by region' },
+  'Ad performance by channel': { vi: 'Hiệu quả quảng cáo theo kênh', en: 'Ad performance by channel' },
+  'Spend': { vi: 'Chi phí', en: 'Spend' },
+  'Compared with': { vi: 'So sánh với kỳ', en: 'Compared with' },
 }

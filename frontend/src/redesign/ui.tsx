@@ -63,6 +63,9 @@ const STAT_VARIANT = {
   green: { card: 'bg-white', bg: '', icon: 'bg-emerald-100', value: 'text-emerald-700', label: 'text-slate-500', blob: '#22c55e' },
   violet: { card: 'bg-white', bg: '', icon: 'bg-violet-100', value: 'text-violet-700', label: 'text-slate-500', blob: '#a855f7' },
   rose: { card: 'bg-white', bg: '', icon: 'bg-rose-100', value: 'text-rose-600', label: 'text-slate-500', blob: '#fb7185' },
+  amber: { card: 'bg-white', bg: '', icon: 'bg-amber-100', value: 'text-amber-700', label: 'text-slate-500', blob: '#fbbf24' },
+  teal: { card: 'bg-white', bg: '', icon: 'bg-teal-100', value: 'text-teal-700', label: 'text-slate-500', blob: '#2dd4bf' },
+  sky: { card: 'bg-white', bg: '', icon: 'bg-sky-100', value: 'text-sky-700', label: 'text-slate-500', blob: '#38bdf8' },
   blue: { card: 'bg-white', bg: '', icon: 'bg-blue-100', value: 'text-blue-700', label: 'text-slate-500', blob: '#60a5fa' },
 } as const
 
@@ -72,12 +75,17 @@ export function StatCard({
   value,
   badge,
   variant = 'blue',
+  delta,
+  sub,
 }: {
   illus: IllusName
   label: string
   value: string
   badge?: { text: string; kind: 'good' | 'normal' | 'bad' }
   variant?: keyof typeof STAT_VARIANT
+  /** Change vs previous period; `upIsGood=false` colours an increase red (e.g. ad spend). */
+  delta?: { value: number | null | undefined; caption: string; upIsGood?: boolean }
+  sub?: string
 }) {
   const v = STAT_VARIANT[variant]
   return (
@@ -89,7 +97,45 @@ export function StatCard({
       </div>
       <div className={`mt-3 text-2xl font-extrabold tabular-nums ${v.value}`}>{value}</div>
       <div className={`text-[13px] ${v.label}`}>{label}</div>
+      {sub && <div className={`mt-0.5 text-[12px] ${v.label}`}>{sub}</div>}
+      {delta && delta.value != null && (
+        <div className={`mt-1 text-[12px] font-bold ${variant === 'solid' ? 'text-white/90' : (delta.value >= 0) === (delta.upIsGood ?? true) ? 'text-emerald-700' : 'text-rose-600'}`}>
+          {delta.value >= 0 ? '▲' : '▼'} {Math.abs(delta.value * 100).toLocaleString(undefined, { maximumFractionDigits: 1 })}%{' '}
+          <span className="font-medium opacity-80">{delta.caption}</span>
+        </div>
+      )}
     </div>
+  )
+}
+
+/** Card frame for charts and tables on the dashboard. */
+export function Panel({ title, illus: art, children, className = '' }: { title: string; illus?: IllusName; children: ReactNode; className?: string }) {
+  return (
+    <section className={`rounded-[18px] bg-white p-4 shadow-sm ${className}`}>
+      <h2 className="mb-3 flex items-center gap-2 text-[15px] font-extrabold text-slate-900">
+        {art && <Illus name={art} size={22} />}
+        {title}
+      </h2>
+      {children}
+    </section>
+  )
+}
+
+/** Horizontal bar list: name, bar scaled to the max, formatted value. */
+export function BarList({ rows, format, color }: { rows: { name: string; value: number }[]; format: (v: number) => string; color: string }) {
+  const max = Math.max(...rows.map((r) => r.value), 1)
+  return (
+    <ul className="flex flex-col gap-2.5">
+      {rows.map((r) => (
+        <li key={r.name} className="text-[13px]">
+          <div className="flex justify-between gap-3">
+            <span className="truncate font-semibold text-slate-800">{r.name}</span>
+            <span className="shrink-0 tabular-nums text-slate-600">{format(r.value)}</span>
+          </div>
+          <div className="mt-1 h-2 rounded-full" style={{ width: `${Math.max(4, (r.value / max) * 100)}%`, background: color }} />
+        </li>
+      ))}
+    </ul>
   )
 }
 
