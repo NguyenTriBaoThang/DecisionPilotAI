@@ -962,6 +962,62 @@ audit_risk_alerts = sa.Table(
 sa.Index("ix_audit_risks_comp_status", audit_risk_alerts.c.company_id, audit_risk_alerts.c.status)
 
 
+inv_cases = sa.Table(
+    "inv_cases", metadata,
+    C("id", sa.String(64), primary_key=True),
+    C("company_id", sa.String(64), nullable=False),
+    C("dataset_id", sa.String(64), nullable=False),
+    C("kind", sa.String(32), nullable=False),
+    C("status", sa.String(24), nullable=False, server_default="new"),
+    C("title", sa.String(220), nullable=False),
+    C("impact_vnd", sa.BigInteger, nullable=False),
+    C("period_current", sa.JSON, nullable=False),
+    C("period_prior", sa.JSON, nullable=False),
+    C("opened_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    C("summary", sa.JSON, nullable=True),
+    C("run_state", sa.String(16), nullable=False, server_default="idle"),
+)
+
+inv_trace = sa.Table(
+    "inv_trace", metadata,
+    C("id", sa.Integer, primary_key=True),
+    C("case_id", sa.String(64), sa.ForeignKey("inv_cases.id"), nullable=False),
+    C("seq", sa.Integer, nullable=False),
+    C("agent", sa.String(32), nullable=False),
+    C("type", sa.String(24), nullable=False),
+    C("payload", sa.JSON, nullable=False),
+    C("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    sa.UniqueConstraint("case_id", "seq", name="uq_inv_trace_case_seq"),
+)
+
+inv_predictions = sa.Table(
+    "inv_predictions", metadata,
+    C("id", sa.String(64), primary_key=True),
+    C("case_id", sa.String(64), sa.ForeignKey("inv_cases.id"), nullable=False),
+    C("option_key", sa.String(64), nullable=False),
+    C("metric", sa.String(24), nullable=False),
+    C("scope", sa.JSON, nullable=False),
+    C("baseline_daily", sa.Float, nullable=False),
+    C("predicted_delta_pct", sa.Float, nullable=False),
+    C("calibrated_delta_pct", sa.Float, nullable=False),
+    C("start_date", sa.Date, nullable=False),
+    C("horizon_days", sa.Integer, nullable=False),
+    C("status", sa.String(16), nullable=False, server_default="tracking"),
+    C("actual_delta_pct", sa.Float, nullable=True),
+    C("verdict", sa.String(16), nullable=True),
+    C("scored_at", sa.DateTime(timezone=True), nullable=True),
+    C("seeded", sa.Boolean, nullable=False, server_default=sa.false()),
+    sa.UniqueConstraint("case_id", name="uq_inv_predictions_case"),
+)
+
+inv_clock = sa.Table(
+    "inv_clock", metadata,
+    C("company_id", sa.String(64), primary_key=True),
+    C("base_end", sa.Date, nullable=False),
+    C("current_end", sa.Date, nullable=False),
+)
+
+
 def make_engine(url=None):
     url = url or os.getenv("DATABASE_URL")
     if not url and os.getenv("POSTGRES_HOST"):
