@@ -85,3 +85,20 @@ export function briefingSentence(kpi: KPI, alerts: Alert[], t: (s: string) => st
   }
   return s.trim()
 }
+
+export type TryFirstParams = { type: ScenarioType; channel?: string; product?: string; change?: number; rec?: string; autorun: boolean }
+
+/** Reads simulator deep links; accepts the legacy `tab`/`autorun=1` form that RecommendationsCenter still produces. */
+export function parseTryFirstParams(sp: URLSearchParams): TryFirstParams {
+  const raw = sp.get('type') ?? sp.get('tab')
+  const type: ScenarioType = raw === 'price' || raw === 'inventory' ? raw : 'marketing'
+  const change = sp.get('change')
+  return {
+    type,
+    channel: sp.get('channel') ?? undefined,
+    product: sp.get('product') ?? undefined,
+    change: change != null && change !== '' && !Number.isNaN(Number(change)) ? Number(change) : undefined,
+    rec: sp.get('rec') ?? undefined,
+    autorun: raw != null || sp.get('autorun') === '1',
+  }
+}

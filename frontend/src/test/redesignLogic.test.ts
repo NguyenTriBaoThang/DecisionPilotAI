@@ -83,3 +83,19 @@ describe('briefingSentence', () => {
     expect(s).toMatch(/facebook/i)
   })
 })
+
+import { parseTryFirstParams } from '../redesign/logic'
+
+describe('parseTryFirstParams', () => {
+  it('reads the new link format', () => {
+    const p = parseTryFirstParams(new URLSearchParams('type=marketing&channel=Facebook%20Ads&change=-0.15&rec=marketing%3Afacebook'))
+    expect(p).toMatchObject({ type: 'marketing', channel: 'Facebook Ads', change: -0.15, rec: 'marketing:facebook', autorun: true })
+  })
+  it('accepts the legacy tab/autorun format still produced by RecommendationsCenter', () => {
+    const p = parseTryFirstParams(new URLSearchParams('tab=marketing&channel=Facebook%20Ads&autorun=1&rec=x'))
+    expect(p).toMatchObject({ type: 'marketing', channel: 'Facebook Ads', rec: 'x', autorun: true })
+  })
+  it('defaults to marketing without autorun', () => {
+    expect(parseTryFirstParams(new URLSearchParams(''))).toMatchObject({ type: 'marketing', autorun: false })
+  })
+})

@@ -15,6 +15,7 @@ import {
 import { PreferencesProvider, usePageTranslations, usePreferences, useT } from './preferences'
 import { ErrorState, Loading, ToastProvider } from './ui'
 import { TodayPage } from './redesign/TodayPage'
+import { TryFirstPage } from './redesign/TryFirstPage'
 import { Alerts, Ask, ForecastPage, type ChatMessage } from './WorkspacePages'
 import { Sidebar, BrandLogo, navGroups } from './components/layout/Sidebar'
 import { Topbar } from './components/layout/Topbar'
@@ -331,6 +332,10 @@ function AppShell({ session }: { session: Session }) {
               />
               <Route
                 path="/scenarios"
+                element={opts.data ? <TryFirstPage dataset={ds.data} options={opts.data} canEdit={session.role !== 'viewer'} /> : <Loading />}
+              />
+              <Route
+                path="/advanced/simulator-3d"
                 element={
                   opts.data ? (
                     <Suspense fallback={<Loading />}>
