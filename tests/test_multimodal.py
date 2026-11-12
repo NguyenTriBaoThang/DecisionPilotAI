@@ -347,6 +347,94 @@ def test_image_ocr_and_mandatory_hitl_edit_gate(mm_env):
         assert "QuantumPOS" in ask_mm.json()["answer"]
 
 
+def test_image_without_local_ocr_engine_promotes_via_hitl_correction(mm_env, monkeypatch):
+    """Simulate Linux CI (no WinRT / Tesseract) where fallback produces visual_insight and HITL promotes it to BI."""
+    monkeypatch.setattr("backend.app.multimodal.ocr_and_extractors._run_winrt_ocr", lambda _png: None)
+    monkeypatch.setattr("backend.app.multimodal.ocr_and_extractors._run_tesseract_ocr", lambda _png: None)
+
+    engine, storage, _, _ = mm_env
+    with TestClient(create_app(engine, storage=storage)) as http:
+        comp = http.post("/api/v1/companies", json={"name": "NoOcrLinux Co"}).json()
+        cid = comp["id"]
+        hdr = {"X-Company-ID": cid}
+
+        invoice_png = _make_png_invoice(
+            [
+                "INVOICE #E2E-101",
+                "Date: 2026-08-20",
+                "Product: E2E Scanner",
+                "Grand Total: $1,850.00",
+                "Cost: $900.00",
+            ]
+        )
+        up = http.post(
+            "/api/v1/multimodal/upload",
+            headers=hdr,
+            data={"confidence_threshold": "0.8", "privacy_notice_accepted": "true"},
+            files=[("files", ("e2e-invoice.png", invoice_png, "image/png"))],
+        )
+        assert up.status_code == 202
+        fid = up.json()["files"][0]["id"]
+        http.app.state.multimodal_job_queue.wait_all(timeout=30.0)
+
+        ext_bundle = http.get(f"/api/v1/files/{fid}/extractions", headers=hdr).json()
+        assert ext_bundle["count"] == 1
+        rec = ext_bundle["items"][0]
+        assert rec["entity_type"] == "visual_insight"
+        assert rec["below_threshold"] is True
+
+        # BI remains isolated/empty until HITL correction + approval
+        assert http.get("/kpi/summary", headers=hdr).status_code == 503
+        assert (
+            http.post(
+                f"/api/v1/files/{fid}/approve-import",
+                headers=hdr,
+                json={"confirmed": True, "approve_below_threshold": False},
+            ).status_code
+            == 422
+        )
+
+        # Human supplies financial fields (just like the E2E HITL Workbench edit form)
+        patched = http.patch(
+            f"/api/v1/extractions/{rec['id']}",
+            headers=hdr,
+            json={
+                "corrected_data": {
+                    "date": "2026-08-20",
+                    "product": "E2E Scanner",
+                    "revenue": 1850.0,
+                    "cost": 900.0,
+                },
+                "validation_status": "edited",
+            },
+        )
+        assert patched.status_code == 200
+        assert patched.json()["effective_data"]["profit"] == 950.0
+
+        imp = http.post(
+            f"/api/v1/files/{fid}/approve-import",
+            headers=hdr,
+            json={"confirmed": True, "activate": True, "currency": "USD"},
+        )
+        assert imp.status_code == 200
+        assert imp.json()["promoted_financial_rows"] == 1
+        assert imp.json()["promoted_insights"] == 1
+        assert imp.json()["activated"] is True
+
+        ds_info = http.get("/dataset", headers=hdr).json()
+        kpi = http.get("/kpi/summary", headers=hdr, params={"start": ds_info["start"], "end": ds_info["end"]}).json()
+        assert kpi["summary"]["revenue"] == pytest.approx(1850.0)
+        assert kpi["summary"]["gross_profit"] == pytest.approx(950.0)
+
+        opts = http.get("/options", headers=hdr).json()
+        assert any(p["product_name"] == "E2E Scanner" for p in opts["products"])
+
+        ask_mm = http.post("/query", headers=hdr, json={"question": "Summarize uploaded invoice documents"})
+        assert ask_mm.status_code == 200
+        assert "tenant_multimodal_insights" in ask_mm.json()["trace"]["sources"]
+        assert "E2E Scanner" in ask_mm.json()["answer"]
+
+
 def test_video_caps_audio_honest_stt_and_signed_urls(mm_env, tmp_path, monkeypatch):
     engine, storage, _, _ = mm_env
     with TestClient(create_app(engine, storage=storage)) as setup_http:

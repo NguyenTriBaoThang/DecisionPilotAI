@@ -12,6 +12,7 @@ import sqlalchemy as sa
 from fastapi import HTTPException
 
 from backend.app.analytics import dataset_info
+from backend.app.cache import invalidate_recs_cache
 from backend.app.db import (
     audit,
     companies,
@@ -945,9 +946,12 @@ def approve_and_import_file(
             eff = {**(rec.get("extracted_json") or {}), **corr}
             if ("revenue" in corr or "cost" in corr) and "profit" not in corr:
                 eff.pop("profit", None)
+            has_human_financial_edit = bool(corr) and (
+                "revenue" in corr or ("date" in corr and eff.get("revenue") is not None)
+            )
             norm = (
                 _normalize_financial_row(eff, default_currency=default_currency, file_name=frow["file_name"])
-                if rec["entity_type"] in FINANCIAL_ENTITY_TYPES
+                if (rec["entity_type"] in FINANCIAL_ENTITY_TYPES or has_human_financial_edit)
                 else None
             )
             if norm:
@@ -961,8 +965,15 @@ def approve_and_import_file(
                     for k in ("revenue", "cost", "profit", "quantity", "product", "customer", "region", "channel", "currency", "duration_sec", "ocr_signage_detected", "stt_status", "sentiment")
                     if eff.get(k) is not None
                 }
-                summary_txt = str(eff.get("summary") or eff.get("transcript") or eff.get("ocr_text") or json.dumps(eff, ensure_ascii=False))[:2000]
-                title_txt = str(eff.get("title") or f"{frow['file_name']} ({rec['entity_type']})")[:195]
+                raw_title = str(eff.get("title") or "")
+                if norm and "title" not in corr and raw_title.startswith("Visual image capture ("):
+                    title_txt = f"{norm['product']} · {frow['file_name']}"[:195]
+                else:
+                    title_txt = (raw_title or f"{frow['file_name']} ({rec['entity_type']})")[:195]
+                summary_txt = str(eff.get("summary") or eff.get("transcript") or eff.get("ocr_text") or json.dumps(eff, ensure_ascii=False))
+                if norm and "summary" not in corr and "no readable text detected via OCR" in summary_txt:
+                    summary_txt = f"Verified {norm['product']} ({norm['date'].isoformat()}): revenue {norm['revenue']:.2f} {norm['currency']}, cost {norm['total_cost']:.2f} {norm['currency']}."
+                summary_txt = summary_txt[:2000]
                 insight_rows.append({
                     "id": f"ins-{uuid4().hex[:14]}",
                     "company_id": company_id,
@@ -1243,6 +1254,7 @@ def approve_and_import_file(
         active_info = dataset_info(conn, company_id=company_id, dataset_id=ds_id) if tx_total > 0 else None
 
     model_built = train_partitioned_artifacts(engine, active_info) if active_info else False
+    invalidate_recs_cache(company_id)
     try:
         from backend.app.rag.ingestion import index_multimodal_file
 
@@ -1310,6 +1322,7 @@ def delete_multimodal_file(
 
     removed_frames = storage.delete_prefix(f"companies/{company_id}/datasets/{ds_id}/files/{file_id}")
     removed_raw = 1 if storage.delete(frow["storage_key"]) else 0
+    invalidate_recs_cache(company_id)
     try:
         from backend.app.rag.ingestion import delete_by_source
 

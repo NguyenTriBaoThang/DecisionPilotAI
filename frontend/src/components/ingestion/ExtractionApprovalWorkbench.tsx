@@ -116,8 +116,13 @@ export function ExtractionApprovalWorkbench({
       await queryClient.invalidateQueries({ queryKey: ['multimodal-extractions', companyId, file.file_id] })
       await queryClient.invalidateQueries({ queryKey: ['multimodal-insights', companyId] })
       await queryClient.invalidateQueries({ queryKey: ['enterprise-datasets', companyId] })
+      await queryClient.invalidateQueries({ queryKey: ['companies'] })
       await queryClient.invalidateQueries({ queryKey: ['dataset'] })
       await queryClient.invalidateQueries({ queryKey: ['options'] })
+      await queryClient.invalidateQueries({ queryKey: ['today-kpi'] })
+      await queryClient.invalidateQueries({ queryKey: ['today-alerts'] })
+      await queryClient.invalidateQueries({ queryKey: ['today-forecast'] })
+      await queryClient.invalidateQueries({ queryKey: ['recommendations'] })
       await queryClient.invalidateQueries({ queryKey: ['health'] })
       onApproved?.(res)
     },
