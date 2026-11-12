@@ -49,3 +49,29 @@ A made-up person or situation used to explain the product (the shop owner "Lan")
 
 **Estimate vs. fact**
 A *fact* is computed from recorded data (revenue, ad spend). An *estimate* is a forecast or a tried scenario; it is conditional and may be wrong. The product labels which is which.
+
+## Enterprise modules (added 11/11)
+
+**Workspace / tenant** (technical: `company_id`, multi-tenant)
+One company's private data space. Data, models and decisions of one tenant are never visible to another.
+
+**Data import** (technical: ingestion pipeline)
+Bringing a file or a connected source into the product: upload, map columns, check quality, then approve before it reaches the numbers.
+
+**Human check** (technical: HITL, human-in-the-loop)
+A person reviews and corrects what the machine read from an invoice, photo or PDF before it counts. Nothing read by AI enters the reports without this approval.
+
+**Ask your documents** (technical: RAG copilot, text-to-SQL)
+Asking questions over uploaded documents and the database. Answers cite their source; unsafe queries are blocked.
+
+**Where a number came from** (technical: data lineage)
+The trail from a figure on screen back to the file, step and model that produced it.
+
+**Business map** (technical: digital twin)
+A visual model of stores, warehouses and channels used to try a change and see where it ripples.
+
+**Why the AI said this** (technical: XAI, explainability)
+The factors behind a recommendation and how strongly each one pushed it.
+
+**Tamper-evident log** (technical: hash chain)
+Each decision record is linked to the one before it, so an edited or deleted record is detectable.

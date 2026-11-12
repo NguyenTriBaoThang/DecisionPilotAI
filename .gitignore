@@ -9,3 +9,4 @@ data/raw/
 data/storage/
 frontend/test-results/
 frontend/playwright-report/
+.superpowers/

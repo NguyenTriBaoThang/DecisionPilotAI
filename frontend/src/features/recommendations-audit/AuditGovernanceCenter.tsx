@@ -51,6 +51,7 @@ import {
 import { AllocationDonutCard } from '../../components/charts/AllocationDonutCard'
 import { ENTERPRISE_DONUT_PALETTE, type DonutSegmentItem } from '../../components/charts/dashboardDonuts'
 import { useT } from '../../preferences'
+import { PageHero, TechDetails } from '../../redesign/ui'
 import { Button, Card, ErrorState, KPIStatCard, Loading, PageHeader, Pill, SectionHeader, useToast } from '../../ui'
 
 function riskTone(sev: string): string {
@@ -173,12 +174,8 @@ export function AuditGovernanceCenter({ dataset }: { dataset?: Dataset }) {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        eyebrow="TAMPER-EVIDENT CRYPTOGRAPHIC GOVERNANCE"
-        title="Audit Trail, Model Governance & Risk Center"
-        subtitle="SHA-256 hash-chained decision ledger, append-only SQL trigger enforcement, PSI model drift monitoring, and full 14-step lineage traceability."
-        aside={
-          <div className="flex flex-wrap items-center gap-2">
+      <PageHero tone="neutral" illus="clipboard" title={t('Audit trail')} subtitle={t('Every decision and model change, recorded in order and checked for tampering.')}>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             <Link
               to="/recommendations"
               className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold"
@@ -196,8 +193,7 @@ export function AuditGovernanceCenter({ dataset }: { dataset?: Dataset }) {
               <span>Export JSON</span>
             </Button>
           </div>
-        }
-      />
+      </PageHero>
 
       <ErrorState error={overview.error} retry={() => void overview.refetch()} />
       {overview.isLoading && <Loading />}
@@ -293,6 +289,7 @@ export function AuditGovernanceCenter({ dataset }: { dataset?: Dataset }) {
           </div>
 
           {/* 6 MANDATORY AUDIT VISUALIZATIONS */}
+          <TechDetails summary={t('Charts: events, model quality, data quality and outcomes')}>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5" data-testid="audit-charts-grid">
             {/* 1. Event Distribution Donut */}
             <AllocationDonutCard
@@ -419,6 +416,7 @@ export function AuditGovernanceCenter({ dataset }: { dataset?: Dataset }) {
               </div>
             </Card>
           </div>
+          </TechDetails>
         </>
       )}
 
