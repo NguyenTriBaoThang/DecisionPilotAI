@@ -50,6 +50,23 @@ A made-up person or situation used to explain the product (the shop owner "Lan")
 **Estimate vs. fact**
 A *fact* is computed from recorded data (revenue, ad spend). An *estimate* is a forecast or a tried scenario; it is conditional and may be wrong. The product labels which is which.
 
+## Screens (since 12/11)
+
+**Today** (VI: Hôm nay)
+The morning page: one summary sentence, key numbers with change vs. last period, a warning, a suggestion and the next-30-days estimate.
+
+**Ask AI** (VI: Hỏi AI)
+Ask in plain words; the answer shows one big number, a chart, the table behind it, the period and the data sources.
+
+**Try first** (VI: Thử trước)
+Pick price, advertising or restock, drag a slider, read the before/after table, then *Choose* or *Skip*.
+
+**Decisions** (VI: Quyết định)
+Suggestions waiting for a choice (priority, reason, expected impact, risk) and the decision log.
+
+**Advanced** (VI: Nâng cao)
+The specialist modules below, kept out of the owner's main path.
+
 ## Enterprise modules (added 11/11)
 
 **Workspace / tenant** (technical: `company_id`, multi-tenant)
