@@ -4,7 +4,9 @@ from __future__ import annotations
 from collections import deque
 from datetime import date, datetime, timezone
 import hashlib
+import json
 import logging
+import threading
 from typing import Any
 
 from fastapi import HTTPException
@@ -680,8 +682,298 @@ def record_runtime_event(
                     metadata=insight.get("metadata") or {},
                     created_at=now,
                 )
+        with _CACHE_GUARD:
+            _RUNTIME_EPOCH[company_id] = _RUNTIME_EPOCH.get(company_id, 0) + 1
     except Exception as exc:
         log.warning("Non-fatal lineage telemetry write skipped (%s): %s", event_type, exc)
+
+
+_CACHE_GUARD = threading.Lock()
+_SYNC_LOCKS: dict[tuple[str, str], threading.Lock] = {}
+_LINEAGE_SYNC_CACHE: dict[tuple[str, str], tuple[str, dict[str, Any]]] = {}
+_RUNTIME_EPOCH: dict[str, int] = {}
+
+
+def _lineage_scope_key(engine: sa.Engine, company_id: str) -> tuple[str, str] | None:
+    if engine.dialect.name == "sqlite" and str(engine.url.database or "") in {"", ":memory:"}:
+        return None
+    return (str(engine.url), company_id)
+
+
+def _get_sync_lock(scope_key: tuple[str, str]) -> threading.Lock:
+    with _CACHE_GUARD:
+        lock = _SYNC_LOCKS.get(scope_key)
+        if lock is None:
+            lock = threading.Lock()
+            _SYNC_LOCKS[scope_key] = lock
+        return lock
+
+
+def _get_runtime_epoch(company_id: str) -> int:
+    with _CACHE_GUARD:
+        return _RUNTIME_EPOCH.get(company_id, 0)
+
+
+def _compute_lineage_state_fingerprint(engine: sa.Engine, company_id: str) -> str | None:
+    """Fast read-only fingerprint of every DB table & artifact influencing company lineage."""
+    epoch = _get_runtime_epoch(company_id)
+    with engine.connect() as conn:
+        comp = conn.execute(
+            sa.select(
+                companies.c.id,
+                companies.c.name,
+                companies.c.active_dataset_id,
+                companies.c.updated_at,
+            ).where(companies.c.id == company_id)
+        ).mappings().first()
+        if comp is None:
+            return None
+
+        legacy_ds = (
+            tuple(
+                conn.execute(
+                    sa.select(sa.func.count(), sa.func.max(legacy_datasets.c.id)).select_from(legacy_datasets)
+                ).first()
+                or (0, None)
+            )
+            if company_id == "comp-default"
+            else None
+        )
+        ds_state = [
+            (r["id"], r["status"], bool(r["is_active"]), r["storage_mode"], r["updated_at"], r["imported_at"])
+            for r in conn.execute(
+                sa.select(
+                    enterprise_datasets.c.id,
+                    enterprise_datasets.c.status,
+                    enterprise_datasets.c.is_active,
+                    enterprise_datasets.c.storage_mode,
+                    enterprise_datasets.c.updated_at,
+                    enterprise_datasets.c.imported_at,
+                )
+                .where(enterprise_datasets.c.company_id == company_id)
+                .order_by(enterprise_datasets.c.id.asc())
+            ).mappings()
+        ]
+        src_state = [
+            (r["id"], r["status"], r["last_synced_at"], r["updated_at"])
+            for r in conn.execute(
+                sa.select(
+                    data_sources.c.id,
+                    data_sources.c.status,
+                    data_sources.c.last_synced_at,
+                    data_sources.c.updated_at,
+                )
+                .where(data_sources.c.company_id == company_id)
+                .order_by(data_sources.c.id.asc())
+            ).mappings()
+        ]
+        qr_state = tuple(
+            conn.execute(
+                sa.select(
+                    sa.func.count(),
+                    sa.func.max(dataset_quality_reports.c.id),
+                    sa.func.sum(dataset_quality_reports.c.overall_score),
+                ).where(dataset_quality_reports.c.company_id == company_id)
+            ).first()
+            or (0, None, None)
+        )
+        implog_state = tuple(
+            conn.execute(
+                sa.select(sa.func.count(), sa.func.max(import_logs.c.id)).where(
+                    import_logs.c.company_id == company_id
+                )
+            ).first()
+            or (0, None)
+        )
+        clog_state = [
+            (r["id"], r["status"])
+            for r in conn.execute(
+                sa.select(connector_sync_logs.c.id, connector_sync_logs.c.status)
+                .where(connector_sync_logs.c.company_id == company_id)
+                .order_by(connector_sync_logs.c.id.asc())
+            ).mappings()
+        ]
+        mm_state = [
+            (
+                r["id"],
+                r["processing_status"],
+                r["validation_status"],
+                r["extraction_status"],
+                r["updated_at"],
+                r["imported_at"],
+            )
+            for r in conn.execute(
+                sa.select(
+                    multimodal_files.c.id,
+                    multimodal_files.c.processing_status,
+                    multimodal_files.c.validation_status,
+                    multimodal_files.c.extraction_status,
+                    multimodal_files.c.updated_at,
+                    multimodal_files.c.imported_at,
+                )
+                .where(multimodal_files.c.company_id == company_id)
+                .order_by(multimodal_files.c.id.asc())
+            ).mappings()
+        ]
+        job_state = [
+            (r["id"], r["status"], r["stage"], int(r["progress_pct"] or 0), r["finished_at"])
+            for r in conn.execute(
+                sa.select(
+                    ingestion_jobs.c.id,
+                    ingestion_jobs.c.status,
+                    ingestion_jobs.c.stage,
+                    ingestion_jobs.c.progress_pct,
+                    ingestion_jobs.c.finished_at,
+                )
+                .where(ingestion_jobs.c.company_id == company_id)
+                .order_by(ingestion_jobs.c.id.asc())
+            ).mappings()
+        ]
+        ext_state = tuple(
+            conn.execute(
+                sa.select(sa.func.count(), sa.func.max(extracted_records.c.id)).where(
+                    extracted_records.c.company_id == company_id
+                )
+            ).first()
+            or (0, None)
+        )
+        ins_state = tuple(
+            conn.execute(
+                sa.select(sa.func.count(), sa.func.max(tenant_multimodal_insights.c.approved_at)).where(
+                    tenant_multimodal_insights.c.company_id == company_id
+                )
+            ).first()
+            or (0, None)
+        )
+        rag_state = [
+            (r["id"], r["status"], r["updated_at"])
+            for r in conn.execute(
+                sa.select(rag_documents.c.id, rag_documents.c.status, rag_documents.c.updated_at)
+                .where(rag_documents.c.company_id == company_id)
+                .order_by(rag_documents.c.id.asc())
+            ).mappings()
+        ]
+        rag_chunk_count = int(
+            conn.scalar(
+                sa.select(sa.func.count()).select_from(rag_chunks).where(rag_chunks.c.company_id == company_id)
+            )
+            or 0
+        )
+        sim_state = tuple(
+            conn.execute(
+                sa.select(sa.func.count(), sa.func.max(simulations.c.id)).where(simulations.c.company_id == company_id)
+            ).first()
+            or (0, None)
+        )
+        audit_state = tuple(
+            conn.execute(
+                sa.select(sa.func.count(), sa.func.max(audit.c.id)).where(audit.c.company_id == company_id)
+            ).first()
+            or (0, None)
+        )
+        chat_state = tuple(
+            conn.execute(
+                sa.select(sa.func.count(), sa.func.max(chat_messages.c.id)).where(
+                    chat_messages.c.company_id == company_id
+                )
+            ).first()
+            or (0, None)
+        )
+        evt_state = tuple(
+            conn.execute(
+                sa.select(
+                    sa.func.count(),
+                    sa.func.max(pipeline_events.c.id),
+                    sa.func.max(pipeline_events.c.timestamp),
+                ).where(pipeline_events.c.company_id == company_id)
+            ).first()
+            or (0, None, None)
+        )
+        pipe_state = tuple(
+            conn.execute(
+                sa.select(sa.func.count(), sa.func.max(pipelines.c.id)).where(pipelines.c.company_id == company_id)
+            ).first()
+            or (0, None)
+        )
+        node_count = int(
+            conn.scalar(
+                sa.select(sa.func.count()).select_from(lineage_nodes).where(lineage_nodes.c.company_id == company_id)
+            )
+            or 0
+        )
+
+    active_ds_id = comp["active_dataset_id"]
+    art_sig: tuple[str, int | None, int | None] | None = None
+    if active_ds_id:
+        active_ds_row = next((d for d in ds_state if d[0] == active_ds_id), None)
+        is_part = (active_ds_row[3] == "partitioned") if active_ds_row else (company_id != "comp-default")
+        art_file = (
+            services.ARTIFACTS / f"tenant_{company_id}__{active_ds_id}.joblib"
+            if is_part
+            else services.ARTIFACTS / f"{active_ds_id}.joblib"
+        )
+        if art_file.is_file():
+            st = art_file.stat()
+            art_sig = (str(art_file), st.st_mtime_ns, st.st_size)
+        else:
+            art_sig = (str(art_file), None, None)
+
+    rag_cfg = get_rag_settings()
+    payload = {
+        "epoch": epoch,
+        "comp": (comp["name"], comp["active_dataset_id"], comp["updated_at"]),
+        "legacy_ds": legacy_ds,
+        "ds_state": ds_state,
+        "src_state": src_state,
+        "qr_state": qr_state,
+        "implog_state": implog_state,
+        "clog_state": clog_state,
+        "mm_state": mm_state,
+        "job_state": job_state,
+        "ext_state": ext_state,
+        "ins_state": ins_state,
+        "rag_state": rag_state,
+        "rag_chunk_count": rag_chunk_count,
+        "sim_state": sim_state,
+        "audit_state": audit_state,
+        "chat_state": chat_state,
+        "evt_state": evt_state,
+        "pipe_state": pipe_state,
+        "node_count": node_count,
+        "art_sig": art_sig,
+        "rag_cfg": (rag_cfg.vector_backend, rag_cfg.embedding_provider),
+    }
+    return json.dumps(payload, sort_keys=True, default=str)
+
+
+def ensure_company_lineage_synced(engine: sa.Engine, company_id: str) -> dict[str, Any]:
+    """Skip expensive SQLite write reconciliation when real DB + artifact state is unchanged."""
+    scope_key = _lineage_scope_key(engine, company_id)
+    if scope_key is None:
+        return _sync_company_lineage_unlocked(engine, company_id)
+
+    with _CACHE_GUARD:
+        cached = _LINEAGE_SYNC_CACHE.get(scope_key)
+    if cached is not None:
+        cur_fp = _compute_lineage_state_fingerprint(engine, company_id)
+        if cur_fp is not None and cur_fp == cached[0]:
+            return cached[1]
+
+    with _get_sync_lock(scope_key):
+        with _CACHE_GUARD:
+            cached = _LINEAGE_SYNC_CACHE.get(scope_key)
+        if cached is not None:
+            cur_fp = _compute_lineage_state_fingerprint(engine, company_id)
+            if cur_fp is not None and cur_fp == cached[0]:
+                return cached[1]
+
+        epoch_before = _get_runtime_epoch(company_id)
+        result = _sync_company_lineage_unlocked(engine, company_id)
+        post_fp = _compute_lineage_state_fingerprint(engine, company_id)
+        if post_fp is not None and _get_runtime_epoch(company_id) == epoch_before:
+            with _CACHE_GUARD:
+                _LINEAGE_SYNC_CACHE[scope_key] = (post_fp, result)
+        return result
 
 
 # ---------------------------------------------------------------------------
@@ -691,6 +983,20 @@ def record_runtime_event(
 
 def sync_company_lineage(engine: sa.Engine, company_id: str) -> dict[str, Any]:
     """Reconcile lineage_nodes, lineage_edges, pipelines, pipeline_runs, pipeline_events & business_insights from real DB state."""
+    scope_key = _lineage_scope_key(engine, company_id)
+    if scope_key is None:
+        return _sync_company_lineage_unlocked(engine, company_id)
+    with _get_sync_lock(scope_key):
+        epoch_before = _get_runtime_epoch(company_id)
+        result = _sync_company_lineage_unlocked(engine, company_id)
+        post_fp = _compute_lineage_state_fingerprint(engine, company_id)
+        if post_fp is not None and _get_runtime_epoch(company_id) == epoch_before:
+            with _CACHE_GUARD:
+                _LINEAGE_SYNC_CACHE[scope_key] = (post_fp, result)
+        return result
+
+
+def _sync_company_lineage_unlocked(engine: sa.Engine, company_id: str) -> dict[str, Any]:
     dialect = _dialect_label(engine)
     now = _utc_now()
 
@@ -2840,7 +3146,7 @@ def get_lineage_graph(
     owner: str | None = None,
     search: str | None = None,
 ) -> dict[str, Any]:
-    sync_res = sync_company_lineage(engine, company_id)
+    sync_res = ensure_company_lineage_synced(engine, company_id)
 
     with engine.connect() as conn:
         all_nodes = [
@@ -3017,7 +3323,7 @@ def traverse_lineage(
     node_id: str,
     direction: str,
 ) -> dict[str, Any]:
-    sync_company_lineage(engine, company_id)
+    ensure_company_lineage_synced(engine, company_id)
     with engine.connect() as conn:
         root = _require_owned_node(conn, company_id, node_id)
         all_nodes = {
@@ -3051,27 +3357,16 @@ def traverse_lineage(
     }
 
 
-def analyze_impact(engine: sa.Engine, *, company_id: str, node_id: str) -> dict[str, Any]:
-    sync_company_lineage(engine, company_id)
-    with engine.connect() as conn:
-        root = _require_owned_node(conn, company_id, node_id)
-        all_nodes = {
-            r["id"]: _serialize_node(dict(r))
-            for r in conn.execute(sa.select(lineage_nodes).where(lineage_nodes.c.company_id == company_id)).mappings()
-        }
-        all_edges = [
-            _serialize_edge(dict(r))
-            for r in conn.execute(sa.select(lineage_edges).where(lineage_edges.c.company_id == company_id)).mappings()
-        ]
-        all_pipes = {
-            r["id"]: _serialize_pipeline(dict(r))
-            for r in conn.execute(sa.select(pipelines).where(pipelines.c.company_id == company_id)).mappings()
-        }
-        insights_rows = [
-            dict(r)
-            for r in conn.execute(sa.select(business_insights).where(business_insights.c.company_id == company_id)).mappings()
-        ]
-
+def _build_impact_result(
+    *,
+    company_id: str,
+    node_id: str,
+    root: dict[str, Any],
+    all_nodes: dict[str, dict[str, Any]],
+    all_edges: list[dict[str, Any]],
+    all_pipes: dict[str, dict[str, Any]],
+    stored_insights_count: int,
+) -> dict[str, Any]:
     up_ids, _, _ = _bfs_closure(all_edges, {node_id}, "upstream")
     dn_ids, _, dn_depths = _bfs_closure(all_edges, {node_id}, "downstream")
 
@@ -3133,7 +3428,7 @@ def analyze_impact(engine: sa.Engine, *, company_id: str, node_id: str) -> dict[
         "dependent_nodes": dependent_nodes,
         "affected_reports": affected_reports,
         "affected_pipelines": affected_pipelines,
-        "stored_business_insights_count": len(insights_rows),
+        "stored_business_insights_count": stored_insights_count,
         "reprocessing_recommendations": recs,
         "honesty_note": (
             "If an upstream data source changes or reports a warning, downstream pipelines and insights are candidates "
@@ -3142,8 +3437,44 @@ def analyze_impact(engine: sa.Engine, *, company_id: str, node_id: str) -> dict[
     }
 
 
+def analyze_impact(engine: sa.Engine, *, company_id: str, node_id: str) -> dict[str, Any]:
+    ensure_company_lineage_synced(engine, company_id)
+    with engine.connect() as conn:
+        root = _require_owned_node(conn, company_id, node_id)
+        all_nodes = {
+            r["id"]: _serialize_node(dict(r))
+            for r in conn.execute(sa.select(lineage_nodes).where(lineage_nodes.c.company_id == company_id)).mappings()
+        }
+        all_edges = [
+            _serialize_edge(dict(r))
+            for r in conn.execute(sa.select(lineage_edges).where(lineage_edges.c.company_id == company_id)).mappings()
+        ]
+        all_pipes = {
+            r["id"]: _serialize_pipeline(dict(r))
+            for r in conn.execute(sa.select(pipelines).where(pipelines.c.company_id == company_id)).mappings()
+        }
+        stored_insights_count = int(
+            conn.scalar(
+                sa.select(sa.func.count())
+                .select_from(business_insights)
+                .where(business_insights.c.company_id == company_id)
+            )
+            or 0
+        )
+
+    return _build_impact_result(
+        company_id=company_id,
+        node_id=node_id,
+        root=root,
+        all_nodes=all_nodes,
+        all_edges=all_edges,
+        all_pipes=all_pipes,
+        stored_insights_count=stored_insights_count,
+    )
+
+
 def get_node_detail(engine: sa.Engine, *, company_id: str, node_id: str) -> dict[str, Any]:
-    sync_company_lineage(engine, company_id)
+    ensure_company_lineage_synced(engine, company_id)
     with engine.connect() as conn:
         node = _require_owned_node(conn, company_id, node_id)
         all_nodes = {
@@ -3158,6 +3489,14 @@ def get_node_detail(engine: sa.Engine, *, company_id: str, node_id: str) -> dict
             r["id"]: _serialize_pipeline(dict(r))
             for r in conn.execute(sa.select(pipelines).where(pipelines.c.company_id == company_id)).mappings()
         }
+        stored_insights_count = int(
+            conn.scalar(
+                sa.select(sa.func.count())
+                .select_from(business_insights)
+                .where(business_insights.c.company_id == company_id)
+            )
+            or 0
+        )
         node_events = [
             _serialize_event(dict(r))
             for r in conn.execute(
@@ -3190,7 +3529,15 @@ def get_node_detail(engine: sa.Engine, *, company_id: str, node_id: str) -> dict
     related_pipe_ids = sorted({*(node["metadata"].get("pipeline_ids") or []), *([node["pipeline_id"]] if node.get("pipeline_id") else [])})
     related_pipelines = [all_pipes[pid] for pid in related_pipe_ids if pid in all_pipes]
 
-    impact = analyze_impact(engine, company_id=company_id, node_id=node_id)
+    impact = _build_impact_result(
+        company_id=company_id,
+        node_id=node_id,
+        root=node,
+        all_nodes=all_nodes,
+        all_edges=all_edges,
+        all_pipes=all_pipes,
+        stored_insights_count=stored_insights_count,
+    )
     meta = node["metadata"]
 
     return {
@@ -3236,7 +3583,7 @@ def get_node_detail(engine: sa.Engine, *, company_id: str, node_id: str) -> dict
 
 
 def list_pipelines_summary(engine: sa.Engine, *, company_id: str) -> dict[str, Any]:
-    sync_company_lineage(engine, company_id)
+    ensure_company_lineage_synced(engine, company_id)
     with engine.connect() as conn:
         pipe_rows = [
             _serialize_pipeline(dict(r))
@@ -3267,7 +3614,7 @@ def list_pipelines_summary(engine: sa.Engine, *, company_id: str) -> dict[str, A
 
 
 def list_pipeline_runs(engine: sa.Engine, *, company_id: str, pipeline_id: str) -> dict[str, Any]:
-    sync_company_lineage(engine, company_id)
+    ensure_company_lineage_synced(engine, company_id)
     with engine.connect() as conn:
         p_row = conn.execute(sa.select(pipelines).where(pipelines.c.id == pipeline_id)).mappings().first()
         if p_row is None:
@@ -3286,7 +3633,7 @@ def list_pipeline_runs(engine: sa.Engine, *, company_id: str, pipeline_id: str) 
 
 
 def get_run_events(engine: sa.Engine, *, company_id: str, run_id: str) -> dict[str, Any]:
-    sync_company_lineage(engine, company_id)
+    ensure_company_lineage_synced(engine, company_id)
     with engine.connect() as conn:
         r_row = conn.execute(sa.select(pipeline_runs).where(pipeline_runs.c.id == run_id)).mappings().first()
         if r_row is None:

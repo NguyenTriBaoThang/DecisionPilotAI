@@ -360,20 +360,20 @@ def create_app(engine=None, storage: ObjectStorage | None = None):
                 raise HTTPException(404, "Run this scenario before recording a decision.")
             recommendation = None
             if body.recommendation_id:
-                recommendation = next((r for r in services.recommendations(conn, info) if r["id"] == body.recommendation_id), None)
-                if recommendation is None:
-                    xrow = conn.execute(
-                        sa.select(xai_recommendations.c.legacy_payload_json).where(
-                            xai_recommendations.c.company_id == cid,
-                            xai_recommendations.c.dataset_id == body.dataset_id,
-                            sa.or_(
-                                xai_recommendations.c.rec_key == body.recommendation_id,
-                                xai_recommendations.c.id == body.recommendation_id,
-                            ),
-                        )
-                    ).mappings().first()
-                    if xrow:
-                        recommendation = xrow["legacy_payload_json"]
+                xrow = conn.execute(
+                    sa.select(xai_recommendations.c.legacy_payload_json).where(
+                        xai_recommendations.c.company_id == cid,
+                        xai_recommendations.c.dataset_id == body.dataset_id,
+                        sa.or_(
+                            xai_recommendations.c.rec_key == body.recommendation_id,
+                            xai_recommendations.c.id == body.recommendation_id,
+                        ),
+                    )
+                ).mappings().first()
+                if xrow and xrow["legacy_payload_json"]:
+                    recommendation = xrow["legacy_payload_json"]
+                else:
+                    recommendation = next((r for r in services.recommendations(conn, info) if r["id"] == body.recommendation_id), None)
                 if recommendation is None:
                     raise HTTPException(404, "Recommendation is no longer available.")
             latest = latest_decision(conn, "scenario_feedback", body.simulation_id, body.dataset_id, company_id=cid)
@@ -462,20 +462,20 @@ def create_app(engine=None, storage: ObjectStorage | None = None):
             ds_title = info["title"]
             if info["dataset_id"]!=body.dataset_id:
                 raise HTTPException(409,"The dataset changed. Review the latest recommendation.")
-            recommendation = next((r for r in services.recommendations(conn,info) if r["id"] == body.recommendation_id), None)
-            if recommendation is None:
-                xrow = conn.execute(
-                    sa.select(xai_recommendations.c.legacy_payload_json).where(
-                        xai_recommendations.c.company_id == cid,
-                        xai_recommendations.c.dataset_id == body.dataset_id,
-                        sa.or_(
-                            xai_recommendations.c.rec_key == body.recommendation_id,
-                            xai_recommendations.c.id == body.recommendation_id,
-                        ),
-                    )
-                ).mappings().first()
-                if xrow:
-                    recommendation = xrow["legacy_payload_json"]
+            xrow = conn.execute(
+                sa.select(xai_recommendations.c.legacy_payload_json).where(
+                    xai_recommendations.c.company_id == cid,
+                    xai_recommendations.c.dataset_id == body.dataset_id,
+                    sa.or_(
+                        xai_recommendations.c.rec_key == body.recommendation_id,
+                        xai_recommendations.c.id == body.recommendation_id,
+                    ),
+                )
+            ).mappings().first()
+            if xrow and xrow["legacy_payload_json"]:
+                recommendation = xrow["legacy_payload_json"]
+            else:
+                recommendation = next((r for r in services.recommendations(conn,info) if r["id"] == body.recommendation_id), None)
             if recommendation is None:
                 raise HTTPException(404,"Recommendation is no longer available.")
             latest = latest_decision(conn, "recommendation_feedback", body.recommendation_id, body.dataset_id, company_id=cid)
