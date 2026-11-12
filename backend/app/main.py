@@ -24,6 +24,7 @@ from backend.app.db import audit, companies, datasets, make_engine, read_connect
 from backend.app.governance import service as governance_service
 from backend.app.governance.hash_chain import append_audited_event, redact_secrets
 from backend.app.governance.router import build_governance_router
+from backend.app.investigation.router import build_investigation_router
 from backend.app.ingestion import service as ingestion_service
 from backend.app.ingestion.router import build_ingestion_router
 from backend.app.ingestion.storage import ObjectStorage, get_object_storage
@@ -155,6 +156,7 @@ def create_app(engine=None, storage: ObjectStorage | None = None):
     lineage_router = build_lineage_router(engine)
     simulator_router = build_simulator_router(engine)
     governance_router = build_governance_router(engine)
+    investigation_router = build_investigation_router(engine)
     app.include_router(ingestion_router, prefix="/v1")
     app.include_router(ingestion_router, prefix="/api/v1", include_in_schema=False)
     app.include_router(multimodal_router, prefix="/v1")
@@ -165,6 +167,8 @@ def create_app(engine=None, storage: ObjectStorage | None = None):
     app.include_router(simulator_router, prefix="/api/v1", include_in_schema=False)
     app.include_router(governance_router, prefix="/v1")
     app.include_router(governance_router, prefix="/api/v1", include_in_schema=False)
+    app.include_router(investigation_router, prefix="/v1")
+    app.include_router(investigation_router, prefix="/api/v1", include_in_schema=False)
     app.include_router(lineage_router)
     app.include_router(lineage_router, prefix="/api", include_in_schema=False)
 
