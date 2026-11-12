@@ -11,6 +11,7 @@ from backend.app.db import calendar, inventory, inv_cases, marketing, read_conne
 from backend.app.investigation.decomposition import SOURCE, decompose_revenue, scope_conditions
 from backend.app.investigation.evidence import Evidence, REFUSAL_TEXT, assess
 from backend.app.investigation.trace import emit
+from backend.app.investigation.narration import narrate
 
 
 @dataclass(frozen=True)
@@ -161,6 +162,11 @@ def run_investigation(engine, case_id: str, info: dict, clock_end: date) -> dict
             'scope': scope, 'causes': [asdict(c) for c in decomposition.causes], 'sufficiency': asdict(sufficiency),
             'evidence': [ev for f in findings for ev in f['evidence']]}
         write('verifier','verdict', {**asdict(sufficiency), 'text': summary['headline']})
+        with engine.connect() as conn:
+            events = __import__('backend.app.investigation.trace', fromlist=['read_after']).read_after(conn, case_id, 0)
+        lines, source = narrate(events)
+        write('orchestrator', 'narration', {'lines': lines, 'source': source,
+              'text': 'Đã tạo lời kể từ sự kiện và bằng chứng của lượt điều tra.'})
         with engine.begin() as conn:
             conn.execute(inv_cases.update().where(inv_cases.c.id == case_id).values(summary=summary,
                 status='refused' if sufficiency.level == 'refused' else 'awaiting_decision',run_state='done'))

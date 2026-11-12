@@ -70,7 +70,8 @@ def test_run_emits_assign_then_findings_then_verdict(investigated):
     assert [e['seq'] for e in events] == list(range(1, len(events) + 1))
     assert [e['type'] for e in events[:7]] == ['assign'] * 7
     assert sum(e['type'] == 'finding' for e in events) == 7
-    assert events[-1]['type'] == 'verdict'
+    assert events[-2]['type'] == 'verdict'
+    assert events[-1]['type'] == 'narration'
 
 
 def test_inventory_hypothesis_eliminated_for_sep_2026(investigated):
@@ -100,6 +101,26 @@ def test_sparse_case_refused(inv_env):
     summary = run_investigation(inv_env[1], case_id, info, date(2026, 9, 30))
     assert summary['sufficiency']['level'] == 'refused'
     assert REFUSAL_TEXT in summary['headline']
+
+
+def test_llm_failure_falls_back_to_template(inv_env, monkeypatch):
+    import httpx
+    from datetime import date
+    from ai_service.llm_orchestrator import PROVIDERS
+    from backend.app.investigation.agents import run_investigation
+    from backend.app.investigation.trace import read_after
+    from backend.app.db import inv_cases
+    class Provider:
+        def extract(self, prompt, question):
+            raise httpx.TimeoutException('test timeout')
+    monkeypatch.setitem(PROVIDERS, 'test', (Provider, 'INV_TEST_KEY'))
+    monkeypatch.setenv('INV_TEST_KEY', 'test')
+    monkeypatch.setenv('LLM_PROVIDER', 'test')
+    case_id, info = make_case(inv_env[1])
+    run_investigation(inv_env[1], case_id, info, date(2026,9,30))
+    with inv_env[1].connect() as conn:
+        assert read_after(conn, case_id, 0)[-1]['payload']['source'] == 'template'
+        assert conn.scalar(sa.select(inv_cases.c.run_state).where(inv_cases.c.id == case_id)) == 'done'
 
 
 def test_migration_creates_investigation_tables(tmp_path, monkeypatch):
