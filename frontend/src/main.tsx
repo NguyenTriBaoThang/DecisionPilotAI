@@ -96,7 +96,7 @@ function AppShell({ session }: { session: Session }) {
   usePageTranslations(preferences.language)
 
   const [companyId, setCompanyId] = useState(getActiveCompanyId)
-  const [dark, setDark] = useState(readSessionDarkMode)
+  const [dark, setDark] = useState(false) // ponytail: light-only redesign (spec §6); readSessionDarkMode kept for when dark tokens exist
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('dp-sidebar-collapsed') === '1')
   const [open, setOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)

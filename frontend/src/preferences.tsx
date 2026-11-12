@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { redesignStrings } from './redesign/strings'
 
 export type Preferences = { language: 'en' | 'vi'; currency: 'vnd' | 'compact' }
 
@@ -989,6 +990,7 @@ export const translations: Record<string, { vi: string; en: string }> = {
   '14-Step Trace': { vi: 'Dấu vết 14 Bước', en: '14-Step Trace' },
   'Acknowledge': { vi: 'Tiếp nhận xử lý', en: 'Acknowledge' },
   'Mark Resolved': { vi: 'Đánh dấu Đã xử lý', en: 'Mark Resolved' },
+  ...redesignStrings,
 }
 
 export function translate(text: string, language: Preferences['language']): string {
