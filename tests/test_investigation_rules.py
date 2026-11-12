@@ -48,3 +48,10 @@ def test_llm_invented_number_replaced(monkeypatch):
     event = {'seq': 1, 'type': 'finding', 'payload': {'text': 'Đã kiểm tra doanh thu.', 'numbers': {'share': 0.18}}}
     lines, _ = narrate([event], 'test')
     assert lines == [{'seq': 1, 'text': template_line(event)}]
+
+
+def test_prediction_verdict_rules():
+    from backend.app.investigation.scoring import verdict
+    assert verdict(0.12,0.08)=='correct'
+    assert verdict(0.12,-0.02)=='wrong'
+    assert verdict(0.12,0.03)=='wrong'

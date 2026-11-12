@@ -8,9 +8,10 @@ from fastapi import HTTPException
 
 from backend.app import services
 from backend.app.analytics import dataset_info
-from backend.app.db import inv_cases, inv_predictions, products
+from backend.app.db import inv_cases, inv_predictions, products, sales, marketing
 from backend.app.governance.hash_chain import append_audited_event
 from backend.app.investigation.evidence import Evidence
+from backend.app.investigation.scoring import calibration_factor
 from backend.app.schemas import MarketingRequest, MarketingParams, PriceRequest, PriceParams
 
 
@@ -46,7 +47,7 @@ def build_options(conn, info: dict, summary: dict) -> list[Option]:
     if not sku:
         raise HTTPException(422, "Không có sản phẩm để mô phỏng phương án giá.")
     metric = "gross_profit" if channel else "revenue"
-    baseline_daily = max(1.0, float(summary.get("baseline_daily", 0) or 1))
+    factor = calibration_factor(conn, info['company_id'], 'revenue_drop')
     hold = {"result_type": "scenario estimate", "baseline": {"revenue": 0, "profit": 0}, "alternatives": [], "recommended": {"revenue_delta": 0, "profit_delta": 0}, "evidence": {"method": "exact", "assumptions": ["Giữ nguyên, mức thay đổi bằng 0%."]}}
     options = [Option("hold", "Giữ nguyên", metric, {}, 0.0, 0.0, 14, hold,
                       [_evidence("strategist", "Mức thay đổi so với giữ nguyên là 0%.", {"delta_pct": 0}, hold, info)])]
@@ -65,7 +66,7 @@ def build_options(conn, info: dict, summary: dict) -> list[Option]:
     base = result["baseline"]
     denom = float(base.get("profit" if channel else "revenue") or 1)
     delta = float(alternate.get("profit_delta" if channel else "revenue_delta", 0)) / denom
-    options.append(Option(key, "Điều chỉnh theo nguyên nhân chính", metric, scope, delta, delta, 14, result,
+    options.append(Option(key, "Điều chỉnh theo nguyên nhân chính", metric, scope, delta, delta*factor, 14, result,
                           [_evidence("strategist", "Dự báo mô phỏng có điều kiện.", {"delta_pct": delta}, result, info)]))
     request2 = PriceRequest(type="price", objective="profit", horizon=7,
                             parameters=PriceParams(product=sku[min(1, len(sku)-1)], discounts=[0.05]))
@@ -74,7 +75,7 @@ def build_options(conn, info: dict, summary: dict) -> list[Option]:
     denom2 = float(result2["baseline"].get("revenue") or 1)
     delta2 = float(alternate2.get("revenue_delta", 0)) / denom2
     key2 = f"price:{sku[min(1, len(sku)-1)]}:0.05"
-    options.append(Option(key2, "Giảm giá nhẹ cho sản phẩm chủ lực", "revenue", {"product": sku[min(1, len(sku)-1)]}, delta2, delta2, 14, result2,
+    options.append(Option(key2, "Giảm giá nhẹ cho sản phẩm chủ lực", "revenue", {"product": sku[min(1, len(sku)-1)]}, delta2, delta2*factor, 14, result2,
                           [_evidence("strategist", "Dự báo mô phỏng có điều kiện.", {"delta_pct": delta2}, result2, info)]))
     try:
         quality = services.model_quality(info)
@@ -103,7 +104,19 @@ def decide(engine, case_id: str, option_key: str, actor: str, today: date) -> di
         chosen = next((o for o in options if o.key == option_key), None)
         if chosen is None:
             raise HTTPException(422, "Phương án không hợp lệ hoặc chưa có đủ bằng chứng.")
-        baseline = max(1.0, float(summary.get("baseline_daily", 1)))
+        window_start = today - timedelta(days=27)
+        measure = sales.c.gross_profit if chosen.metric == 'gross_profit' else sales.c.revenue
+        base_query = sa.select(sa.func.sum(measure)).where(sales.c.date.between(window_start, today))
+        if chosen.scope.get('product'):
+            base_query = base_query.where(sales.c.product_id == chosen.scope['product'])
+        if chosen.scope.get('region'):
+            base_query = base_query.where(sales.c.region == chosen.scope['region'])
+        if chosen.scope.get('channel'):
+            base_query = base_query.select_from(sales.join(marketing, sa.and_(sales.c.campaign_id == marketing.c.campaign_id,
+                sales.c.date == marketing.c.date))).where(marketing.c.channel == chosen.scope['channel'])
+        baseline = float(conn.scalar(base_query) or 0) / 28
+        if baseline <= 0:
+            raise HTTPException(422, 'Không đủ doanh thu nền để theo dõi phương án này.')
         row = {"id": "pred-" + uuid4().hex, "case_id": case_id, "option_key": option_key,
                "metric": chosen.metric, "scope": chosen.scope, "baseline_daily": baseline,
                "predicted_delta_pct": chosen.predicted_delta_pct, "calibrated_delta_pct": chosen.calibrated_delta_pct,
