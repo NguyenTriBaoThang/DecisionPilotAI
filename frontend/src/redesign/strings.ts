@@ -146,4 +146,10 @@ export const redesignStrings: Record<string, { vi: string; en: string }> = {
   'Ad performance by channel': { vi: 'Hiệu quả quảng cáo theo kênh', en: 'Ad performance by channel' },
   'Spend': { vi: 'Chi phí', en: 'Spend' },
   'Compared with': { vi: 'So sánh với kỳ', en: 'Compared with' },
+  'Suggestion': { vi: 'Gợi ý', en: 'Suggestion' },
+  'Decision': { vi: 'Quyết định', en: 'Decision' },
+  'local workspace': { vi: 'không gian cục bộ', en: 'local workspace' },
+  'Warnings': { vi: 'Cảnh báo', en: 'Warnings' },
+  'Could not load warnings': { vi: 'Chưa tải được cảnh báo', en: 'Could not load warnings' },
+  'Could not load suggestions': { vi: 'Chưa tải được gợi ý', en: 'Could not load suggestions' },
 }

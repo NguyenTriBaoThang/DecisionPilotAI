@@ -31,7 +31,7 @@ test('sign in, save preferences, review a scenario, and verify its audit event',
   await expect(page.getByText(/Recorded: Choose/)).toBeVisible()
   await page.goto('/decisions')
   await expect(page.getByText(/browser-admin/).first()).toBeVisible()
-  await expect(page.getByText(/scenario_feedback/).first()).toBeVisible()
+  await expect(page.getByText('Advertising · Facebook Ads · -15%').first()).toBeVisible()
   await page.goto('/data-sources')
   await expect(page.getByLabel('Business snapshot file')).toBeVisible()
   await expect(page.getByText('dp-1.1', { exact: true })).toBeVisible()

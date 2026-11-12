@@ -99,6 +99,17 @@ describe('TodayPage', () => {
     expect(await screen.findByText('Doanh thu')).toBeTruthy()
   })
 
+  it('says so when warnings or suggestions fail to load', async () => {
+    vi.mocked(api.request).mockImplementation(async (path: string) => {
+      if (path.startsWith('/kpi/summary')) return { summary: {}, changes: {}, range: [], trend: [], products: [], regions: [], sales_channels: [], marketing_channels: [] } as never
+      if (path === '/forecast') return { total: 1 } as never
+      throw new Error('500')
+    })
+    renderPage(<TodayPage dataset={DATASET} options={OPTIONS} />)
+    expect(await screen.findByText('Chưa tải được cảnh báo')).toBeTruthy()
+    expect(await screen.findByText('Chưa tải được gợi ý')).toBeTruthy()
+  })
+
   it('shows an empty state linking to Data when there is no dataset', () => {
     renderPage(<TodayPage options={OPTIONS} />)
     expect(screen.getByRole('link', { name: /Dữ liệu|tải dữ liệu/i }).getAttribute('href')).toBe('/data-sources')

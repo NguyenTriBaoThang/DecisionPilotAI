@@ -45,6 +45,6 @@ test('Today warning -> Ask -> Decisions -> Try first -> Choose settles the log',
   await expect(page.getByText(/Recorded: Choose/)).toBeVisible()
 
   await page.getByRole('link', { name: 'See decisions', exact: true }).click()
-  await expect(page.getByText(/recommendation_feedback/).first()).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByTestId(/^log-/).filter({ hasText: 'Review Facebook Ads allocation' })).toContainText('Suggestion', { timeout: 30_000 })
   await expect(page.getByTestId('rec-marketing:facebook')).toHaveCount(0)
 })

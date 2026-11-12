@@ -81,6 +81,28 @@ describe('DecisionsPage', () => {
     expect(within(screen.getByTestId('count-chosen')).getByText('1')).toBeTruthy()
   })
 
+  it('titles Try-first decisions from their request, translates the kind, hides non-feedback rows, flags capped counts', async () => {
+    vi.mocked(api.request).mockImplementation(async (path: string) => {
+      if (path === '/recommendations') return { rows: [] } as never
+      return {
+        rows: [
+          { id: 9, occurred_at: '2026-11-12T09:00:00+07:00', kind: 'scenario_feedback', subject: 'a'.repeat(64), payload: { decision: 'accepted', actor: 'a', simulation_id: 'x', request: { type: 'marketing', parameters: { channel: 'Facebook Ads', changes: [-0.15] } } } },
+          { id: 8, occurred_at: '2026-11-12T08:00:00+07:00', kind: 'recommendation_action', subject: 'r1', payload: { action: 'comment' } },
+        ],
+        next_before: 8,
+      } as never
+    })
+    renderPage(<DecisionsPage dataset={DATASET} options={OPTIONS} canEdit />)
+    const row = await screen.findByTestId('log-9')
+    expect(row.textContent).toContain('Facebook Ads')
+    expect(row.textContent).not.toContain('a'.repeat(64))
+    expect(row.textContent).not.toContain('scenario_feedback')
+    expect(within(row).getByText(/Thử trước/)).toBeTruthy()
+    expect(screen.queryByTestId('log-8')).toBeNull()
+    await waitFor(() => expect(within(screen.getByTestId('count-chosen')).getByText('1+')).toBeTruthy())
+    expect(vi.mocked(api.request).mock.calls.some((c) => String(c[0]).includes('limit=100'))).toBe(true)
+  })
+
   it('disables decisions for viewers', async () => {
     renderPage(<DecisionsPage dataset={DATASET} options={OPTIONS} canEdit={false} />)
     const fb = await screen.findByTestId('rec-marketing:facebook')

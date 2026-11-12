@@ -267,6 +267,8 @@ function AppShell({ session }: { session: Session }) {
           {!ds.isLoading && !ds.data && (
             <Routes key={`empty:${companyId}`}>
               <Route path="/ask" element={<Ask canEdit={session.role !== 'viewer'} />} />
+              <Route path="/advanced" element={<AdvancedPage />} />
+              <Route path="/advanced/copilot" element={<Ask canEdit={session.role !== 'viewer'} />} />
               <Route
                 path="/advanced/simulator-3d"
                 element={

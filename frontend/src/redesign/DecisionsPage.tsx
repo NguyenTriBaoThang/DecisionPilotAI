@@ -14,9 +14,28 @@ const STATUS = {
   pending: { key: 'Waiting', cls: 'bg-amber-100 text-amber-800' },
 } as const
 
-function auditTitle(row: Audit): string {
+const FEEDBACK_KINDS = new Set(['recommendation_feedback', 'scenario_feedback'])
+const KIND_LABEL: Record<string, string> = { recommendation_feedback: 'Suggestion', scenario_feedback: 'Try first' }
+const TYPE_LABEL: Record<string, string> = { marketing: 'Advertising', price: 'Change price', inventory: 'Restock' }
+
+/** Human title: the recommendation title, or for a Try-first run "<type> · <channel/product> · <value>" (never the sha subject). */
+function auditTitle(row: Audit, t: (s: string) => string, productName: (id: string) => string): string {
   const rec = row.payload.recommendation as unknown as { title?: string } | undefined
-  return rec?.title ?? row.subject
+  if (rec?.title) return t(rec.title)
+  const req = row.payload.request as unknown as
+    | { type?: string; parameters?: { channel?: string; product?: string; changes?: number[]; discounts?: number[]; order_quantities?: number[] } }
+    | undefined
+  if (req?.type) {
+    const p = req.parameters ?? {}
+    const target = p.channel ?? (p.product ? productName(p.product) : '')
+    const value =
+      p.changes?.[0] != null ? `${p.changes[0] > 0 ? '+' : ''}${Math.round(p.changes[0] * 100)}%`
+      : p.discounts?.[0] != null ? `-${Math.round(p.discounts[0] * 100)}%`
+      : p.order_quantities?.[0] != null ? `${p.order_quantities[0]}`
+      : ''
+    return [t(TYPE_LABEL[req.type] ?? req.type), target, value].filter(Boolean).join(' · ')
+  }
+  return t('Decision')
 }
 
 export function DecisionsPage({ dataset, options, canEdit }: { dataset?: Dataset; options?: Options; canEdit: boolean }) {
@@ -29,7 +48,7 @@ export function DecisionsPage({ dataset, options, canEdit }: { dataset?: Dataset
   })
   const log = useQuery({
     queryKey: ['audit', 'decisions', dataset?.dataset_id],
-    queryFn: () => request<{ rows: Audit[]; next_before: number | null }>('/audit?kind=decisions'),
+    queryFn: () => request<{ rows: Audit[]; next_before: number | null }>('/audit?kind=decisions&limit=100'),
     enabled: Boolean(dataset),
   })
   const feedback = useMutation({
@@ -51,7 +70,11 @@ export function DecisionsPage({ dataset, options, canEdit }: { dataset?: Dataset
   const linkedSims = new Set(
     (log.data?.rows ?? []).filter((r) => r.kind === 'recommendation_feedback' && r.payload.simulation_id).map((r) => String(r.payload.simulation_id))
   )
-  const logRows = (log.data?.rows ?? []).filter((r) => !(r.kind === 'scenario_feedback' && linkedSims.has(String(r.payload.simulation_id))))
+  const logRows = (log.data?.rows ?? [])
+    .filter((r) => FEEDBACK_KINDS.has(r.kind))
+    .filter((r) => !(r.kind === 'scenario_feedback' && linkedSims.has(String(r.payload.simulation_id))))
+  const capped = log.data?.next_before != null
+  const productName = (id: string) => options?.products.find((p) => p.product_id === id)?.product_name ?? id
   const count = (b: 'chosen' | 'skipped') => logRows.filter((r) => decisionBucket(String(r.payload.decision ?? '')) === b).length
   const stats: { id: 'chosen' | 'skipped' | 'pending'; illus: IllusName; label: string; value: number; bg: string; fg: string }[] = [
     { id: 'chosen', illus: 'check', label: t('Chosen'), value: count('chosen'), bg: '#dcfce7', fg: '#15803d' },
@@ -68,7 +91,7 @@ export function DecisionsPage({ dataset, options, canEdit }: { dataset?: Dataset
           <div key={s.id} data-testid={`count-${s.id}`} className="flex items-center gap-3 rounded-[18px] p-4" style={{ background: s.bg }}>
             <Illus name={s.illus} size={36} />
             <div>
-              <div className="text-2xl font-extrabold" style={{ color: s.fg }}>{recs.isLoading || log.isLoading ? '—' : s.value}</div>
+              <div className="text-2xl font-extrabold" style={{ color: s.fg }}>{recs.isLoading || log.isLoading ? '—' : `${s.value}${capped && s.id !== 'pending' ? '+' : ''}`}</div>
               <div className="text-sm text-slate-700">{s.label}</div>
             </div>
           </div>
@@ -121,9 +144,9 @@ export function DecisionsPage({ dataset, options, canEdit }: { dataset?: Dataset
                 <li key={row.id} data-testid={`log-${row.id}`} className="flex flex-wrap items-center gap-3 rounded-[18px] bg-white p-4 shadow-sm">
                   <Illus name={row.kind === 'scenario_feedback' ? 'testtube' : iconFor(recId)} size={40} />
                   <div className="min-w-0 flex-1">
-                    <div className="font-extrabold text-slate-900">{t(auditTitle(row))}</div>
+                    <div className="font-extrabold text-slate-900">{auditTitle(row, t, productName)}</div>
                     <div className="text-xs text-slate-500">
-                      {String(row.payload.actor ?? 'local-workspace')} · {dateLabel(row.occurred_at.slice(0, 10))} · {row.kind}
+                      {String(row.payload.actor ?? t('local workspace'))} · {dateLabel(row.occurred_at.slice(0, 10))} · {t(KIND_LABEL[row.kind] ?? row.kind)}
                     </div>
                   </div>
                   <Pill className={st.cls}>{t(bucket === 'chosen' ? 'Chosen' : bucket === 'skipped' ? 'Skipped' : 'Waiting')}</Pill>

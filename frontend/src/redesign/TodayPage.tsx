@@ -121,6 +121,8 @@ export function TodayPage({ dataset, options }: { dataset?: Dataset; options?: O
       <div className="px-3 sm:px-6">
         <SectionLabel>{t('WHAT NEEDS YOUR ATTENTION TODAY')}</SectionLabel>
         <div className="grid gap-5 md:grid-cols-3">
+          {alerts.isError && <NoteCard color="yellow" illus="warning" title={t('Warnings')} body={t('Could not load warnings')} />}
+          {recs.isError && <NoteCard color="green" illus="bulb" title={t('Suggested next step')} body={t('Could not load suggestions')} />}
           {topAlert && (
             <NoteCard
               color="yellow"
