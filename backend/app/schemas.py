@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 Slug = Annotated[str, Field(min_length=1,max_length=100)]
 CurrencyCode = Literal["VND", "USD", "EUR", "GBP"]
 ConnectorType = Literal["file_upload", "postgresql", "sql_server", "mysql", "rest_api", "erp_crm_pos"]
-Horizon = Literal[7,30]
+Horizon = Literal[7,14,30]
 Objective = Literal["profit","revenue","stockout","balanced"]
 Grain = Literal["daily","weekly","monthly"]
 

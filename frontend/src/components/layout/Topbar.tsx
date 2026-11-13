@@ -33,6 +33,7 @@ import {
 import { useT } from '../../preferences'
 import { StatusBadge } from '../../ui'
 import { LanguageSwitcher } from '../LanguageSwitcher'
+import { TimeMachineBar } from '../../investigation/TimeMachineBar'
 
 interface TopbarProps {
   activeTitle: string
@@ -516,6 +517,7 @@ export function Topbar({
           )}
         </div>
       </div>
+      {companyId === 'comp-default' && dataset?.kind === 'synthetic' && <TimeMachineBar canEdit={session.role !== 'viewer'} />}
     </header>
   )
 }

@@ -21,6 +21,11 @@ def _read_artifact(path, modified):
     return joblib.load(path)
 
 
+def clear_caches() -> None:
+    """Discard artifact bundles after the demo data changes in place."""
+    _read_artifact.cache_clear()
+
+
 def artifact_path(info):
     if is_partitioned(info):
         return ARTIFACTS / f"tenant_{info['company_id']}__{info['dataset_id']}.joblib"
@@ -225,7 +230,12 @@ def _simulate_uncached(conn, info, request):
     if request.type == "marketing":
         values = scenario.marketing_scenario(conn,info,request)
     else:
-        f = forecast(conn,info,ForecastRequest(target="demand",product=request.parameters.product,horizon=request.horizon))
+        forecast_horizon = 30 if request.horizon == 14 else request.horizon
+        f = forecast(conn,info,ForecastRequest(target="demand",product=request.parameters.product,horizon=forecast_horizon))
+        if request.horizon == 14:
+            # The trained artifact has 7- and 30-day heads. The first 14 daily
+            # predictions of its 30-day head provide the requested 14-day window.
+            f = {**f, "prediction": f["prediction"][:14]}
         values = (scenario.price_scenario(conn,info,request,f) if request.type == "price" else
                   scenario.inventory_scenario(conn,request,f,info=info))
     result = scenario.compare(request.type,request.objective,*values)
